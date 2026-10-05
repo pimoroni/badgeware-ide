@@ -7,7 +7,7 @@ import math
 
 badge.mode(HIRES)
 
-skull = image.load("/system/assets/skull.png")
+skull = image.load("/assets/skull.png")
 add_sprite("skull", skull)
 screen.font = font.compass
 

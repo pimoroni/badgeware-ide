@@ -6,7 +6,7 @@ import math
 
 badge.mode(LORES | VSYNC)
 
-skull = image.load("/system/assets/skull.png")
+skull = image.load("/assets/skull.png")
 
 def magic_sprite(src, pos, scale=1, angle=0):
   w, h = src.width, src.height

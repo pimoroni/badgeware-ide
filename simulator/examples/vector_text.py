@@ -7,9 +7,9 @@ import math
 
 badge.mode(HIRES)
 
-skull = image.load("/system/assets/skull.png")
+skull = image.load("/assets/skull.png")
 add_sprite("skull", skull)
-mona_sans = font.load("/system/assets/fonts/DynaPuff-Medium.af")
+mona_sans = font.load("/fonts/DynaPuff-Medium.af")
 
 
 # A renderer is fn(image, params, measure): it returns its advance width when

@@ -6,7 +6,7 @@ import math
 
 badge.mode(LORES | VSYNC)
 
-skull = image.load("/system/assets/skull.png")
+skull = image.load("/assets/skull.png")
 
 while True:
   random.seed(0)

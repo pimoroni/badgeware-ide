@@ -5,7 +5,7 @@
 badge.mode(HIRES)
 
 # running.png is 7 frames of 32x32 in a single row.
-sheet = spritesheet.load("/system/assets/squirrel-sprites/running.png", 7, 1)
+sheet = spritesheet.load("/assets/squirrel-sprites/running.png", 7, 1)
 
 while True:
     # Advance one frame every 80ms.

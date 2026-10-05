@@ -95,6 +95,7 @@ export const userFS = {
   paths:       ()     => backend.paths(),
   rename:      (a, b) => backend.rename(a, b),
   load:        (p)    => (backend.load ? backend.load(p) : Promise.resolve(backend.get(p))),
+  flush:       ()     => (backend.flush ? backend.flush() : Promise.resolve()),
   workerFiles: ()     => (backend.workerFiles ? backend.workerFiles() : []),
 };
 

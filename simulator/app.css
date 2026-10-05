@@ -1620,3 +1620,62 @@
       cursor: pointer;
     }
     #copy-dialog footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
+
+    #config {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 22px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .config-doc { max-width: 640px; margin: 0 auto; color: var(--faint); }
+    .config-doc h2 { color: var(--white); font-size: var(--text-lg); font-weight: 700; margin-bottom: 6px; }
+    .config-doc p { margin-bottom: 10px; line-height: 1.5; }
+    .config-doc code { color: var(--orange); }
+    .config-doc [hidden] { display: none !important; }
+    .config-notice { padding: 12px; border: 1px solid var(--border); border-radius: 6px; color: var(--white); }
+    .config-doc fieldset {
+      margin: 18px 0;
+      padding: 14px 16px 6px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .config-doc legend { padding: 0 6px; color: var(--white); font-weight: 400; }
+    .config-doc label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: var(--text-sm); }
+    .config-doc input[type="text"],
+    .config-doc input[type="password"],
+    .config-doc input[type="number"],
+    .config-doc select {
+      padding: 7px 9px;
+      font: inherit;
+      font-size: var(--text-sm);
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .config-password { display: flex; gap: 4px; }
+    .config-password input { flex: 1; }
+    .config-doc button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: var(--text-sm);
+      color: var(--faint);
+      background: var(--hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .config-doc button:hover { color: var(--white); background: var(--hover-strong); }
+    .config-doc button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
+    .config-doc .material-symbols-outlined { font-size: var(--icon); }
+    .config-custom { list-style: none; margin-bottom: 10px; }
+    .config-custom li { display: grid; grid-template-columns: 2fr 7em 3fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .config-custom .config-key { font-family: Consolas, Monaco, monospace; }
+    .config-custom .config-bool { justify-self: start; width: 18px; height: 18px; }
+    .config-unsupported { color: var(--orange); font-size: var(--text-sm); }
+    .config-doc footer { display: flex; justify-content: space-between; gap: 10px; margin: 18px 0 30px; }

@@ -73,6 +73,7 @@
   <button data-action="editor" data-mode="badge" title="Code on your badge"><span class="material-symbols-outlined">developer_board</span>Badge</button>
   <button data-action="editor" data-mode="simulator" title="Code in the simulator"><span class="material-symbols-outlined">view_in_ar</span>Simulator</button>
   <button data-action="fonts" title="Font Explorer"><span class="material-symbols-outlined">font_download</span>Font Explorer</button>
+  <button data-action="config" title="Badge settings: WiFi, region and your own keys"><span class="material-symbols-outlined">tune</span>Config</button>
   <button id="connect-badge" title="Connect your badge"><span class="material-symbols-outlined">usb</span><span>Connect badge</span></button>
   <button class="help" data-action="help" title="Help" aria-label="Help"><span class="material-symbols-outlined">help</span></button>
 </div>
@@ -191,6 +192,41 @@
            tick, then borrow whatever you fancy for your own.</p>
       </div>
     </div>
+    <section id="config" aria-label="Badge settings">
+      <div class="config-doc">
+        <h2>Badge settings</h2>
+        <p>Saved to <code>secrets.py</code> on your badge. Apps read these with <code>import secrets</code>, eg. <code>secrets.WIFI_SSID</code>.</p>
+        <p class="config-notice" hidden>Connect your badge to edit its settings.</p>
+        <form autocomplete="off">
+          <fieldset>
+            <legend>WiFi</legend>
+            <label>Network name <input name="wifi_ssid" type="text" spellcheck="false"></label>
+            <label>Password
+              <span class="config-password">
+                <input name="wifi_password" type="password" spellcheck="false" autocomplete="new-password">
+                <button type="button" data-config="reveal" title="Show password"><span class="material-symbols-outlined">visibility</span></button>
+              </span>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Time</legend>
+            <label>Daylight saving rules <select name="region"></select></label>
+            <label>Offset from GMT, in hours <input name="timezone" type="number" step="0.25" min="-12" max="14"></label>
+          </fieldset>
+          <fieldset>
+            <legend>Your settings</legend>
+            <p>Extra keys for apps that need them, eg. <code>GITHUB_USERNAME</code>.</p>
+            <ul class="config-custom"></ul>
+            <button type="button" data-config="add"><span class="material-symbols-outlined">add</span>Add setting</button>
+          </fieldset>
+          <p class="config-unsupported" hidden><span></span></p>
+          <footer>
+            <button type="button" data-config="code">Edit secrets.py as code</button>
+            <button type="submit" class="primary">Save settings</button>
+          </footer>
+        </form>
+      </div>
+    </section>
     <div id="statusbar"><output id="status"></output></div>
   </main>
 

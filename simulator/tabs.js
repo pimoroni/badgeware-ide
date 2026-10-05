@@ -70,7 +70,8 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     panes.editorPane.style.display = view === 'editor' ? '' : 'none';
     panes.imgPreview.style.display = view === 'image'  ? 'flex' : 'none';
     panes.help.style.display       = view === 'help'   ? 'block' : 'none';
-    panes.tabBar.style.display     = view === 'help'   ? 'none' : '';
+    if (panes.config) panes.config.style.display = view === 'config' ? 'block' : 'none';
+    panes.tabBar.style.display     = view === 'help' || view === 'config' ? 'none' : '';
   }
 
   const langForPath = (p) => (p.endsWith('.py') ? 'python' : p.endsWith('.json') ? 'json' : 'plaintext');
@@ -522,13 +523,21 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   // touching the open tabs; toggling off returns to whatever was showing (the
   // active tab). It's a pure view switch, so the run target and editor model are
   // left exactly as they were.
-  function toggleHelp() {
-    if (currentView === 'help') {
+  function toggleView(view) {
+    if (currentView === view) {
       const t = activeTab();
       applyView(t ? t.view : 'editor');
-    } else {
-      applyView('help');
+      return false;
     }
+    applyView(view);
+    return true;
+  }
+  const toggleHelp = () => toggleView('help');
+  function refreshFile(path, text) {
+    const t = openModels.get(path);
+    if (!t?.model || t.model.getValue() === text) return;
+    if (pendingSave?.path === path) dropPendingSave(path);
+    t.model.setValue(text);
   }
 
   /* -- File-browser host callbacks ----------------------------------------- */
@@ -649,7 +658,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     // Late-bind the file browser (syncRows / refresh) once it exists.
     connect: (filebrowser) => { fb = filebrowser; },
     // App-facing operations:
-    toggleHelp, openScratchTab, saveCurrentFile, focusCodeOrNew, bootstrap,
+    toggleHelp, toggleView, refreshFile, openScratchTab, saveCurrentFile, focusCodeOrNew, bootstrap,
     getRunRequest, clearMarkers: clearRuntimeMarkers, applyMarkers: applyTracebackMarkers,
   };
 }

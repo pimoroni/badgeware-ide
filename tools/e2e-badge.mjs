@@ -218,6 +218,43 @@ await evaluate(`(() => {
 })()`);
 check('copy from simulator', await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); return !!badgeFS.get('/system/apps/e2e_sim/helper.py'); })()`, 15000));
 
+const originalSecrets = await evaluate(`(async () => {
+  const { badgeFS } = await import('./simulator/device/session.js');
+  if (!badgeFS.get('/secrets.py')) return null;
+  return (await badgeFS.load('/secrets.py')).text;
+})()`);
+await open('?mode=badge');
+await evaluate(`document.querySelector('[data-action="config"]').click()`);
+check('config pane loads settings', await waitFor(`!document.querySelector('#config form').hidden && document.querySelector('#config [name=region]').value !== ''`, 10000));
+await evaluate(`(() => {
+  const form = document.querySelector('#config form');
+  form.elements.wifi_ssid.value = 'E2E "Net"';
+  form.elements.wifi_password.value = 'p\\\\ss';
+  form.elements.timezone.value = '5.5';
+  document.querySelector('[data-config="add"]').click();
+  const row = document.querySelector('.config-custom li:last-child');
+  row.querySelector('.config-key').value = 'GITHUB_USERNAME';
+  row.querySelector('.config-value').value = 'octocat';
+  form.requestSubmit();
+})()`);
+check('config saves', await waitFor(`document.getElementById('status').textContent.includes('Saved settings to your badge')`, 15000), await status());
+const savedSecrets = await evaluate(`(async () => {
+  const { badgeDevice } = await import('./simulator/device/session.js');
+  return new TextDecoder().decode(await badgeDevice.read('/secrets.py'));
+})()`);
+check('secrets.py written to the badge', savedSecrets.includes('WIFI_SSID = "E2E \\"Net\\""') && savedSecrets.includes('GITHUB_USERNAME = "octocat"') && savedSecrets.includes('TIMEZONE = 5.5'), savedSecrets);
+await evaluate(`document.querySelector('[data-action="config"]').click()`);
+await evaluate(`monaco.editor.getEditors()[0].setValue('import secrets\\nprint(secrets.GITHUB_USERNAME, secrets.WIFI_SSID, secrets.WIFI_PASSWORD, secrets.TIMEZONE)\\n')`);
+await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
+check('badge reads the new secrets', await waitFor(`document.querySelector('#stdout > div').textContent.includes('octocat E2E "Net" p\\\\ss 5.5')`, 20000), await stdout());
+await evaluate(`(async () => {
+  const { badgeDevice, badgeFS } = await import('./simulator/device/session.js');
+  const original = ${JSON.stringify(originalSecrets)};
+  if (original === null) await badgeDevice.remove('/secrets.py');
+  else await badgeDevice.write('/secrets.py', new TextEncoder().encode(original));
+  await badgeFS.reload();
+  return true;
+})()`);
 check('cleans up the badge', await cleanBadge());
 await evaluate(`document.querySelector('#toolbar [data-action="editor"][data-mode="simulator"]').click()`);
 check('switches to simulator mode', await waitFor(`document.body.dataset.mode === 'simulator' && location.search.includes('mode=simulator')`, 15000));

@@ -15,6 +15,7 @@ import { createBadgeTarget } from './target.js';
 import { createDebugger } from './debugger.js';
 import { createIconEditor } from './icon-editor.js';
 import { createApp } from './app-scaffold.js';
+import { createConfigPane } from './config-pane.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { pathMapFor, appSlug, runTargetFor } from './device/paths.js';
 import { editorUrl } from './mode.js';
@@ -55,6 +56,7 @@ async function initApp() {
       editorPane: editorEl,
       imgPreview: document.getElementById('img-preview'),
       help:       document.getElementById('help'),
+      config:     document.getElementById('config'),
     },
     { editor, setStatus, flashStatus, notifyRunTarget, selectMobilePanel },
   );
@@ -165,6 +167,16 @@ async function initApp() {
       return false;
     });
   }
+  const configPane = createConfigPane(document.getElementById('config'), {
+    userFS, mode, flashStatus,
+    openFile: (path) => { tabs.toggleView('editor'); tabs.openFile(path, { transient: false }); },
+    refreshFile: tabs.refreshFile,
+    isConnected: () => !!badgeDevice?.connected,
+  });
+  badgeEvents.addEventListener('change', () => {
+    const pane = document.getElementById('config');
+    if (pane.style.display === 'block' && pane.querySelector('form').hidden) configPane.load();
+  });
   const debugCurrent = () => (target ? target.debug(tabs.getRunRequest()) : flashStatus('Debugging needs Badge mode'));
   const copyDialog = document.getElementById('copy-dialog');
   async function copyFromSimulator() {
@@ -231,6 +243,7 @@ async function initApp() {
     fonts:   () => { location.href = 'fonts.html'; },
     help:    tabs.toggleHelp,
     debug:   debugCurrent,
+    config:  () => { if (tabs.toggleView('config')) configPane.load(); },
     editor:  (button) => (button?.dataset.mode && button.dataset.mode !== mode ? (location.href = editorUrl(button.dataset.mode)) : tabs.focusCodeOrNew()),
     ...(target ? { 'run-os': target.restartLauncher, 'copy-from-simulator': copyFromSimulator } : {}),
   });

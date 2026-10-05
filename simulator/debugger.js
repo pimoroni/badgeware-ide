@@ -206,7 +206,11 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     }
     renderCurrentLine();
     els.globals.replaceChildren(element('p', 'debug-empty', 'Loading…'));
-    const scopes = await client.request({ cmd: 'scopes', frame: index }, 'scopes');
+    const scopes = await client.request({ cmd: 'scopes', frame: index }, 'scopes').catch((error) => {
+      els.globals.replaceChildren(element('p', 'debug-empty', `Could not read variables: ${error.message}`));
+      return null;
+    });
+    if (!scopes) return;
     const hasLocals = Array.isArray(scopes.locals);
     els.localsTitle.hidden = !hasLocals;
     els.locals.hidden = !hasLocals;
@@ -225,8 +229,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
       row.addEventListener('click', () => revealFrame(index));
       return row;
     }));
-    revealFrame(Math.max(0, top)).then(refreshWatches);
-    refreshScreen().catch(() => {});
+    revealFrame(Math.max(0, top)).then(refreshWatches).then(refreshScreen).catch(() => {});
   }
 
   function clearPaused() {
@@ -261,7 +264,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     const line = element('div', 'debug-eval-line');
     line.append(element('span', 'debug-eval-input', expression));
     els.evalLog.append(line);
-    const reply = await client.request({ cmd: 'eval', expr: expression, frame: selectedFrame }, 'evaluated');
+    const reply = await client.request({ cmd: 'eval', expr: expression, frame: selectedFrame }, 'evaluated').catch((error) => ({ error: error.message }));
     line.append(reply.error ? element('span', 'debug-eval-error', reply.error) : element('span', 'debug-eval-result', reply.result.value));
     els.evalLog.scrollTop = els.evalLog.scrollHeight;
   }

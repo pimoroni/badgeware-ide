@@ -78,25 +78,35 @@ export class DebugClient extends EventTarget {
     return this.link.write(JSON.stringify(command) + '\n');
   }
 
-  waitFor(event, timeout = 5000, predicate = null) {
+  waitFor(event, timeout = 5000, predicate = null, id = null) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const finish = () => {
+        clearTimeout(timer);
         this.removeEventListener(event, handler);
+        this.removeEventListener('error', onError);
+      };
+      const timer = setTimeout(() => {
+        finish();
         reject(new Error(`Debugger did not send "${event}".`));
       }, timeout);
       const handler = ({ detail }) => {
         if (predicate && !predicate(detail)) return;
-        clearTimeout(timer);
-        this.removeEventListener(event, handler);
+        finish();
         resolve(detail);
       };
+      const onError = ({ detail }) => {
+        if (id === null || (detail.id != null && detail.id !== id)) return;
+        finish();
+        reject(new Error(detail.message));
+      };
       this.addEventListener(event, handler);
+      this.addEventListener('error', onError);
     });
   }
 
   async request(command, event, timeout = 5000) {
     const id = Math.random().toString(36).slice(2);
-    const reply = this.waitFor(event, timeout, (detail) => detail.id === id);
+    const reply = this.waitFor(event, timeout, (detail) => detail.id === id, id);
     await this.send({ ...command, id });
     return reply;
   }

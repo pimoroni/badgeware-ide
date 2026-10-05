@@ -226,8 +226,14 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished }) {
         setStatus(`Putting back ${font.path} (${index + 1}/${fonts.length})…`);
         await device.romInstall(font.path, font.bytes);
       }
-      setStatus(`Installed ${plan.label}. Wrote ${result.written} of ${result.checked} sectors.${connected ? '' : ' Click Connect badge to reconnect.'}`);
-      onFinished?.();
+      const summary = `Installed ${plan.label}. Wrote ${result.written} of ${result.checked} sectors.`;
+      if (connected) {
+        setStatus('');
+        dialog.close();
+      } else {
+        setStatus(`${summary} Click Connect badge to reconnect.`);
+      }
+      onFinished?.(summary);
     } catch (error) {
       setStatus('✕ ' + (error.name === 'NotFoundError' ? 'No badge was chosen. Click Install to try again.' : error.message));
     } finally {

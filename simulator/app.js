@@ -213,7 +213,7 @@ async function initApp() {
     ? createFirmwareDialog(document.getElementById('firmware-dialog'), {
       device: badgeDevice,
       connect: (options) => badge.connect(options),
-      onFinished: () => checkFirmware(),
+      onFinished: (summary) => { flashStatus(summary, 6000); checkFirmware(); },
     })
     : null;
   async function checkFirmware() {

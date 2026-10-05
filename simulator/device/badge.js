@@ -11,6 +11,14 @@ export const BADGE_FILTERS = [
 export const SUPPORTED_MODELS = { tufty2350: 'Tufty 2350' };
 export const PROTOCOL_VERSION = 1;
 
+export class MissingReplError extends Error {
+  constructor(ident) {
+    super('Could not find the badge REPL port.');
+    this.name = 'MissingReplError';
+    this.ident = ident;
+  }
+}
+
 export class IncompatibleBadgeError extends Error {
   constructor(message, ident = null) {
     super(message);
@@ -125,7 +133,7 @@ export class BadgeDevice extends EventTarget {
     const replLink = candidates.shift()?.link ?? null;
     await Promise.all(candidates.map(({ link }) => link.close()));
     try {
-      if (!replLink) throw new Error('Could not find the badge REPL. Is the badge busy in another app?');
+      if (!replLink) throw new MissingReplError(this.ident);
       checkCompatible(this.ident);
     } catch (error) {
       await replLink?.close();

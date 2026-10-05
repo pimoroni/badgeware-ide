@@ -184,6 +184,51 @@ def test_debugger(transport, debug_port):
     channel.serial.close()
 
 
+LOOP_APP = """\
+import time
+
+count = 0
+while True:
+    count += 1
+    print("Hello")
+    time.sleep_ms(300)
+"""
+
+
+def test_pause_plain_loop(transport, debug_port):
+    put(transport, APP_FILE, LOOP_APP.encode())
+    channel = DebugChannel(debug_port)
+    transport.exec_raw_no_follow(f"import ide; ide.execute({APP_DIR!r}, debug=True)")
+    channel.receive("ready")
+    channel.send({"cmd": "init", "breakpoints": {}})
+    time.sleep(0.5)
+    ticks = []
+    for request_id in (10, 11):
+        channel.send({"cmd": "eval", "expr": "time.ticks_ms()", "id": request_id})
+        ticks.append(channel.receive("evaluated").get("result", {}).get("value"))
+        time.sleep(0.4)
+    check("eval while running updates", None not in ticks and ticks[0] != ticks[1], ticks)
+    started = time.monotonic()
+    channel.send({"cmd": "pause"})
+    stopped = channel.receive("stopped", timeout=3)
+    check("pause in a plain loop", stopped["reason"] == "pause" and stopped["stack"][0]["file"] == APP_FILE, stopped)
+    print(f"     paused after {time.monotonic() - started:.2f}s")
+    started = time.monotonic()
+    channel.send({"cmd": "screen", "id": "s"})
+    header = channel.receive("screen", timeout=10)
+    deadline = time.monotonic() + 10
+    while len(channel.buffer) < header["bytes"] and time.monotonic() < deadline:
+        channel.buffer += channel.serial.read(65536)
+    size = min(len(channel.buffer), header["bytes"])
+    channel.buffer = channel.buffer[header["bytes"]:]
+    print(f"     screen {header['width']}x{header['height']} in {time.monotonic() - started:.2f}s")
+    check("screen capture", size == header["width"] * header["height"] * 4, size)
+    transport.serial.write(b"\x03")
+    channel.receive("terminated")
+    transport.follow(5)
+    channel.serial.close()
+
+
 def test_interrupt_while_stopped(transport, debug_port):
     put(transport, APP_FILE, DEBUG_APP.encode())
     channel = DebugChannel(debug_port)
@@ -206,6 +251,7 @@ def main():
         test_files(transport)
         test_error_line(transport)
         test_debugger(transport, debug_port)
+        test_pause_plain_loop(transport, debug_port)
         test_interrupt_while_stopped(transport, debug_port)
         transport.exec(f"import ide; ide.rm({APP_DIR!r})")
     finally:

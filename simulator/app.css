@@ -1497,6 +1497,16 @@
     .debug-var-value { color: var(--white); overflow: hidden; text-overflow: ellipsis; }
     .debug-empty { color: var(--dim); }
     #debug-eval-log { max-height: 120px; overflow-y: auto; }
+    #debug-body h3 small { text-transform: none; letter-spacing: 0; color: var(--dim); }
+    #debug-screen { display: block; width: 100%; max-width: 320px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
+    #debug-screen.ready { opacity: 1; }
+    #debug-watch { list-style: none; }
+    .debug-watch-row { display: flex; gap: 8px; align-items: center; padding: 1px 6px; }
+    .debug-watch-row .debug-var-value,
+    .debug-watch-row .debug-eval-error { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .debug-watch-remove { background: none; border: none; color: var(--dim); cursor: pointer; font-size: var(--text); }
+    .debug-watch-remove:hover { color: var(--red); }
+    #debug-watch-add { width: 100%; margin-top: 4px; padding: 6px 8px; font: inherit; color: var(--white); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 4px; }
     .debug-eval-line { display: flex; flex-direction: column; padding: 2px 0; }
     .debug-eval-input::before { content: '> '; color: var(--dim); }
     .debug-eval-result { color: var(--green); }
@@ -1533,6 +1543,7 @@
     #file-ctx-menu [data-action="edit-icon"] { white-space: nowrap; }
 
     #icon-editor,
+    #pair-dialog,
     #copy-dialog {
       margin: auto;
       padding: 0;
@@ -1542,12 +1553,15 @@
       border-radius: 12px;
       max-width: calc(100vw - 32px);
     }
+    #pair-dialog::backdrop,
     #copy-dialog::backdrop,
     #icon-editor::backdrop { background: rgba(0, 0, 0, 0.6); }
     #icon-editor header,
     #icon-editor footer,
     #copy-dialog header,
-    #copy-dialog footer {
+    #copy-dialog footer,
+    #pair-dialog header,
+    #pair-dialog footer {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -1603,6 +1617,12 @@
     #icon-editor footer button { padding: 8px 14px; }
     #icon-editor footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
 
+    #pair-dialog { min-width: min(480px, calc(100vw - 32px)); max-width: 520px; }
+    #pair-dialog .pair-text { padding: 16px; color: var(--faint); line-height: 1.6; }
+    #pair-dialog header { border-bottom: 1px solid var(--border); }
+    #pair-dialog header .material-symbols-outlined { color: var(--blue); }
+    #pair-dialog h2 { font-size: var(--text); font-weight: 400; }
+    #pair-dialog footer span { flex: 1; }
     #copy-dialog { min-width: min(520px, calc(100vw - 32px)); }
     #copy-dialog header { border-bottom: 1px solid var(--border); }
     #copy-dialog header .material-symbols-outlined { color: var(--blue); }
@@ -1612,6 +1632,8 @@
     #copy-dialog .copy-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     #copy-dialog footer { border-top: 1px solid var(--border); }
     #copy-dialog footer span { flex: 1; color: var(--dim); font-size: var(--text-xs); }
+    #pair-dialog footer { justify-content: flex-end; border-top: 1px solid var(--border); }
+    #pair-dialog footer button,
     #copy-dialog footer button {
       padding: 8px 14px;
       font: inherit;
@@ -1621,6 +1643,7 @@
       border-radius: 6px;
       cursor: pointer;
     }
+    #pair-dialog footer button.primary,
     #copy-dialog footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
 
     #config {

@@ -1,4 +1,4 @@
-import { IncompatibleBadgeError } from './device/badge.js';
+import { IncompatibleBadgeError, MissingReplError } from './device/badge.js';
 import { badgeRunTarget, toDevicePath, toUserPath, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
@@ -22,8 +22,33 @@ function lineSplitter(onLine) {
 
 const fileBytes = (entry) => (entry.binary ? entry.data : new TextEncoder().encode(entry.text));
 
+const PAIR_MESSAGES = {
+  first: ['Connect your badge', 'Your badge shows up twice in the list, because it has two connections: one for code and one for the debugger. Pick either one. If Chrome only grants that one, the IDE will ask for the other next.'],
+  repl: ['One more port', 'That was the debugger connection. Pick the other entry for your badge so the IDE can run your code.'],
+  debug: ['Enable debugging', 'To debug, the IDE also needs your badge\'s second connection. Pick the entry you didn\'t choose before.'],
+};
+
 export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks }) {
   let runningPath = null;
+
+  function askToPair(kind) {
+    const [title, text] = PAIR_MESSAGES[kind];
+    els.pairDialog.querySelector('h2').textContent = title;
+    els.pairDialog.querySelector('.pair-text').textContent = text;
+    els.pairDialog.returnValue = '';
+    els.pairDialog.showModal();
+    return new Promise((resolve) => {
+      els.pairDialog.addEventListener('close', async () => {
+        if (els.pairDialog.returnValue !== 'choose') return resolve(false);
+        try {
+          await device.requestPort();
+          resolve(true);
+        } catch (_) {
+          resolve(false);
+        }
+      }, { once: true });
+    });
+  }
 
   function render() {
     const connected = device.connected;
@@ -45,17 +70,23 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
     if (device.connected) return true;
     try {
       if (!(await device.knownPorts()).length) {
-        if (!prompt) return false;
-        await device.requestPort();
+        if (!prompt || !(await askToPair('first'))) {
+          setStatus('');
+          return false;
+        }
       }
       setStatus('Connecting…');
-      await device.connect();
+      try {
+        await device.connect();
+      } catch (error) {
+        if (!(error instanceof MissingReplError) || !prompt || !(await askToPair('repl'))) throw error;
+        await device.connect();
+      }
       setStatus(`Connected to ${device.ident.board}`);
-      if (!device.canDebug) output.appendOut('Debugging is unavailable: the debug port was not found.', 'out-dim');
       await badgeFS.reload();
       return true;
     } catch (error) {
-      if (error.name === 'NotFoundError') {
+      if (error.name === 'NotFoundError' || (error instanceof MissingReplError && !prompt)) {
         setStatus('');
         return false;
       }
@@ -152,7 +183,18 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
     ready,
     run: async (request) => { await run(request); return true; },
     stop: async () => { await device.stop(); return true; },
-    debug: (request) => run(request, { debug: debuggerHooks() }),
+    debug: async (request) => {
+      if (!(await connect())) return;
+      if (!device.canDebug) {
+        if (!(await askToPair('debug'))) return;
+        await device.disconnect({ restart: false });
+        if (!(await connect({ prompt: false })) || !device.canDebug) {
+          flashStatus('✕ The debugger connection was not found', 4000);
+          return;
+        }
+      }
+      await run(request, { debug: debuggerHooks() });
+    },
     restartLauncher,
     copyToBadge,
     copyToSimulator,

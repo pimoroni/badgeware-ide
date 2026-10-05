@@ -143,6 +143,10 @@ async function initApp() {
       globals:   document.getElementById('debug-globals'),
       evalLog:   document.getElementById('debug-eval-log'),
       evalInput: document.getElementById('debug-eval'),
+      screen:    document.getElementById('debug-screen'),
+      screenTitle: document.getElementById('debug-screen-title'),
+      watchList: document.getElementById('debug-watch'),
+      watchAdd:  document.getElementById('debug-watch-add'),
     },
     { editor, tabs, setStatus, paths },
   );
@@ -153,6 +157,7 @@ async function initApp() {
       {
         connect:      document.getElementById('connect-badge'),
         connectLabel: document.querySelector('#connect-badge span:last-child'),
+        pairDialog:   document.getElementById('pair-dialog'),
       },
       { device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks },
     );

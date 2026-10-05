@@ -1,11 +1,26 @@
 import { SerialLink } from './serial-link.js';
 
+function concatChunks(chunks) {
+  const out = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
+function dispatchPayload(client, message, chunks) {
+  client.dispatch({ ...message, payload: concatChunks(chunks) });
+}
+
 export class DebugClient extends EventTarget {
   constructor(port) {
     super();
     this.link = new SerialLink(port);
-    this.pending = '';
     this.decoder = new TextDecoder();
+    this.lineChunks = [];
+    this.binary = null;
   }
 
   async open() {
@@ -18,12 +33,35 @@ export class DebugClient extends EventTarget {
     this.dispatchEvent(new CustomEvent('closed'));
   }
 
+  dispatch(message) {
+    this.dispatchEvent(new CustomEvent(message.event, { detail: message }));
+    this.dispatchEvent(new CustomEvent('message', { detail: message }));
+  }
+
   receive(bytes) {
-    this.pending += this.decoder.decode(bytes, { stream: true });
-    let newline;
-    while ((newline = this.pending.indexOf('\n')) >= 0) {
-      const line = this.pending.slice(0, newline).trim();
-      this.pending = this.pending.slice(newline + 1);
+    let offset = 0;
+    while (offset < bytes.length) {
+      if (this.binary) {
+        const take = Math.min(this.binary.remaining, bytes.length - offset);
+        this.binary.chunks.push(bytes.subarray(offset, offset + take));
+        this.binary.remaining -= take;
+        offset += take;
+        if (this.binary.remaining === 0) {
+          const { message, chunks } = this.binary;
+          this.binary = null;
+          dispatchPayload(this, message, chunks);
+        }
+        continue;
+      }
+      const newline = bytes.indexOf(10, offset);
+      if (newline < 0) {
+        this.lineChunks.push(bytes.slice(offset));
+        return;
+      }
+      this.lineChunks.push(bytes.subarray(offset, newline));
+      offset = newline + 1;
+      const line = this.decoder.decode(concatChunks(this.lineChunks)).trim();
+      this.lineChunks = [];
       if (!line) continue;
       let message;
       try {
@@ -31,8 +69,8 @@ export class DebugClient extends EventTarget {
       } catch (_) {
         continue;
       }
-      this.dispatchEvent(new CustomEvent(message.event, { detail: message }));
-      this.dispatchEvent(new CustomEvent('message', { detail: message }));
+      if (message.bytes > 0) this.binary = { message, chunks: [], remaining: message.bytes };
+      else this.dispatch(message);
     }
   }
 

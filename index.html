@@ -261,10 +261,15 @@
         <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
         <h3>Call stack</h3>
         <ol id="debug-stack"></ol>
+        <h3 id="debug-screen-title">Screen <small>as drawn so far this frame</small></h3>
+        <canvas id="debug-screen" width="160" height="120"></canvas>
         <h3 id="debug-locals-title">Locals</h3>
         <div id="debug-locals"></div>
         <h3>Globals</h3>
         <div id="debug-globals"></div>
+        <h3>Watch</h3>
+        <ul id="debug-watch"></ul>
+        <input id="debug-watch-add" type="text" placeholder="Add a watch, e.g. time.ticks_ms()" spellcheck="false" autocomplete="off">
         <h3>Evaluate</h3>
         <div id="debug-eval-log"></div>
         <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
@@ -282,6 +287,20 @@
   </aside>
 
 </div>
+
+<dialog id="pair-dialog" aria-label="Pair your badge">
+  <header>
+    <span class="material-symbols-outlined">usb</span>
+    <h2></h2>
+  </header>
+  <form method="dialog">
+    <p class="pair-text"></p>
+    <footer>
+      <button value="cancel">Cancel</button>
+      <button value="choose" class="primary">Choose port</button>
+    </footer>
+  </form>
+</dialog>
 
 <dialog id="copy-dialog" aria-label="Copy from simulator">
   <header>

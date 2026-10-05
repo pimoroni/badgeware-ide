@@ -1,4 +1,21 @@
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
+const WATCHES_KEY = 'badgeware.watches';
+const WATCH_INTERVAL_MS = 1000;
+
+function loadWatches() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WATCHES_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter((item) => typeof item === 'string') : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveWatches(watches) {
+  try {
+    localStorage.setItem(WATCHES_KEY, JSON.stringify(watches));
+  } catch (_) {}
+}
 
 function loadBreakpoints() {
   try {
@@ -32,6 +49,10 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
   let client = null;
   let stopped = null;
   let selectedFrame = 0;
+  const watches = loadWatches();
+  let watchTimer = null;
+  let watchBusy = false;
+  let screenRequest = 0;
 
   const activeUserPath = () => {
     const info = tabs.activeInfo();
@@ -128,6 +149,55 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
     return list;
   }
 
+  function renderWatches(results = []) {
+    els.watchList.replaceChildren(...watches.map((expression, index) => {
+      const result = results[index];
+      const row = element('li', 'debug-watch-row');
+      const remove = element('button', 'debug-watch-remove', '×');
+      remove.title = 'Remove watch';
+      remove.addEventListener('click', () => {
+        watches.splice(index, 1);
+        saveWatches(watches);
+        renderWatches();
+        refreshWatches();
+      });
+      const value = result?.error
+        ? element('span', 'debug-eval-error', result.error)
+        : element('span', 'debug-var-value', result ? result.result.value : '…');
+      row.append(element('span', 'debug-var-name', expression), value, remove);
+      return row;
+    }));
+  }
+
+  async function refreshWatches() {
+    if (!client || watchBusy || !watches.length) return;
+    watchBusy = true;
+    try {
+      const results = [];
+      for (const expression of watches) {
+        results.push(await client.request({ cmd: 'eval', expr: expression, frame: selectedFrame }, 'evaluated', 3000).catch(() => ({ error: 'No reply (the app may be sleeping)' })));
+      }
+      if (client) renderWatches(results);
+    } finally {
+      watchBusy = false;
+    }
+  }
+
+  function startWatching() {
+    clearInterval(watchTimer);
+    watchTimer = setInterval(() => { if (!stopped) refreshWatches(); }, WATCH_INTERVAL_MS);
+  }
+
+  async function refreshScreen() {
+    const id = `screen-${++screenRequest}`;
+    const shot = await client.request({ cmd: 'screen' }, 'screen', 10000).catch(() => null);
+    if (!shot || !stopped || id !== `screen-${screenRequest}`) return;
+    els.screen.width = shot.width;
+    els.screen.height = shot.height;
+    els.screen.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(shot.payload.buffer, shot.payload.byteOffset, shot.payload.length), shot.width, shot.height), 0, 0);
+    els.screen.classList.add('ready');
+  }
+
   async function revealFrame(index) {
     selectedFrame = index;
     const frame = stopped.stack[index];
@@ -157,11 +227,13 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
       row.addEventListener('click', () => revealFrame(index));
       return row;
     }));
-    revealFrame(Math.max(0, top));
+    revealFrame(Math.max(0, top)).then(refreshWatches);
+    refreshScreen().catch(() => {});
   }
 
   function clearPaused() {
     stopped = null;
+    els.screen.classList.remove('ready');
     document.body.classList.remove('debug-paused');
     els.stack.replaceChildren();
     els.locals.replaceChildren();
@@ -175,6 +247,7 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
   }
 
   function onClosed() {
+    clearInterval(watchTimer);
     clearPaused();
     client = null;
     document.body.classList.remove('debugging');
@@ -199,6 +272,16 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
     const button = event.target.closest('[data-debug]');
     if (button) command(button.dataset.debug);
   });
+  els.watchAdd.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || !els.watchAdd.value.trim()) return;
+    watches.push(els.watchAdd.value.trim());
+    saveWatches(watches);
+    els.watchAdd.value = '';
+    renderWatches();
+    refreshWatches();
+  });
+  renderWatches();
+
   els.evalInput.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     evaluate(els.evalInput.value);
@@ -217,6 +300,8 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
         client.addEventListener('stopped', onStopped);
         client.addEventListener('continued', onContinued);
         client.addEventListener('closed', onClosed);
+        renderWatches();
+        startWatching();
       },
     }),
   };

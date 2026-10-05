@@ -16,7 +16,7 @@ const element = (tag, attributes = {}, ...children) => {
 
 const typeOf = (value) => (typeof value === 'boolean' ? 'bool' : typeof value === 'number' ? 'number' : 'text');
 
-export function createConfigPane(el, { userFS, flashStatus, openFile, isConnected }) {
+export function createConfigPane(el, { userFS, flashStatus, openFile, isConnected, firmwareText = () => '', onFirmware = () => {} }) {
   const form = el.querySelector('form');
   const fields = {
     ssid: form.elements.wifi_ssid,
@@ -105,6 +105,7 @@ export function createConfigPane(el, { userFS, flashStatus, openFile, isConnecte
   }
 
   async function load() {
+    el.querySelector('.config-firmware-version').innerHTML = firmwareText();
     const blocked = !isConnected();
     notice.hidden = !blocked;
     form.hidden = blocked;
@@ -139,6 +140,7 @@ export function createConfigPane(el, { userFS, flashStatus, openFile, isConnecte
       flashStatus('✕ ' + error.message, 5000);
     }
   });
+  el.querySelector('[data-config="firmware"]').addEventListener('click', () => onFirmware());
   el.querySelector('[data-config="add"]').addEventListener('click', () => {
     const row = customRow();
     customList.append(row);

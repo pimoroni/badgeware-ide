@@ -205,6 +205,10 @@
         <p>Saved to <code>secrets.py</code> on your badge. Apps read these with <code>import secrets</code>, eg. <code>secrets.WIFI_SSID</code>.</p>
         <p class="config-notice" hidden>Connect your badge to edit its settings.</p>
         <form autocomplete="off">
+          <fieldset class="config-firmware">
+            <legend>Firmware</legend>
+            <p><span class="config-firmware-version"></span> <button type="button" data-config="firmware"><span class="material-symbols-outlined">system_update</span>Manage firmware</button></p>
+          </fieldset>
           <fieldset>
             <legend>WiFi</legend>
             <label>Network name <input name="wifi_ssid" type="text" spellcheck="false"></label>
@@ -315,6 +319,21 @@
       <button value="create" class="primary">Create app</button>
     </footer>
   </form>
+</dialog>
+
+<dialog id="firmware-dialog" aria-label="Badge firmware">
+  <header>
+    <span class="material-symbols-outlined">system_update</span>
+    <h2>Badge firmware</h2>
+  </header>
+  <div class="firmware-body"></div>
+  <p class="firmware-status"></p>
+  <progress max="1" value="0" hidden></progress>
+  <input type="file" accept=".uf2" hidden>
+  <footer>
+    <button data-firmware="close">Close</button>
+    <button data-firmware="flash" class="primary">Download</button>
+  </footer>
 </dialog>
 
 <dialog id="pair-dialog" aria-label="Pair your badge">

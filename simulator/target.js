@@ -1,4 +1,5 @@
 import { createConnector } from './device/connect.js';
+import { IncompatibleBadgeError } from './device/badge.js';
 import { runTargetFor, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
@@ -32,13 +33,16 @@ function workspaceFiles() {
     .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
 }
 
-export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks, autoConnect = true }) {
+export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks, autoConnect = true, onIncompatible = null }) {
   let runningPath = null;
   const connector = createConnector({
     device,
     dialog: els.pairDialog,
     setStatus,
-    onError: (error) => output.appendOut('✕ ' + error.message, 'out-error'),
+    onError: (error) => {
+      output.appendOut('✕ ' + error.message, 'out-error');
+      if (error instanceof IncompatibleBadgeError) onIncompatible?.(error);
+    },
     onChange: () => render(),
   });
   const askToPair = connector.askToPair;

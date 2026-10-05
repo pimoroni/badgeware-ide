@@ -309,6 +309,28 @@ export class BadgeDevice extends EventTarget {
     });
   }
 
+  async enterBootloader() {
+    const command = '\r\x03\x03\r\x02import machine; machine.bootloader()\r';
+    if (this.connected) {
+      await this.stop();
+      const link = this.replLink;
+      this.reset();
+      try {
+        await link.write(command);
+      } catch (_) {}
+      await link.close();
+      return;
+    }
+    for (const port of await this.knownPorts()) {
+      const link = new SerialLink(port);
+      try {
+        await link.open();
+        await link.write(command);
+      } catch (_) {}
+      await link.close();
+    }
+  }
+
   async stop() {
     if (this.running) await this.replLink.write('\x03');
   }

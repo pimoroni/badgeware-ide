@@ -1,1 +1,1 @@
-{"name":"badgeware-ide","private":true,"type":"module","scripts":{"test":"node --test 'test/*.test.mjs'"}}
+{"name":"badgeware-ide","private":true,"type":"module","scripts":{"test":"node --test 'test/*.test.mjs'"},"devDependencies":{"usb":"^3.2.1"}}

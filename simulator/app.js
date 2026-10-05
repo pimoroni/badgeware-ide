@@ -17,6 +17,7 @@ import { createIconEditor } from './icon-editor.js';
 import { createApp } from './app-scaffold.js';
 import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
+import { createFirmwareDialog, latestRelease, updateAvailable } from './firmware.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
@@ -188,7 +189,11 @@ async function initApp() {
         connectLabel: document.querySelector('#connect-badge span:last-child'),
         pairDialog:   document.getElementById('pair-dialog'),
       },
-      { device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks, autoConnect: currentTarget() === 'badge' },
+      {
+        device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks,
+        autoConnect: currentTarget() === 'badge',
+        onIncompatible: (error) => { if (!error.ident) firmwareDialog.open(null); },
+      },
     );
     badgeEvents.addEventListener('change', () => fb.refresh());
     badgeEvents.addEventListener('error', ({ detail }) => flashStatus('✕ ' + detail.message, 4000));
@@ -203,8 +208,28 @@ async function initApp() {
   });
   setStopInterceptor(async () => (onBadge() ? badge.stop() : false));
 
+  let firmwareUpdate = null;
+  const firmwareDialog = badgeDevice
+    ? createFirmwareDialog(document.getElementById('firmware-dialog'), {
+      device: badgeDevice,
+      connect: (options) => badge.connect(options),
+      onFinished: () => checkFirmware(),
+    })
+    : null;
+  async function checkFirmware() {
+    if (!badgeDevice?.connected) return;
+    firmwareUpdate = updateAvailable(badgeDevice.ident, await latestRelease());
+    document.querySelector('#toolbar [data-action="config"]').classList.toggle('update-available', !!firmwareUpdate);
+    if (firmwareUpdate) flashStatus(`Firmware ${firmwareUpdate.tag} is available. Open Config to update.`, 6000);
+  }
+  badgeDevice?.addEventListener('connected', checkFirmware);
   const configPane = createConfigPane(document.getElementById('config'), {
     userFS: badgeFS, flashStatus,
+    firmwareText: () => {
+      const version = badgeDevice?.ident?.version ?? 'unknown';
+      return firmwareUpdate ? `${version} <span class="update">(${firmwareUpdate.tag} available)</span>` : version;
+    },
+    onFirmware: () => firmwareDialog?.open(badgeDevice?.ident ?? null),
     openFile: (path) => { tabs.toggleView('editor'); guard(() => tabs.openBadgeFile(path, loadBadgeFile, { transient: false })); },
     isConnected: badgeConnected,
   });

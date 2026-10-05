@@ -28,7 +28,8 @@ import { delegate } from './util.js';
 export function createFileBrowser(els, host) {
   const { userList, sysTree, ctxMenu: menu, uploadInput, userHeader } = els;
 
-  const collapsedDirs = new Set();   // user-tree dirs the user has collapsed
+  const toggledDirs = new Set();
+  const dirsOpenByDefault = host.dirsOpenByDefault ?? true;
   let sysBuilt = false;
 
   const esc = (s) => String(s).replace(/[&<>"]/g,
@@ -69,7 +70,7 @@ export function createFileBrowser(els, host) {
     for (const [name, child] of entries) {
       const full = prefix + '/' + name;
       if (child && child.__dir) {
-        const open = user ? !collapsedDirs.has(full) : false;   // user dirs default open
+        const open = user && (dirsOpenByDefault !== toggledDirs.has(full) || (activePath ?? '').startsWith(full + '/'));
         html += `<li><details class="tree-dir" data-path="${esc(full)}"${open ? ' open' : ''}>`
               +   `<summary><span class="dir-arrow material-symbols-outlined">chevron_right</span><span>${esc(name)}/</span></summary>`
               +   `<ul class="dir-children">${nodeToHtml(child, full, user, activePath)}</ul>`
@@ -95,7 +96,7 @@ export function createFileBrowser(els, host) {
 
     // Remember which user dirs are collapsed before we blow the DOM away.
     userList.querySelectorAll('details.tree-dir[data-path]').forEach(d => {
-      if (d.open) collapsedDirs.delete(d.dataset.path); else collapsedDirs.add(d.dataset.path);
+      if (d.open === dirsOpenByDefault) toggledDirs.delete(d.dataset.path); else toggledDirs.add(d.dataset.path);
     });
 
     // Rebuilding userList drops keyboard focus; note the focused row's path so we
@@ -202,6 +203,7 @@ export function createFileBrowser(els, host) {
     ctxTarget = { path, isDir };
     menu.querySelector('[data-action="open"]').style.display = isDir ? 'none' : '';
     menu.querySelector('[data-action="new-here"]').style.display = '';
+    menu.querySelector('[data-action="edit-icon"]').style.display = !isDir && path.toLowerCase().endsWith('.png') ? '' : 'none';
     menu.style.left = e.clientX + 'px';
     menu.style.top  = e.clientY + 'px';
     menu.style.display = 'block';
@@ -223,6 +225,8 @@ export function createFileBrowser(els, host) {
   const onTarget = (fn) => () => { if (!ctxTarget) return; const t = ctxTarget; hideCtxMenu(); fn(t); };
   delegate(menu, {
     open:           onTarget((t) => host.openFile(t.path, { transient: false })),
+    'edit-icon':    onTarget((t) => host.editIcon(t.path)),
+    'copy-to-simulator': onTarget((t) => host.copyToSimulator?.(t.path, t.isDir)),
     rename:         onTarget((t) => renamePath(t.path, t.isDir)),
     delete:         onTarget((t) => deleteUserPath(t.path, t.isDir)),
     'new-here':     onTarget((t) => createUserFile(dirOf(t) + '/')),
@@ -240,21 +244,13 @@ export function createFileBrowser(els, host) {
     const newPath = dir + '/' + newName;
     if (host.userFS.get(newPath) && !confirm(newPath + ' already exists. Overwrite?')) return;
 
-    if (isDir) {
-      const prefix = path + '/';
-      for (const p of host.userFS.paths()) {
-        if (p !== prefix && !p.startsWith(prefix)) continue;
-        const np = newPath + p.slice(path.length);
-        host.userFS.set(np, host.userFS.get(p));
-        host.userFS.del(p);
-        host.onRenamed(p, np);
-      }
-    } else {
-      host.userFS.set(newPath, host.userFS.get(path));
-      host.userFS.del(path);
-      host.onRenamed(path, newPath);
-    }
-    refresh();
+    const renamed = isDir
+      ? host.userFS.paths().filter((p) => p === path + '/' || p.startsWith(path + '/'))
+      : [path];
+    host.userFS.rename(path, newPath).then(() => {
+      for (const p of renamed) host.onRenamed(p, newPath + p.slice(path.length));
+      refresh();
+    }, (error) => alert(error.message));
   }
 
   function deleteUserPath(path, isDir = false) {
@@ -294,6 +290,7 @@ export function createFileBrowser(els, host) {
      section's header (the tree below has its own delete data-action). */
   delegate(userHeader, {
     'new-file': () => host.newScratch(),
+    'new-app':  () => host.newApp(),
     'new-dir':  () => createUserDirAt(''),
     'upload':   () => uploadInput.click(),
   });

@@ -18,7 +18,7 @@ import { idbOpen } from './util.js';
 const USER_FS_DB    = 'badgeware.userfs';
 const USER_FS_STORE = 'files';
 
-export const userFS = (() => {
+export const workspaceFS = (() => {
   let data = {};
   let db   = null;
 
@@ -70,8 +70,33 @@ export const userFS = (() => {
       name,
       content: f.binary ? f.data : f.text,
     })),
+    rename: async (from, to) => {
+      for (const p of Object.keys(data)) {
+        if (p !== from && p !== from + '/' && !p.startsWith(from + '/')) continue;
+        const target = to + p.slice(from.length);
+        data[target] = data[p];
+        delete data[p];
+        write((store) => { store.put(data[target], target); store.delete(p); });
+      }
+    },
   };
 })();
+
+let backend = workspaceFS;
+
+export const setUserFSBackend = (next) => { backend = next; };
+
+export const userFS = {
+  get ready() { return backend.ready; },
+  reload:      ()     => backend.reload(),
+  get:         (p)    => backend.get(p),
+  set:         (p, v) => backend.set(p, v),
+  del:         (p)    => backend.del(p),
+  paths:       ()     => backend.paths(),
+  rename:      (a, b) => backend.rename(a, b),
+  load:        (p)    => (backend.load ? backend.load(p) : Promise.resolve(backend.get(p))),
+  workerFiles: ()     => (backend.workerFiles ? backend.workerFiles() : []),
+};
 
 /* -- System file list — populated after fetch('/simulator/filesystem.json') via
    setSystemPaths(). An accessor pair rather than a bare export, since ESM import

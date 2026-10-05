@@ -20,6 +20,7 @@ import { idbKv } from './util.js';
 import { ppfParse, ppfPreview } from './ppf.js';
 import { afParse, afPreview } from './af.js';
 import { delegate } from './util.js';
+import { currentMode } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
@@ -28,7 +29,8 @@ const APP_BASE = new URL('.', import.meta.url).href;
 // holds the whole snapshot. See simulator/util.js.
 const sessionStore = (() => {
   const kv = idbKv('badgeware.session', 'state');
-  return { load: () => kv.get('editor'), save: (value) => kv.set('editor', value) };
+  const key = currentMode() === 'badge' ? 'editor-badge' : 'editor';
+  return { load: () => kv.get(key), save: (value) => kv.set(key, value) };
 })();
 
 /* panes: the editor-area elements tabs switches between (app.js owns the lookups) —
@@ -53,7 +55,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   const openPaths     = () => new Set([...openModels.values()].filter((t) => t.path).map((t) => t.path));
   const transientPath = () => (transientTabKey ? openModels.get(transientTabKey)?.path ?? null : null);
   // Read-only = system files and image previews; editable = user text files + scratch.
-  const isReadOnly = (t) => t.source === 'sys' || t.view === 'image';
+  const isReadOnly = (t) => t.source === 'sys' || t.view === 'image' || (t.source === 'user' && !!userFS.get(t.path)?.readOnly);
   // The opaque id for a record. The string scheme is unchanged (so Monaco URIs and
   // traceback-marker matching keep working) — it just lives in ONE place.
   const binPrefix  = (path) => FILE_HANDLERS[path.slice(path.lastIndexOf('.')).toLowerCase()]?.keyPrefix ?? 'img';
@@ -474,6 +476,13 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   function openUserFile(path, transient = false) {
     const entry = userFS.get(path);
     if (!entry || entry.isDir) return;
+    if (entry.unloaded) {
+      setStatus('Loading ' + path + '…');
+      return userFS.load(path).then(
+        () => { setStatus(path); return openUserFile(path, transient); },
+        (error) => flashStatus('✕ ' + error.message, 3000),
+      );
+    }
     const ext     = path.slice(path.lastIndexOf('.')).toLowerCase();
     const handler = FILE_HANDLERS[ext];
     if (!handler) return;
@@ -568,7 +577,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     const code = editor.getValue();
     const isUserText = t.source === 'user' && t.view === 'editor';
     if (isUserText) userFS.set(t.path, { text: code, binary: false });
-    return { code, tabKey: currentTabKey, status: isUserText ? t.path : '' };
+    return { code, tabKey: currentTabKey, status: isUserText ? t.path : '', path: isUserText ? t.path : null };
   }
 
   // Mobile "Code" tab: focus the active tab, else the last open, else a fresh one.
@@ -632,6 +641,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     // The active file's path (any source/view), or null for scratch — so the
     // highlight composes with open/transient on whichever tree the file lives in.
     activePath: () => activeTab()?.path ?? null,
+    activeInfo: () => { const t = activeTab(); return t ? { source: t.source, view: t.view, path: t.path ?? null } : null; },
     openPaths, transientPath,
     isTextFile: (p) => FILE_HANDLERS[p.slice(p.lastIndexOf('.')).toLowerCase()]?.kind === 'text',
     openFile:   (path, { transient = false, system = false } = {}) => (system ? openSysFile(path, transient) : openUserFile(path, transient)),

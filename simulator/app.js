@@ -5,18 +5,27 @@
    wires them together — creates the Monaco editor, hands it to createTabs(), and
    connects the file browser, gallery, mobile nav, run provider and keybindings.
    The bottom awaits Monaco (loaded in parallel via the AMD shim in index.html). */
-import { userFS, getSystemPaths, setSystemPaths } from './fs.js';
+import { userFS, workspaceFS, getSystemPaths, setSystemPaths } from './fs.js';
 import { bootSimulator } from './boot.js';
 import { createFileBrowser } from './filebrowser.js';
 import { createTabs } from './tabs.js';
 import { createEditor } from './editor.js';
 import { initResizeHandlers } from './resize.js';
+import { createBadgeTarget } from './target.js';
+import { createDebugger } from './debugger.js';
+import { createIconEditor } from './icon-editor.js';
+import { createApp } from './app-scaffold.js';
+import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
+import { pathMapFor, appSlug, runTargetFor } from './device/paths.js';
+import { editorUrl } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
 async function initApp() {
   // Adopt the (already in-flight) simulator boot.
-  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler } = await bootSimulator();
+  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, mode } = await bootSimulator();
+  const paths = pathMapFor(mode);
+  document.querySelectorAll('#toolbar [data-action="editor"]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const mobileNav = document.getElementById('mobile-nav');
 
   // app.js is the wiring layer: it resolves the DOM by id and injects elements into
@@ -64,7 +73,28 @@ async function initApp() {
      The panel (trees, context menu, FS ops) lives in filebrowser.js; tabs.js owns
      the Monaco models/tabs. Both are handed seams so neither touches the other's
      internals; tabs.connect(fb) closes the loop (it needs fb.syncRows/refresh). */
-  const fb = createFileBrowser(
+  let fb = null;
+  const iconEditor = createIconEditor(document.getElementById('icon-editor'), {
+    userFS,
+    onSaved: (path) => {
+      fb.refresh();
+      flashStatus('Saved ' + path);
+    },
+  });
+  async function newApp() {
+    const name = prompt('What is your app called?', 'My App');
+    if (!name) return;
+    try {
+      const app = await createApp(userFS, name, paths.appsRoot);
+      fb.refresh();
+      tabs.openFile(app.main, { transient: false });
+      iconEditor.open(app.icon);
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  fb = createFileBrowser(
     {
       userList:    document.getElementById('fp-user-list'),
       sysTree:     document.getElementById('fp-sys-tree'),
@@ -83,6 +113,10 @@ async function initApp() {
       newScratch: tabs.newScratch,
       onRenamed:  tabs.onRenamed,
       onDeleted:  tabs.onDeleted,
+      newApp,
+      editIcon:   (path) => iconEditor.open(path),
+      copyToSimulator: (path, isDir) => target?.copyToSimulator(path, isDir),
+      dirsOpenByDefault: mode !== 'badge',
     },
   );
   tabs.connect(fb);
@@ -97,6 +131,73 @@ async function initApp() {
     fsReloadTimer = setTimeout(async () => { await userFS.reload(); fb.refresh(); }, 150);
   });
 
+  const debugView = createDebugger(
+    {
+      controls:  document.getElementById('debug-controls'),
+      stack:     document.getElementById('debug-stack'),
+      locals:    document.getElementById('debug-locals'),
+      localsTitle: document.getElementById('debug-locals-title'),
+      globals:   document.getElementById('debug-globals'),
+      evalLog:   document.getElementById('debug-eval-log'),
+      evalInput: document.getElementById('debug-eval'),
+    },
+    { editor, tabs, setStatus, paths },
+  );
+
+  let target = null;
+  if (badgeDevice) {
+    target = createBadgeTarget(
+      {
+        connect:      document.getElementById('connect-badge'),
+        connectLabel: document.querySelector('#connect-badge span:last-child'),
+      },
+      { device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks },
+    );
+    setRunInterceptor(target.run);
+    setStopInterceptor(target.stop);
+    badgeEvents.addEventListener('change', () => fb.refresh());
+    badgeEvents.addEventListener('error', ({ detail }) => flashStatus('✕ ' + detail.message, 4000));
+    await target.ready;
+  } else {
+    setRunInterceptor(async (request) => {
+      const app = runTargetFor(request?.path ?? null);
+      if (app.kind === 'app') request.code = `launch(${JSON.stringify(app.userPath)})`;
+      return false;
+    });
+  }
+  const debugCurrent = () => (target ? target.debug(tabs.getRunRequest()) : flashStatus('Debugging needs Badge mode'));
+  const copyDialog = document.getElementById('copy-dialog');
+  async function copyFromSimulator() {
+    const roots = [...new Set(workspaceFS.paths().filter((p) => !p.endsWith('/')).map((p) => (appSlug(p) ? `/apps/${appSlug(p)}` : p)))];
+    const list = copyDialog.querySelector('.copy-list');
+    list.replaceChildren(...(roots.length ? roots : ['']).map((root) => {
+      const item = document.createElement('li');
+      if (!root) {
+        item.textContent = 'The simulator workspace is empty.';
+        return item;
+      }
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = root;
+      box.checked = root.startsWith('/apps/');
+      label.append(box, ' ', root.startsWith('/apps/') ? `${root.slice(6)} (app)` : root);
+      item.append(label);
+      return item;
+    }));
+    copyDialog.returnValue = '';
+    copyDialog.showModal();
+    await new Promise((resolve) => copyDialog.addEventListener('close', resolve, { once: true }));
+    if (copyDialog.returnValue !== 'copy') return;
+    const chosen = [...list.querySelectorAll('input:checked')].map((box) => box.value);
+    const files = workspaceFS.paths().filter((p) => !p.endsWith('/') && chosen.some((root) => p === root || p.startsWith(root + '/')));
+    try {
+      await target.copyToBadge(files);
+    } catch (error) {
+      flashStatus('✕ ' + error.message, 4000);
+    }
+  }
+
   // Run provider + traceback markers: boot.js calls these into tabs.
   setRunProvider(tabs.getRunRequest);
   trace.clear = tabs.clearMarkers;
@@ -105,11 +206,19 @@ async function initApp() {
   // Editor keybindings: F5 runs the current content (boot), Ctrl/Cmd+S saves (tabs).
   editor.addAction({
     id:                 'badgeware.run',
-    label:              'Run in Simulator',
+    label:              'Run',
     keybindings:        [monaco.KeyCode.F5],
     contextMenuGroupId: 'navigation',
     contextMenuOrder:   1,
     run:                runCurrent,
+  });
+  editor.addAction({
+    id:                 'badgeware.debug',
+    label:              'Debug on Badge',
+    keybindings:        [monaco.KeyCode.F6],
+    contextMenuGroupId: 'navigation',
+    contextMenuOrder:   2,
+    run:                debugCurrent,
   });
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, tabs.saveCurrentFile);
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyN, tabs.newScratch);
@@ -121,7 +230,9 @@ async function initApp() {
     apps:    () => { location.href = 'apps.html'; },
     fonts:   () => { location.href = 'fonts.html'; },
     help:    tabs.toggleHelp,
-    editor:  tabs.focusCodeOrNew,
+    debug:   debugCurrent,
+    editor:  (button) => (button?.dataset.mode && button.dataset.mode !== mode ? (location.href = editorUrl(button.dataset.mode)) : tabs.focusCodeOrNew()),
+    ...(target ? { 'run-os': target.restartLauncher, 'copy-from-simulator': copyFromSimulator } : {}),
   });
 
   // Commit the home view FIRST: reopen the saved workspace + honour any ?file= /

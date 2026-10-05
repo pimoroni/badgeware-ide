@@ -70,8 +70,10 @@
   <span class="toolbar-title">Playground</span>
   <button data-action="gallery" title="Example gallery"><span class="material-symbols-outlined">grid_view</span>Examples</button>
   <button data-action="apps" title="Apps"><span class="material-symbols-outlined">apps</span>Apps</button>
-  <button data-action="editor" title="Open editor" class="active"><span class="material-symbols-outlined">code</span>Editor</button>
+  <button data-action="editor" data-mode="badge" title="Code on your badge"><span class="material-symbols-outlined">developer_board</span>Badge</button>
+  <button data-action="editor" data-mode="simulator" title="Code in the simulator"><span class="material-symbols-outlined">view_in_ar</span>Simulator</button>
   <button data-action="fonts" title="Font Explorer"><span class="material-symbols-outlined">font_download</span>Font Explorer</button>
+  <button id="connect-badge" title="Connect your badge"><span class="material-symbols-outlined">usb</span><span>Connect badge</span></button>
   <button class="help" data-action="help" title="Help" aria-label="Help"><span class="material-symbols-outlined">help</span></button>
 </div>
 
@@ -82,9 +84,11 @@
     <section id="fp-user" aria-label="User files">
       <h2>
         <span>Files</span>
+        <button data-action="new-app"  title="New app"     aria-label="New app"><span class="material-symbols-outlined">add_box</span></button>
         <button data-action="new-file" title="New file"    aria-label="New file"><span class="material-symbols-outlined">note_add</span></button>
         <button data-action="new-dir"  title="New folder"  aria-label="New folder"><span class="material-symbols-outlined">create_new_folder</span></button>
         <button data-action="upload"   title="Upload file" aria-label="Upload file"><span class="material-symbols-outlined">upload</span></button>
+        <button data-action="copy-from-simulator" title="Copy apps from the simulator" aria-label="Copy apps from the simulator"><span class="material-symbols-outlined">move_to_inbox</span></button>
         <input type="file" id="fp-upload-input" multiple hidden>
       </h2>
       <div id="fp-user-list"></div>
@@ -103,6 +107,8 @@
 
   <div id="file-ctx-menu">
     <button data-action="open">Open</button>
+    <button data-action="edit-icon">Edit icon</button>
+    <button data-action="copy-to-simulator">Copy to simulator</button>
     <button data-action="rename">Rename</button>
     <hr>
     <button data-action="new-here">New file here</button>
@@ -117,6 +123,7 @@
     <nav id="tab-bar" aria-label="Open files">
       <div id="tab-controls">
         <button data-action="new-file" title="New file" aria-label="New file"><span class="material-symbols-outlined">note_add</span></button>
+        <button data-action="debug" title="Debug on badge (F6)" aria-label="Debug"><span class="material-symbols-outlined">bug_report</span></button>
         <button data-action="run" title="Run (F5)" aria-label="Run"><span class="material-symbols-outlined">play_arrow</span></button>
         <button data-action="stop" title="Stop" aria-label="Stop" disabled><span class="material-symbols-outlined">stop</span></button>
       </div>
@@ -202,6 +209,32 @@
       </div>
     </figure>
 
+    <section id="debug-panel">
+      <h2>
+        <span>Debug</span>
+        <span id="debug-controls">
+          <button data-debug="continue" title="Continue"><span class="material-symbols-outlined">resume</span></button>
+          <button data-debug="pause" title="Pause"><span class="material-symbols-outlined">pause</span></button>
+          <button data-debug="stepOver" title="Step over"><span class="material-symbols-outlined">step_over</span></button>
+          <button data-debug="stepIn" title="Step into"><span class="material-symbols-outlined">step_into</span></button>
+          <button data-debug="stepOut" title="Step out"><span class="material-symbols-outlined">step_out</span></button>
+          <button data-action="stop" title="Stop"><span class="material-symbols-outlined">stop</span></button>
+        </span>
+      </h2>
+      <div id="debug-body">
+        <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
+        <h3>Call stack</h3>
+        <ol id="debug-stack"></ol>
+        <h3 id="debug-locals-title">Locals</h3>
+        <div id="debug-locals"></div>
+        <h3>Globals</h3>
+        <div id="debug-globals"></div>
+        <h3>Evaluate</h3>
+        <div id="debug-eval-log"></div>
+        <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
+      </div>
+    </section>
+
     <section id="stdout">
       <h2>
         <span>Output</span>
@@ -213,6 +246,52 @@
   </aside>
 
 </div>
+
+<dialog id="copy-dialog" aria-label="Copy from simulator">
+  <header>
+    <span class="material-symbols-outlined">move_to_inbox</span>
+    <h2>Copy from the simulator</h2>
+  </header>
+  <form method="dialog">
+    <ul class="copy-list"></ul>
+    <footer>
+      <span>Apps are copied to /system/apps, so they show up in the badge's launcher.</span>
+      <button value="cancel">Cancel</button>
+      <button value="copy" class="primary">Copy to badge</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="icon-editor" aria-label="Icon editor">
+  <header>
+    <span class="material-symbols-outlined">brush</span>
+    <h2>App icon <small class="icon-title"></small></h2>
+  </header>
+  <div class="icon-body">
+    <canvas class="icon-canvas"></canvas>
+    <aside>
+      <div class="icon-tools" role="group" aria-label="Tools">
+        <button type="button" data-tool="pencil" title="Pencil"><span class="material-symbols-outlined">edit</span></button>
+        <button type="button" data-tool="eraser" title="Eraser (or right-click)"><span class="material-symbols-outlined">ink_eraser</span></button>
+        <button type="button" data-tool="fill" title="Fill"><span class="material-symbols-outlined">format_color_fill</span></button>
+        <button type="button" data-tool="picker" title="Pick colour"><span class="material-symbols-outlined">colorize</span></button>
+        <button type="button" data-icon="undo" title="Undo"><span class="material-symbols-outlined">undo</span></button>
+        <button type="button" data-icon="clear" title="Clear"><span class="material-symbols-outlined">delete</span></button>
+      </div>
+      <div class="icon-palette"></div>
+      <label class="icon-custom">Custom <input class="icon-color" type="color"></label>
+      <div class="icon-preview">
+        <p>How it looks in the menu</p>
+        <div><canvas class="x1"></canvas><canvas class="x2"></canvas><canvas class="x4"></canvas></div>
+      </div>
+    </aside>
+  </div>
+  <footer>
+    <span>Icons are 24 &times; 24 pixels. Transparent pixels show the menu behind them.</span>
+    <button type="button" data-icon="cancel">Cancel</button>
+    <button type="button" data-icon="save" class="primary">Save icon</button>
+  </footer>
+</dialog>
 
 <nav id="mobile-nav" aria-label="View">
   <button data-tab="gallery" title="Examples" aria-label="Examples"><span class="material-symbols-outlined">grid_view</span></button>

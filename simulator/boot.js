@@ -9,10 +9,13 @@
    and hands back a single seam, setRunProvider(): a callback describing how to
    fetch the current editor content to run. Everything else here is self-
    contained. */
+import './device/session.js';
 import { BadgewareSimulator } from './badgeware.js';
 import { initBadge3D } from './badge3d.js';
 import { userFS } from './fs.js';
 import { delegate } from './util.js';
+import { runTargetFor } from './device/paths.js';
+import { currentMode } from './mode.js';
 
 const BOOT_BASE = new URL('.', import.meta.url).href;
 
@@ -48,13 +51,17 @@ export function bootSimulator() {
       stdoutEl.scrollTop = stdoutEl.scrollHeight;
     };
 
-    const simulator = await BadgewareSimulator();
-    const { applyCanvasToScreen, pauseScreen, rotateView } = initBadge3D(simulator, appendOut, badge3dWrap);
+    const mode = currentMode();
+    document.body.dataset.mode = mode;
+    const simulator = mode === 'simulator' ? await BadgewareSimulator() : null;
+    const { applyCanvasToScreen, pauseScreen, rotateView } = simulator
+      ? initBadge3D(simulator, appendOut, badge3dWrap)
+      : { applyCanvasToScreen() {}, pauseScreen() {}, rotateView() {} };
 
     // The editor half registers how to react when the running program changes user
     // files (reload the FS cache + repaint the Files panel). Until then it's a no-op.
     let fsChangedHandler = () => {};
-    simulator.onfschanged = () => fsChangedHandler();
+    if (simulator) simulator.onfschanged = () => fsChangedHandler();
 
     // The badge canvas spills down to overlap the OUTPUT title bar. CSS can't read
     // a sibling's height, so mirror #stdout h2's measured height into --badge-spill
@@ -96,13 +103,15 @@ export function bootSimulator() {
 
     /* Incremental MicroPython traceback parsing. The editor attaches marker
        hooks (trace.clear / trace.apply) later; until then they're no-ops. */
-    const trace = { frames: [], lastRunKey: null, clear: null, apply: null };
+    const trace = { frames: [], lastRunKey: null, clear: null, apply: null, mapFile: null };
     // Returns true when `text` is part of a Python traceback (header, a `File …`
     // frame, or the terminal exception line) so the console can render it red.
     function parseTracebackLine(text) {
       const fileMatch = text.match(/^\s+File "([^"]+)", line (\d+)/);
       if (fileMatch) {
-        trace.frames.push({ file: fileMatch[1], line: parseInt(fileMatch[2], 10) });
+        const path = fileMatch[1].replace(/^\/{2,}/, '/');
+        const file = trace.mapFile ? trace.mapFile(path) : path;
+        trace.frames.push({ file, line: parseInt(fileMatch[2], 10) });
         return true;
       }
       // Header — the runtime may prefix it (e.g. "- ERROR: Traceback …"), so match
@@ -122,21 +131,31 @@ export function bootSimulator() {
       if (text.startsWith('- ERROR')) return true;
       return false;
     }
-    simulator.stdout = async (text) => {
+    const outputLine = (text) => {
       const isError = parseTracebackLine(text);
       appendOut(text, isError ? 'out-error' : undefined);
     };
+    if (simulator) simulator.stdout = async (text) => outputLine(text);
 
     /* Shared run/stop, used by the boot run and the toolbar's Run/Stop. */
-    const runProgram = async (code, { tabKey = null, status = '' } = {}) => {
+    const beginRun = (tabKey, label = 'Running…', mapFile = null) => {
       if (trace.clear) trace.clear();
       trace.frames = [];
       trace.lastRunKey = tabKey;
-      runningKey = tabKey;   // what's now running, for the Run-vs-Reload icon
+      trace.mapFile = mapFile;
+      runningKey = tabKey;
       stdoutEl.innerHTML = '';
-      appendOut('▶ Running…', 'out-dim');
-      setStatus('Running…');
+      appendOut('▶ ' + label, 'out-dim');
+      setStatus(label);
       setRunning(true);
+    };
+    const endRun = (status) => {
+      if (!isRunning) return;
+      setRunning(false);
+      setStatus(status);
+    };
+    const runProgram = async (code, { tabKey = null, status = '' } = {}) => {
+      beginRun(tabKey);
       // simulator.run() tears down the old worker first; drop the screen texture
       // so the render loop never touches a destroyed frame source.
       pauseScreen();
@@ -150,7 +169,10 @@ export function bootSimulator() {
         setRunning(false);
       }
     };
+    let runInterceptor = null;
+    let stopInterceptor = null;
     const stopProgram = async () => {
+      if (stopInterceptor && await stopInterceptor()) return;
       pauseScreen();
       await simulator.stop();
       setRunning(false);
@@ -174,6 +196,7 @@ export function bootSimulator() {
     let runProvider = null;
     const run = async () => {
       const req = runProvider && runProvider();
+      if (runInterceptor && await runInterceptor(req)) return;
       if (req) await runProgram(req.code, { tabKey: req.tabKey, status: req.status });
       else     await runOS();
     };
@@ -217,7 +240,10 @@ export function bootSimulator() {
       } else {
         const path  = override.startsWith('/') ? override : '/' + override;
         const entry = userFS.get(path);
-        if (entry && !entry.binary && !entry.isDir) {
+        if (mode === 'badge') {
+          defaultCode = '';
+          startupFile = { path, tabKey: path, system: false };
+        } else if (entry && !entry.binary && !entry.isDir) {
           defaultCode = entry.text;
           startupFile = { path, tabKey: path, system: false };
         } else if (!entry) {
@@ -235,8 +261,10 @@ export function bootSimulator() {
         .catch(() => null)
         ?? 'badge.mode(HIRES)\n\ndef update():\n    screen.text("Hello!", 10, 10)\n';
     }
+    const startupApp = startupFile && !startupFile.system && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
+    const startupCode = startupApp?.kind === 'app' ? `launch(${JSON.stringify(startupApp.userPath)})` : defaultCode;
     // Run it now, in parallel with Monaco loading — don't await the program itself.
-    runProgram(defaultCode, { tabKey: startupFile ? startupFile.tabKey : null });
+    if (simulator) runProgram(startupCode, { tabKey: startupFile ? startupFile.tabKey : null });
     if (warn) appendOut(warn, 'out-dim');
 
     // The editor half consumes these: trace markers, the startup file to open,
@@ -261,6 +289,11 @@ export function bootSimulator() {
       // Register the reaction to a program changing user files (host reloads the
       // userFS cache and repaints the Files panel).
       setFsChangedHandler: (fn) => { fsChangedHandler = fn; },
+      runOS,
+      setRunInterceptor: (fn) => { runInterceptor = fn; },
+      setStopInterceptor: (fn) => { stopInterceptor = fn; },
+      output: { beginRun, endRun, outputLine, appendOut, clear: () => { stdoutEl.innerHTML = ''; } },
+      mode,
     };
   })();
   return _bootCtx;

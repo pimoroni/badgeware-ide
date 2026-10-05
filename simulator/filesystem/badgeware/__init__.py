@@ -60,7 +60,7 @@ class _run:
                     return
 
         except Exception as e:  # noqa: BLE001
-            fatal_error("Error!", get_exception(e))
+            fatal_error("Error!", e)
 
         finally:
             badge.clear()
@@ -94,11 +94,11 @@ def launch(path):
         return do_exit()
 
     except Exception as e:  # noqa: BLE001
-        fatal_error("Error!", get_exception(e))
+        fatal_error("Error!", e)
 
     finally:
         # Clean up path
-        if sys.path[0].startswith("/system/apps"):
+        if sys.path and sys.path[0] == path:
             sys.path.pop(0)
 
         # Clean up any imported modules
@@ -160,9 +160,12 @@ def message(title, msg, window=None):
 
 
 def fatal_error(title, error):
-    if not isinstance(error, str):
+    if isinstance(error, str):
+        print(f"- ERROR: {error}")
+    else:
+        print(f"- ERROR: {title}")
+        sys.print_exception(error)
         error = get_exception(error)
-    print(f"- ERROR: {error}")
 
     if (badge.mode() & HIRES) == 0:
         contents = image(160, 120)

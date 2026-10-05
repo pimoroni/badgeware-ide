@@ -11,6 +11,7 @@
    in the shared simulator (`launch("/system/.../<slug>")`, the same call the OS
    uses), and Edit opens the app's source (__init__.py) in the main editor. */
 import { initGallery, SPINNER } from './gallery.js';
+import { editorUrl, editorUrlFor } from './mode.js';
 
 const APP_BASE  = new URL('.', import.meta.url).href;
 const FS_BASE   = APP_BASE + 'filesystem';   // static files under simulator/filesystem
@@ -98,7 +99,7 @@ initGallery(galleryEl, {
   freshWorkerPerRun: true,
   onEdit: (key) => {
     const a = apps.get(key);
-    if (a) location.href = 'index.html?file=' + encodeURIComponent(a.path + '/__init__.py');
+    if (a) location.href = editorUrl('simulator', { file: a.path + '/__init__.py' });
   },
   setStatus: (text) => { if (statusEl) statusEl.textContent = text; },
 });
@@ -117,7 +118,7 @@ function toggleHelp(on = !helpOn) {
 document.addEventListener('click', (e) => {
   const act = e.target.closest('[data-action]')?.dataset.action;
   const tab = e.target.closest('[data-tab]')?.dataset.tab;
-  if (act === 'editor' || tab === 'code') { location.href = 'index.html'; return; }
+  if (act === 'editor' || tab === 'code') { location.href = editorUrlFor(e.target); return; }
   if (act === 'gallery') { location.href = 'examples.html'; return; }
   if (act === 'fonts') { location.href = 'fonts.html'; return; }
   if (act === 'help') { toggleHelp(); return; }

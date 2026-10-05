@@ -1,5 +1,8 @@
 import { SerialLink } from './serial-link.js';
 
+const READ_BUFFER_SIZE = 512 * 1024;
+const PAYLOAD_STALL_MS = 1500;
+
 function concatChunks(chunks) {
   const out = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
   let offset = 0;
@@ -17,7 +20,7 @@ function dispatchPayload(client, message, chunks) {
 export class DebugClient extends EventTarget {
   constructor(port) {
     super();
-    this.link = new SerialLink(port);
+    this.link = new SerialLink(port, { bufferSize: READ_BUFFER_SIZE });
     this.decoder = new TextDecoder();
     this.lineChunks = [];
     this.binary = null;
@@ -29,6 +32,7 @@ export class DebugClient extends EventTarget {
   }
 
   async close() {
+    clearTimeout(this.stallTimer);
     await this.link.close();
     this.dispatchEvent(new CustomEvent('closed'));
   }
@@ -38,7 +42,22 @@ export class DebugClient extends EventTarget {
     this.dispatchEvent(new CustomEvent('message', { detail: message }));
   }
 
+  watchPayload() {
+    clearTimeout(this.stallTimer);
+    if (!this.binary) return;
+    this.stallTimer = setTimeout(() => {
+      const { message, remaining } = this.binary;
+      this.binary = null;
+      this.dispatch({ event: 'error', id: message.id, message: `Debugger "${message.event}" was ${remaining} bytes short.` });
+    }, PAYLOAD_STALL_MS);
+  }
+
   receive(bytes) {
+    this.receiveBytes(bytes);
+    this.watchPayload();
+  }
+
+  receiveBytes(bytes) {
     let offset = 0;
     while (offset < bytes.length) {
       if (this.binary) {

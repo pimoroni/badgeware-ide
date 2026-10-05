@@ -182,11 +182,43 @@ await screenshot('e2e-badge-debug.png');
 await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
 check('stop ends the session', await waitFor(`!document.body.classList.contains('debugging') && document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
 
+await open('?file=/apps/e2e_error/__init__.py');
+await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
+await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
+check('debug a loop without breakpoints', await waitFor(`document.body.classList.contains('debugging') && document.getElementById('status').textContent === 'Debugging on badge…'`, 30000), await status());
+await sleep(1500);
+await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);
+check('pause stops the loop', await waitFor(`document.body.classList.contains('debug-paused') && document.querySelector('#debug-globals .debug-vars')`, 10000), await status());
+check('screen shown after pause', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
+await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
+check('continue after pause resumes', await waitFor(`!document.body.classList.contains('debug-paused') && document.getElementById('status').textContent === 'Debugging on badge…'`, 5000), await status());
+await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);
+await waitFor(`document.body.classList.contains('debug-paused')`, 10000);
+await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
+check('quick pause and continue resumes', await waitFor(`!document.body.classList.contains('debug-paused') && document.getElementById('status').textContent === 'Debugging on badge…'`, 5000), await status());
+await sleep(1000);
+check('no stale pause state', await evaluate(`!document.body.classList.contains('debug-paused') && !document.querySelector('.debug-current-line')`));
+await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
+await waitFor(`!document.body.classList.contains('debugging')`, 10000);
+
 await open();
 await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 await evaluate(`monaco.editor.getEditors()[0].setValue('x = 1\\nprint("scratch ok")\\nprint(y)\\n')`);
 await run();
 check('scratch run errors on line 3', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)' && monaco.editor.getModelMarkers({ owner: 'micropython' }).some((m) => m.startLineNumber === 3)`, 20000), await stdout());
+
+await evaluate(`monaco.editor.getEditors()[0].setValue('ticks = 0\\nwhile True:\\n    ticks += 1\\n    badge.update()\\n')`);
+await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
+await waitFor(`document.body.classList.contains('debugging') && document.getElementById('status').textContent === 'Debugging on badge…'`, 30000);
+await sleep(1500);
+await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);
+check('scratch pause shows globals', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent.includes('ticks')`, 10000), await evaluate(`document.getElementById('debug-globals').textContent + ' / ' + document.getElementById('status').textContent`));
+check('scratch pause shows screen', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
+check('scratch pause marks the line', await waitFor(`!!document.querySelector('.debug-current-line')`, 5000));
+await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
+check('scratch continue resumes', await waitFor(`!document.body.classList.contains('debug-paused')`, 5000), await status());
+await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
+await waitFor(`!document.body.classList.contains('debugging')`, 10000);
 
 await evaluate(`(async () => {
   document.querySelector('#fp-user [data-action="new-app"]').click();

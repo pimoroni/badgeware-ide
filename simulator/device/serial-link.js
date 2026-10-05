@@ -28,9 +28,10 @@ function indexOf(haystack, needle) {
 }
 
 export class SerialLink {
-  constructor(port, { baudRate = 115200 } = {}) {
+  constructor(port, { baudRate = 115200, bufferSize = 255 } = {}) {
     this.port = port;
     this.baudRate = baudRate;
+    this.bufferSize = bufferSize;
     this.buffer = new Uint8Array(0);
     this.waiters = new Set();
     this.closed = true;
@@ -38,7 +39,7 @@ export class SerialLink {
   }
 
   async open() {
-    await this.port.open({ baudRate: this.baudRate });
+    await this.port.open({ baudRate: this.baudRate, bufferSize: this.bufferSize });
     await this.port.setSignals({ dataTerminalReady: true, requestToSend: false });
     this.closed = false;
     this.writer = this.port.writable.getWriter();

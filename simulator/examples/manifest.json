@@ -1,0 +1,194 @@
+{
+  "version": "20260625c",
+  "categories": [
+    {
+      "name": "Basics",
+      "examples": [
+        {
+          "file": "hello.py",
+          "description": "smallest app"
+        },
+        {
+          "file": "colors.py",
+          "description": "rgb \u00b7 hsv \u00b7 oklch"
+        },
+        {
+          "file": "buttons.py",
+          "description": "reading input"
+        }
+      ]
+    },
+    {
+      "name": "Shapes",
+      "examples": [
+        {
+          "file": "circles.py",
+          "description": "circles & rnd"
+        },
+        {
+          "file": "lines.py",
+          "description": "random lines"
+        },
+        {
+          "file": "triangles.py",
+          "description": "random triangles"
+        },
+        {
+          "file": "intersect.py",
+          "description": "rect overlap"
+        },
+        {
+          "file": "shape.py",
+          "description": "custom shape"
+        },
+        {
+          "file": "vector_shapes.py",
+          "description": "shape gallery"
+        }
+      ]
+    },
+    {
+      "name": "Strokes & fills",
+      "examples": [
+        {
+          "file": "gradient.py",
+          "description": "gradients"
+        },
+        {
+          "file": "pattern.py",
+          "description": "bitmap patterns"
+        },
+        {
+          "file": "dither.py",
+          "description": "dithering"
+        },
+        {
+          "file": "stroke.py",
+          "description": "stroke alignment"
+        },
+        {
+          "file": "joins_caps.py",
+          "description": "joins & caps"
+        },
+        {
+          "file": "fill_rules.py",
+          "description": "fill rules"
+        }
+      ]
+    },
+    {
+      "name": "Brushes & effects",
+      "examples": [
+        {
+          "file": "image_brush.py",
+          "description": "image brush"
+        },
+        {
+          "file": "lighten_darken.py",
+          "description": "lighten / darken"
+        },
+        {
+          "file": "pixelate.py",
+          "description": "pixelate"
+        },
+        {
+          "file": "blur.py",
+          "description": "frame blur"
+        },
+        {
+          "file": "blur_brush.py",
+          "description": "blur brush"
+        }
+      ]
+    },
+    {
+      "name": "Sprites",
+      "examples": [
+        {
+          "file": "sprites.py",
+          "description": "sprite blit"
+        },
+        {
+          "file": "spritesheet.py",
+          "description": "SpriteSheet anim"
+        },
+        {
+          "file": "transform_sprite.py",
+          "description": "transformed sprite"
+        }
+      ]
+    },
+    {
+      "name": "Text",
+      "examples": [
+        {
+          "file": "scrolling_text.py",
+          "description": "marquee"
+        },
+        {
+          "file": "text.py",
+          "description": "rich text"
+        },
+        {
+          "file": "vector_text.py",
+          "description": "vector text"
+        }
+      ]
+    },
+    {
+      "name": "Motion & games",
+      "examples": [
+        {
+          "file": "easing.py",
+          "description": "easing curves"
+        },
+        {
+          "file": "menu.py",
+          "description": "selection menu"
+        },
+        {
+          "file": "platformer.py",
+          "description": "movement & gravity"
+        }
+      ]
+    },
+    {
+      "name": "Badge hardware",
+      "examples": [
+        {
+          "file": "caselights.py",
+          "description": "case LEDs"
+        },
+        {
+          "file": "battery.py",
+          "description": "hardware status"
+        },
+        {
+          "file": "clock.py",
+          "description": "real-time clock"
+        },
+        {
+          "file": "state.py",
+          "description": "saved state"
+        }
+      ]
+    },
+    {
+      "name": "Going further",
+      "examples": [
+        {
+          "file": "line_clip.py",
+          "description": "line clipping"
+        },
+        {
+          "file": "mandelbrot.py",
+          "description": "fractal + FPS"
+        },
+        {
+          "file": "raycast.py",
+          "description": "raycaster"
+        }
+      ]
+    }
+  ]
+}

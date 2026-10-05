@@ -213,13 +213,14 @@ export function createFileBrowser(els, host) {
   function showCtxMenu(e, path, isDir, tree = 'user') {
     e.preventDefault();
     ctxTarget = { path, isDir, tree };
+    const rom = tree === 'badge' && (path === '/rom' || path.startsWith('/rom/'));
     const show = {
       open: !isDir,
       'edit-icon': tree === 'user' && (isDir ? /^\/apps\/[^/]+$/.test(path) : path.toLowerCase().endsWith('.png')),
       'copy-to-badge': tree === 'user' && host.badgeConnected(),
-      'copy-to-workspace': tree === 'badge',
+      'copy-to-workspace': tree === 'badge' && !rom,
       rename: tree === 'user',
-      delete: true,
+      delete: !rom,
       'new-here': tree === 'user',
       'new-dir-here': tree === 'user',
     };

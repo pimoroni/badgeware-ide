@@ -1,5 +1,5 @@
 import { IncompatibleBadgeError, MissingReplError } from './device/badge.js';
-import { runTargetFor, toDevicePath, toUserPath, SCRATCH_PATH } from './device/paths.js';
+import { runTargetFor, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
 function lineSplitter(onLine) {
@@ -29,7 +29,7 @@ function workspaceFiles() {
     .filter((path) => !path.endsWith('/') && !NEVER_SYNC.has(path))
     .map((path) => [path, workspaceFS.get(path)])
     .filter(([, entry]) => entry && !entry.isDir)
-    .map(([path, entry]) => ({ path: toDevicePath(path), bytes: fileBytes(entry) }));
+    .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
 }
 
 const PAIR_MESSAGES = {
@@ -120,20 +120,20 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       await device.queue;
     }
     const runTarget = runTargetFor(request?.path ?? null);
-    const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : toUserPath(file));
+    const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : file);
     output.beginRun(request?.tabKey ?? null, debug ? 'Debugging on badge' : 'Running on badge', mapFile);
     try {
       setStatus('Syncing…');
       const files = workspaceFiles();
       if (runTarget.kind === 'scratch') files.push({ path: SCRATCH_PATH, bytes: new TextEncoder().encode(request?.code ?? '') });
-      const changed = await device.sync(files, (sent, total, path) => setStatus(`Syncing ${toUserPath(path)} ${Math.round((sent / total) * 100)}%`));
+      const changed = await device.sync(files, (sent, total, path) => setStatus(`Syncing ${path} ${Math.round((sent / total) * 100)}%`));
       const synced = changed.filter((path) => path !== SCRATCH_PATH).length;
       if (synced) output.appendOut(`Synced ${synced} file${synced === 1 ? '' : 's'} to your badge`, 'out-dim');
-      runningPath = runTarget.devicePath;
+      runningPath = runTarget.path;
       render();
       setStatus(debug ? 'Debugging on badge…' : 'Running on badge…');
       const lines = lineSplitter(output.outputLine);
-      const result = await device.run(runTarget.devicePath, { debug, onOutput: (text) => lines.push(text) });
+      const result = await device.run(runTarget.path, { debug, onOutput: (text) => lines.push(text) });
       lines.flush();
       const interrupted = /KeyboardInterrupt/.test(result.stderr);
       if (interrupted) output.appendOut('■ Stopped', 'out-dim');
@@ -162,7 +162,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
     const files = userPaths
       .map((path) => [path, workspaceFS.get(path)])
       .filter(([, entry]) => entry && !entry.isDir)
-      .map(([path, entry]) => ({ path: toDevicePath(path), bytes: fileBytes(entry) }));
+      .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
     const changed = await device.sync(files, (sent, total, path) => setStatus(`Copying ${path} ${Math.round((sent / total) * 100)}%`));
     await badgeFS.reload();
     flashStatus(`Copied ${changed.length} file${changed.length === 1 ? '' : 's'} to your badge`, 3000);
@@ -174,7 +174,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       setStatus(`Copying ${devicePath} (${index + 1}/${paths.length})`);
       const entry = await badgeFS.load(devicePath);
       const { readOnly, size, ...plain } = entry;
-      workspaceFS.set(toUserPath(devicePath), plain);
+      workspaceFS.set(devicePath, plain);
     }
     flashStatus(`Copied ${paths.length} file${paths.length === 1 ? '' : 's'} to the simulator`, 3000);
   }

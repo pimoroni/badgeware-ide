@@ -516,7 +516,7 @@ export const MEMBERS = {
     { label: 'is_charging',   kind: 'Method', insertText: 'is_charging()',
       doc: 'True if the battery is currently charging (bool). Requires USB to be connected.' },
     { label: 'disk_free',     kind: 'Method', insertText: 'disk_free()',
-      doc: 'Disk usage for a mount point. Returns (total, used, free) in bytes. Args: mountpoint="/system".' },
+      doc: 'Disk usage for a mount point. Returns (total, used, free) in bytes. Args: mountpoint="/".' },
     { label: 'light_level',   kind: 'Method', insertText: 'light_level()',
       doc: 'Raw u16 ambient light sensor reading (Tufty only). Raises RuntimeError on unsupported models.' },
     { label: 'caselights',    kind: 'Method', insertText: 'caselights(${1:value})',

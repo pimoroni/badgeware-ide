@@ -1,7 +1,7 @@
 import { DEFAULT_SECRETS, KNOWN_KEYS, REGIONS, isValidKey, parseSecrets, updateSecrets } from './secrets-file.js';
 
 const SECRETS_PATH = '/secrets.py';
-const BASE_PATHS = ['/secrets.py', '/system/secrets.py'];
+const BASE_PATHS = ['/secrets.py'];
 
 const element = (tag, attributes = {}, ...children) => {
   const node = document.createElement(tag);

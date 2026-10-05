@@ -49,7 +49,7 @@ const resTabs    = $('#res-tabs');
    emulated filesystem so there's no vendored copy to keep in sync. Vector (.af)
    live under the system assets; pixel (.ppf) live in the ROM. generate_manifest.py
    scans these dirs and writes simulator/fonts-manifest.json. */
-const VECTOR_DIR = 'simulator/filesystem/system/assets/fonts/';
+const VECTOR_DIR = 'simulator/filesystem/fonts/';
 const PIXEL_DIR  = 'simulator/filesystem/rom/fonts/';
 
 /* -- Font loading --------------------------------------------------------- */
@@ -300,7 +300,7 @@ function snippetFor(entry) {
   const useAttr  = isPixel && /^[A-Za-z_]\w*$/.test(name);
   const comment  = isPixel
     ? `# ${name} is a built-in ROM pixel font:`
-    : `# Copy the font to /system/assets/fonts on your badge, then:`;
+    : `# Copy the font to /fonts on your badge, then:`;
   const loadLine = useAttr ? `my_font = font.${name}` : `my_font = font.load("${name}")`;
   return [
     comment,

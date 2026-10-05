@@ -18,7 +18,7 @@ import { createApp } from './app-scaffold.js';
 import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
-import { pathMapFor, runTargetFor } from './device/paths.js';
+import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
@@ -26,7 +26,6 @@ const APP_BASE = new URL('.', import.meta.url).href;
 async function initApp() {
   // Adopt the (already in-flight) simulator boot.
   const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, simulatorView, runOS } = await bootSimulator();
-  const paths = pathMapFor('simulator');
   initTargetSwitch();
   const mobileNav = document.getElementById('mobile-nav');
 
@@ -179,7 +178,7 @@ async function initApp() {
       watchList: document.getElementById('debug-watch'),
       watchAdd:  document.getElementById('debug-watch-add'),
     },
-    { editor, tabs, setStatus, paths },
+    { editor, tabs, setStatus },
   );
 
   if (badgeDevice) {
@@ -199,7 +198,7 @@ async function initApp() {
   setRunInterceptor(async (request) => {
     if (onBadge()) return badge.run(request);
     const app = runTargetFor(request?.path ?? null);
-    if (request && app.kind === 'app') request.code = `launch(${JSON.stringify(app.userPath)})`;
+    if (request && app.kind === 'app') request.code = `launch(${JSON.stringify(app.path)})`;
     return false;
   });
   setStopInterceptor(async () => (onBadge() ? badge.stop() : false));

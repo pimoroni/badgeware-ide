@@ -120,8 +120,8 @@ const contextAction = (tree, path, action) => evaluate(`(async () => {
 const cleanBadge = () => evaluate(`(async () => {
   const { badgeDevice, badgeFS } = await import('./simulator/device/session.js');
   if (!badgeDevice?.connected) return false;
-  for (const [path, size] of await badgeDevice.list('/system/apps')) {
-    if (size < 0 && /\\/system\\/apps\\/e2e_[^/]+$/.test(path)) await badgeDevice.remove(path);
+  for (const [path, size] of await badgeDevice.list('/apps')) {
+    if (size < 0 && /\\/apps\\/e2e_[^/]+$/.test(path)) await badgeDevice.remove(path);
   }
   for (const [path] of await badgeDevice.list('/')) {
     if (/^\\/e2e_/.test(path)) await badgeDevice.remove(path);
@@ -145,13 +145,13 @@ await open('?file=/apps/e2e_error/__init__.py');
 check('badge target, editor nav active', await evaluate(`document.body.dataset.target === 'badge' && document.querySelector('#toolbar [data-action="editor"]').classList.contains('active')`));
 check('no playground title', await evaluate(`!document.querySelector('.toolbar-title')`));
 check('auto-connects to a paired badge', await waitFor(`document.body.classList.contains('badge-connected')`, 15000));
-check('workspace on top, badge below', await waitFor(`document.getElementById('fp-user-list').textContent.includes('e2e_error') && document.getElementById('fp-sys-tree').textContent.includes('system')`, 10000));
+check('workspace on top, badge below', await waitFor(`document.getElementById('fp-user-list').textContent.includes('e2e_error') && document.getElementById('fp-sys-tree').textContent.includes('apps')`, 10000));
 check('no simulator system tree', !(await evaluate(`document.getElementById('fp-sys-tree').textContent.includes('Read-only')`)));
 await cleanBadge();
 
 await run();
 check('run syncs and ends with an error', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)'`, 30000), `${await status()} / ${await stdout()}`);
-check('synced to badge', (await stdout()).includes('Synced') && await badgeHas('/system/apps/e2e_error/__init__.py'));
+check('synced to badge', (await stdout()).includes('Synced') && await badgeHas('/apps/e2e_error/__init__.py'));
 check('error marker on line 5', (await evaluate(`monaco.editor.getModelMarkers({ owner: 'micropython' }).map((m) => [m.resource.path, m.startLineNumber])`))?.some(([path, line]) => path.includes('e2e_error') && line === 5));
 
 await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.setValue(editor.getValue().replace('missing_name', 'count')); })()`);
@@ -204,15 +204,23 @@ await run();
 check('new app runs on badge', await waitFor(`document.getElementById('status').textContent === 'Running on badge…'`, 20000), await stdout());
 await stop();
 await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000);
-check('new app is on the badge', await badgeHas('/system/apps/e2e_rocket/icon.png'));
+check('new app is on the badge', await badgeHas('/apps/e2e_rocket/icon.png'));
 
 check('copy to badge from workspace', await contextAction('fp-user-list', '/e2e_loose.py', 'copy-to-badge') === true && await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); return !!badgeFS.get('/e2e_loose.py'); })()`, 15000));
 await evaluate(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); workspaceFS.del('/apps/e2e_rocket/__init__.py'); workspaceFS.del('/apps/e2e_rocket/icon.png'); workspaceFS.del('/apps/e2e_rocket/'); return true; })()`);
 await evaluate(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); document.querySelector('[data-action="badge-refresh"]').click(); return true; })()`);
 await sleep(1000);
-check('copy to workspace from badge', await contextAction('fp-sys-tree', '/system/apps/e2e_rocket', 'copy-to-workspace') === true && await waitFor(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); return !!workspaceFS.get('/apps/e2e_rocket/icon.png') && !!workspaceFS.get('/apps/e2e_rocket/__init__.py'); })()`, 15000));
-await evaluate(`(() => { const row = [...document.querySelectorAll('#fp-sys-tree .tree-row')].find((el) => el.dataset.path === '/system/apps/e2e_error/__init__.py'); row.click(); return true; })()`);
+check('copy to workspace from badge', await contextAction('fp-sys-tree', '/apps/e2e_rocket', 'copy-to-workspace') === true && await waitFor(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); return !!workspaceFS.get('/apps/e2e_rocket/icon.png') && !!workspaceFS.get('/apps/e2e_rocket/__init__.py'); })()`, 15000));
+await evaluate(`(() => { const row = [...document.querySelectorAll('#fp-sys-tree .tree-row')].find((el) => el.dataset.path === '/apps/e2e_error/__init__.py'); row.click(); return true; })()`);
 check('badge file opens read-only', await waitFor(`document.getElementById('status').textContent.includes('on your badge, read-only') && monaco.editor.getEditors()[0].getOption(monaco.editor.EditorOption.readOnly)`, 10000), await status());
+check('rom is read-only in the badge tree', await evaluate(`(() => {
+  const el = [...document.querySelectorAll('#fp-sys-tree [data-path]')].find((e) => e.dataset.path === '/rom/fonts');
+  (el.querySelector('summary') ?? el).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 200 }));
+  const hidden = (action) => document.querySelector('#file-ctx-menu [data-action="' + action + '"]').style.display === 'none';
+  const result = hidden('copy-to-workspace') && hidden('delete');
+  document.body.click();
+  return result;
+})()`));
 await evaluate(`window.confirm = () => true`);
 check('delete on badge', await contextAction('fp-sys-tree', '/e2e_loose.py', 'delete') === true && await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); return !badgeFS.get('/e2e_loose.py'); })()`, 15000));
 

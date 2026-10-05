@@ -1,5 +1,5 @@
 const ROM_FONTS = '/rom/fonts/';
-const VECTOR_SEARCH = ['/rom/fonts/', '/system/assets/fonts/', '/fonts/', '/assets/'];
+const VECTOR_SEARCH = ['/rom/fonts/', '/fonts/', '/assets/'];
 const VECTOR_SIZE = 24;
 
 const escapeHtml = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);

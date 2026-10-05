@@ -2,13 +2,13 @@
    The apps gallery on its own page (apps.html): the same in-card preview engine
    as the examples gallery, but the cards are on-badge apps rather than single
    example files. Two sections: the built-ins that ship on the badge ("Come with
-   your badge", /system/apps) and the vendored community apps ("Contributed by
-   users", /system/contrib).
+   your badge", /apps) and the vendored community apps ("Contributed by
+   users", /contrib).
 
-   The list is derived from filesystem.json -- any /system/{apps,contrib}/<slug>/
+   The list is derived from filesystem.json -- any /{apps,contrib}/<slug>/
    icon.png is an app (this naturally skips the launcher menu, which has no icon,
    exactly like the on-badge menu). Each card plays the app LIVE by launching it
-   in the shared simulator (`launch("/system/.../<slug>")`, the same call the OS
+   in the shared simulator (`launch("/apps/<slug>")`, the same call the OS
    uses), and Edit opens the app's source (__init__.py) in the main editor. */
 import { initGallery, SPINNER } from './gallery.js';
 import { editorUrl, initTargetSwitch } from './mode.js';
@@ -20,7 +20,7 @@ const FS_BASE   = APP_BASE + 'filesystem';   // static files under simulator/fil
 const galleryEl = document.getElementById('gallery');
 const statusEl  = document.getElementById('status');
 
-// Section order + titles, keyed by the /system subdirectory they live in.
+// Section order + titles, keyed by the top-level directory they live in.
 const SECTIONS = [
   { dir: 'apps',    title: 'Come with your badge' },
   { dir: 'contrib', title: 'Contributed by users' },
@@ -62,13 +62,13 @@ async function render(el) {
   const byDir = {};
   let sig = 0;
   for (const [path, size] of Object.entries(fs.files || {})) {
-    const dirMatch = path.match(/^\/system\/(apps|contrib)\//);
+    const dirMatch = path.match(/^\/(apps|contrib)\//);
     if (dirMatch) sig += size;                  // any change under an app dir bumps the version
-    const icon = path.match(/^\/system\/(apps|contrib)\/([^/]+)\/icon\.png$/);
+    const icon = path.match(/^\/(apps|contrib)\/([^/]+)\/icon\.png$/);
     if (!icon) continue;
     const [, dir, slug] = icon;
     if (EXCLUDE.has(slug)) continue;
-    const a = { key: `${dir}/${slug}`, slug, name: prettyName(slug), path: `/system/${dir}/${slug}` };
+    const a = { key: `${dir}/${slug}`, slug, name: prettyName(slug), path: `/${dir}/${slug}` };
     (byDir[dir] ||= []).push(a);
     apps.set(a.key, a);
   }

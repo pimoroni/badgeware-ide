@@ -40,9 +40,7 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function createDebugger(els, { editor, tabs, setStatus, paths }) {
-  const toDevicePath = paths.toDevice;
-  const toUserPath = paths.toEditor;
+export function createDebugger(els, { editor, tabs, setStatus }) {
   const breakpoints = loadBreakpoints();
   const breakpointDecorations = editor.createDecorationsCollection();
   const currentLineDecorations = editor.createDecorationsCollection();
@@ -76,7 +74,7 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
   function renderCurrentLine() {
     const frame = stopped?.stack[selectedFrame];
     const path = activeUserPath();
-    if (!frame || !path || toUserPath(frame.file) !== path) {
+    if (!frame || !path || frame.file !== path) {
       currentLineDecorations.clear();
       return;
     }
@@ -95,7 +93,7 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
   }
 
   function sendBreakpoints(path) {
-    client?.send({ cmd: 'setBreakpoints', file: toDevicePath(path), lines: [...(breakpoints.get(path) ?? [])] });
+    client?.send({ cmd: 'setBreakpoints', file: path, lines: [...(breakpoints.get(path) ?? [])] });
   }
 
   function toggleBreakpoint(line) {
@@ -203,7 +201,7 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
     const frame = stopped.stack[index];
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
     if (frame.user) {
-      await tabs.openFile(toUserPath(frame.file));
+      await tabs.openFile(frame.file);
       editor.revealLineInCenterIfOutsideViewport(frame.line);
     }
     renderCurrentLine();
@@ -220,10 +218,10 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
     stopped = detail;
     document.body.classList.add('debug-paused');
     const top = detail.stack.findIndex((frame) => frame.user);
-    setStatus(`Paused (${detail.reason}) at ${toUserPath(detail.stack[0].file)}:${detail.stack[0].line}`);
+    setStatus(`Paused (${detail.reason}) at ${detail.stack[0].file}:${detail.stack[0].line}`);
     els.stack.replaceChildren(...detail.stack.map((frame, index) => {
       const row = element('li', frame.user ? 'user' : 'system');
-      row.append(element('span', 'debug-frame-name', frame.name), element('span', 'debug-frame-file', `\u200e${toUserPath(frame.file)}:${frame.line}\u200e`));
+      row.append(element('span', 'debug-frame-name', frame.name), element('span', 'debug-frame-file', `\u200e${frame.file}:${frame.line}\u200e`));
       row.addEventListener('click', () => revealFrame(index));
       return row;
     }));
@@ -291,7 +289,7 @@ export function createDebugger(els, { editor, tabs, setStatus, paths }) {
   return {
     hooks: () => ({
       init: () => ({
-        breakpoints: Object.fromEntries([...breakpoints].filter(([, lines]) => lines.size).map(([path, lines]) => [toDevicePath(path), [...lines]])),
+        breakpoints: Object.fromEntries([...breakpoints].filter(([, lines]) => lines.size).map(([path, lines]) => [path, [...lines]])),
       }),
       attach(debugClient) {
         client = debugClient;

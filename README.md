@@ -23,7 +23,7 @@ The badge exposes two USB CDC interfaces:
 
 There is one workspace (IndexedDB) and one set of open tabs. The Badge / Simulator switch on the right of the toolbar picks where Run goes:
 
-- **Badge**: Run syncs changed workspace files to the badge (by SHA-256) and runs there. `/apps/<slug>` maps to `/system/apps/<slug>`, so apps show up in the launcher; other files keep their path; `/secrets.py` is never synced. Unsaved tabs run as `/.ide/scratch.py`. The side panel is the debugger plus output.
+- **Badge**: Run syncs changed workspace files to the badge (by SHA-256) and runs there. Paths are the same on both: apps live in `/apps/<slug>`, which the launcher scans. `/secrets.py` is never synced. Unsaved tabs run as `/.ide/scratch.py`. The side panel is the debugger plus output.
 - **Simulator**: the 3D simulator. Apps run with `launch()`.
 
 The Files panel shows the workspace on top and the badge's own files below. Badge files open read-only; the context menus copy files and folders either way, and delete from the badge. **Config** edits `/secrets.py` on the badge (WiFi, region, GMT offset, custom keys) and needs the Badge target.

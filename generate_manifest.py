@@ -11,7 +11,7 @@ emulated filesystem. Run this whenever you add or remove font files:
 Scans the simulator's font directories (relative to this script, so it works from
 any working directory) and writes a sorted manifest:
 
-    vector (.af)  <- simulator/filesystem/system/assets/fonts
+    vector (.af)  <- simulator/filesystem/fonts
     pixel  (.ppf) <- simulator/filesystem/rom/fonts
 """
 
@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent
 FILESYSTEM = ROOT / "simulator" / "filesystem"
 
 SOURCES = {
-    "vector": (FILESYSTEM / "system" / "assets" / "fonts", ".af"),
+    "vector": (FILESYSTEM / "fonts", ".af"),
     "pixel": (FILESYSTEM / "rom" / "fonts", ".ppf"),
 }
 

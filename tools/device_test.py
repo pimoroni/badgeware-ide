@@ -16,7 +16,7 @@ import time
 import serial
 from mpremote.transport_serial import SerialTransport
 
-APP_DIR = "/system/apps/ide_test"
+APP_DIR = "/apps/ide_test"
 APP_FILE = APP_DIR + "/__init__.py"
 
 ERROR_APP = """\

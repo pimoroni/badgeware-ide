@@ -6,7 +6,7 @@ import { bridgeSerial } from './bridge-port.mjs';
 const PORTS = (process.env.BADGE_PORTS || '').split(',').filter(Boolean);
 const skip = PORTS.length < 2 && 'set BADGE_PORTS=<repl>,<debug> to run hardware tests';
 
-const APP = '/system/apps/ide_node_test';
+const APP = '/apps/ide_node_test';
 const encode = (text) => new TextEncoder().encode(text);
 
 let badge;

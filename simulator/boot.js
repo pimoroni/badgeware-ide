@@ -192,7 +192,7 @@ export function bootSimulator() {
     /* (Re)launch the badge OS (the menu). Fetched fresh rather than reusing
        defaultCode, which may be a deep-linked file when ?file= is set. */
     const runOS = async () => {
-      const code = await fetch(BOOT_BASE + 'filesystem/system/main.py')
+      const code = await fetch(BOOT_BASE + 'launcher.py')
         .then(r => r.ok ? r.text() : null).catch(() => null);
       if (code != null) await runProgram(code, { status: 'badgeOS' });
       else appendOut('✕ Could not load badgeOS', 'out-error');
@@ -233,7 +233,7 @@ export function bootSimulator() {
     // launches the menu). `examples/<name>` loads a gallery example (examples.html
     // links here) as an editable scratch buffer; anything else resolves against the
     // user FS first, then the system filesystem (so `?file=blink.py` or
-    // `?file=/system/apps/clock/main.py`).
+    // `?file=/apps/clock/__init__.py`).
     const qFile = new URLSearchParams(location.search).get('file');
     const hFile = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
     const override = (qFile || hFile || '').trim();
@@ -263,7 +263,7 @@ export function bootSimulator() {
     }
     if (defaultCode == null) {
       startupFile = null;
-      defaultCode = await fetch(BOOT_BASE + 'filesystem/system/main.py')
+      defaultCode = await fetch(BOOT_BASE + 'launcher.py')
         .then(r => r.ok ? r.text() : null)
         .catch(() => null)
         ?? 'badge.mode(HIRES)\n\ndef update():\n    screen.text("Hello!", 10, 10)\n';
@@ -271,8 +271,8 @@ export function bootSimulator() {
     const startupApp = startupFile && !startupFile.system && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
     const runnable = !startupFile || startupFile.scratch || startupFile.path.endsWith('.py');
     const startupCode = startupApp?.kind === 'app'
-      ? `launch(${JSON.stringify(startupApp.userPath)})`
-      : runnable ? defaultCode : await fetch(BOOT_BASE + 'filesystem/system/main.py').then((r) => (r.ok ? r.text() : '')).catch(() => '');
+      ? `launch(${JSON.stringify(startupApp.path)})`
+      : runnable ? defaultCode : await fetch(BOOT_BASE + 'launcher.py').then((r) => (r.ok ? r.text() : '')).catch(() => '');
     // Run it now, in parallel with Monaco loading — don't await the program itself.
     if (target === 'simulator') runProgram(startupCode, { tabKey: startupFile ? startupFile.tabKey : null });
     if (warn) appendOut(warn, 'out-dim');

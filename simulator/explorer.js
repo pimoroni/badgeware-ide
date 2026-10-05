@@ -13,6 +13,7 @@
 import { afParse, afRender } from './af.js';
 import { ppfParse, ppfRender } from './ppf.js';
 import { initTargetSwitch } from './mode.js';
+import { highlightPython } from './font-snippet.js';
 
 initTargetSwitch();
 
@@ -310,17 +311,10 @@ function snippetFor(entry) {
   ].join('\n');
 }
 
-/* Very small Python-ish highlighter: comments, strings, and font.* calls. */
-function highlight(code) {
-  return escapeHtml(code)
-    .replace(/(#[^\n]*)/g, '<span class="tok-comment">$1</span>')
-    .replace(/(&quot;[^&]*&quot;)/g, '<span class="tok-str">$1</span>')
-    .replace(/\b(font\.\w+)\b/g, '<span class="tok-fn">$1</span>');
-}
 
 function renderSnippet(entry) {
   const code = snippetFor(entry);
-  $('#modal-code').innerHTML = highlight(code);
+  $('#modal-code').innerHTML = highlightPython(code);
   $('#modal-copy').onclick = async () => {
     try {
       await navigator.clipboard.writeText(code);

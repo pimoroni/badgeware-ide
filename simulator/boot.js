@@ -269,7 +269,10 @@ export function bootSimulator() {
         ?? 'badge.mode(HIRES)\n\ndef update():\n    screen.text("Hello!", 10, 10)\n';
     }
     const startupApp = startupFile && !startupFile.system && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
-    const startupCode = startupApp?.kind === 'app' ? `launch(${JSON.stringify(startupApp.userPath)})` : defaultCode;
+    const runnable = !startupFile || startupFile.scratch || startupFile.path.endsWith('.py');
+    const startupCode = startupApp?.kind === 'app'
+      ? `launch(${JSON.stringify(startupApp.userPath)})`
+      : runnable ? defaultCode : await fetch(BOOT_BASE + 'filesystem/system/main.py').then((r) => (r.ok ? r.text() : '')).catch(() => '');
     // Run it now, in parallel with Monaco loading — don't await the program itself.
     if (target === 'simulator') runProgram(startupCode, { tabKey: startupFile ? startupFile.tabKey : null });
     if (warn) appendOut(warn, 'out-dim');

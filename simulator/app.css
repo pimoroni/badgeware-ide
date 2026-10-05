@@ -404,6 +404,13 @@
     /* The dimensions are a <small> (semantic "fine print"); keep them the same
        size as the name for now — drop this rule to visually de-emphasise them. */
     #img-preview figcaption small { font-size: inherit; }
+    #img-preview .font-usage { margin-top: 16px; width: min(560px, 100%); text-align: left; }
+    #img-preview .font-usage[hidden] { display: none; }
+    #img-preview .size-previews { display: flex; align-items: flex-end; gap: 24px; padding: 16px 20px; background: rgb(30, 30, 40); border-radius: 8px; }
+    #img-preview .size-previews[hidden] { display: none; }
+    #img-preview .size-previews figure { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    #img-preview .size-previews img { image-rendering: pixelated; max-width: none; max-height: none; }
+    #img-preview .size-previews figcaption { color: var(--dim); font-size: var(--text-xs); }
 
     /* -- Example gallery -----------------------------------------------------
        Lives on its own page now (examples.html), where it fills #editor-panel.

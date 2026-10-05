@@ -18,6 +18,7 @@
 import { userFS } from './fs.js';
 import { idbKv } from './util.js';
 import { ppfParse, ppfPreview } from './ppf.js';
+import { fontUsage, highlightPython } from './font-snippet.js';
 import { afParse, afPreview } from './af.js';
 import { delegate } from './util.js';
 
@@ -268,13 +269,45 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
       const imgTag = imgEl.querySelector('img');
       imgTag.src = t.imgUrl;
       imgEl.querySelector('span').textContent = t.name;
+      const usage = fontUsage(t.path ?? '');
+      const usageEl = imgEl.querySelector('.font-usage');
+      usageEl.hidden = !usage;
+      if (usage) {
+        usageEl.querySelector('pre').innerHTML = highlightPython(usage);
+        usageEl.querySelector('.copy-btn').onclick = async (event) => {
+          const button = event.currentTarget;
+          try {
+            await navigator.clipboard.writeText(usage);
+            button.lastChild.textContent = 'Copied';
+            setTimeout(() => { button.lastChild.textContent = 'Copy'; }, 1400);
+          } catch (_) {}
+        };
+      }
       const dimsEl = imgEl.querySelector('small');
+      const sizesEl = imgEl.querySelector('.size-previews');
+      sizesEl.replaceChildren();
+      sizesEl.hidden = true;
       if (t.dimText) {
         dimsEl.textContent = t.dimText;
       } else {
         dimsEl.textContent = '';
         imgTag.onload = () => {
           dimsEl.textContent = imgTag.naturalWidth + ' × ' + imgTag.naturalHeight + ' px';
+          const largest = Math.max(imgTag.naturalWidth, imgTag.naturalHeight);
+          const scales = largest <= 64 ? [1, 2, 4] : largest <= 128 ? [1, 2] : [];
+          sizesEl.hidden = !scales.length;
+          sizesEl.replaceChildren(...scales.map((scale) => {
+            const item = document.createElement('figure');
+            const copy = document.createElement('img');
+            copy.src = imgTag.src;
+            copy.alt = '';
+            copy.style.width = imgTag.naturalWidth * scale + 'px';
+            copy.style.height = imgTag.naturalHeight * scale + 'px';
+            const label = document.createElement('figcaption');
+            label.textContent = scale + '×';
+            item.append(copy, label);
+            return item;
+          }));
         };
       }
     } else {

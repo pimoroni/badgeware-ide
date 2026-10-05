@@ -20,7 +20,6 @@ import { createConnector } from './device/connect.js';
 initTargetSwitch();
 
 const ICON_FONTS_URL = 'https://raw.githubusercontent.com/gadgetoid/iconfont-ppf/main/dist/fonts.js';
-const ICON_SAMPLE_LENGTH = 18;
 
 const FG = '#f0e8d8';                 // glyph colour (matches badgeware specimens)
 const DEFAULT_TEXT = 'The quick brown fox 0123';
@@ -83,7 +82,6 @@ async function loadIcons() {
         entries.push({
           kind: 'icon', file: variant.file, path: ICON_FONTS_URL.replace('fonts.js', variant.file),
           name: category.title + label, font, buffer: bytes.buffer, glyphs: category.glyphs,
-          sample: category.glyphs.slice(0, ICON_SAMPLE_LENGTH).map((glyph) => glyph.char).join(''),
           el: null, canvas: null,
         });
       }
@@ -120,6 +118,7 @@ function prettyName(kind, file, font) {
    fonts render at VECTOR_BASE_PX * scale px; pixel fonts at native size * scale
    (snapped to a whole multiplier). Long lines clip at the screen's right edge. */
 function drawSpecimen(entry, canvas, text, scale, lores) {
+  if (entry.kind === 'icon') return drawIconSheet(entry, canvas);
   const W = lores ? 160 : 320;      // badge screen resolution
   const H = lores ? 120 : 240;
   const hpad = lores ? 4 : 8;       // small left margin, in badge pixels
@@ -140,8 +139,40 @@ function drawSpecimen(entry, canvas, text, scale, lores) {
     const px = Math.max(1, Math.round(scale));
     ctx.imageSmoothingEnabled = false;
     ctx.setTransform(px, 0, 0, px, 0, 0);
-    ppfRender(entry.font, ctx, entry.kind === 'icon' ? entry.sample : t, Math.max(1, Math.round(hpad / px)), Math.round((H / px - gh) / 2), FG);
+    ppfRender(entry.font, ctx, t, Math.max(1, Math.round(hpad / px)), Math.round((H / px - gh) / 2), FG);
   }
+}
+
+function drawIconSheet(entry, canvas) {
+  const W = 320;
+  const H = 240;
+  const margin = 8;
+  const gap = 2;
+  const font = entry.font;
+  const count = entry.glyphs.length;
+  const cellW = font.cellWidth + gap;
+  const cellH = font.glyphHeight + gap;
+  const fits = (px) => Math.floor((W - margin * 2 + gap * px) / (cellW * px)) * Math.floor((H - margin * 2 + gap * px) / (cellH * px)) >= count;
+  let px = 1;
+  while (fits(px + 1)) px++;
+  const columns = Math.min(count, Math.floor((W - margin * 2 + gap * px) / (cellW * px)));
+  const rows = Math.ceil(count / columns);
+  const left = Math.floor((W / px - (columns * cellW - gap)) / 2);
+  const top = Math.floor((H / px - (rows * cellH - gap)) / 2);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = W;
+  canvas.height = H;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(px, 0, 0, px, 0, 0);
+  entry.glyphs.forEach((glyph, index) => {
+    const glyphWidth = font.glyphs[font.cpMap.get(glyph.char.codePointAt(0))]?.width ?? font.cellWidth;
+    const x = left + (index % columns) * cellW + Math.floor((font.cellWidth - glyphWidth) / 2);
+    const y = top + Math.floor(index / columns) * cellH;
+    ppfRender(font, ctx, glyph.char, x, y, FG);
+  });
 }
 
 function dimsText(entry) {

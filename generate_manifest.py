@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate simulator/fonts-manifest.json for the Font Explorer.
+"""Regenerate simulator/fonts-manifest.json and simulator/filesystem.json.
 
 A static site can't list a directory, so the explorer (fonts.html) reads the set
 of fonts to load from a manifest. The fonts themselves are NOT vendored for the
@@ -28,6 +28,7 @@ SOURCES = {
 }
 
 OUT = ROOT / "simulator" / "fonts-manifest.json"
+FILESYSTEM_OUT = ROOT / "simulator" / "filesystem.json"
 
 
 def collect(directory: Path, ext: str) -> list[str]:
@@ -44,6 +45,14 @@ def main() -> int:
 
     counts = ", ".join(f"{len(v)} {k}" for k, v in manifest.items())
     print(f"Wrote {OUT.relative_to(ROOT)} ({counts})")
+
+    files = {
+        "/" + path.relative_to(FILESYSTEM).as_posix(): path.stat().st_size
+        for path in sorted(FILESYSTEM.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts and path.name != ".DS_Store"
+    }
+    FILESYSTEM_OUT.write_text(json.dumps({"files": dict(sorted(files.items()))}, indent=4) + "\n")
+    print(f"Wrote {FILESYSTEM_OUT.relative_to(ROOT)} ({len(files)} files)")
     return 0
 
 

@@ -1,7 +1,5 @@
 import math
-import os
 import random
-import sys
 import time
 
 from lsm6ds3 import LSM6DS3, NORMAL_MODE_104HZ
@@ -21,11 +19,6 @@ except OSError:
 badge.mode(HIRES)
 badge.antialias = image.X4
 
-# Standalone bootstrap for finding app assets
-os.chdir("/contrib/magic_ball")
-
-# Standalone bootstrap for module imports
-sys.path.insert(0, "/contrib/magic_ball")
 
 CENTRE_X, CENTRE_Y = screen.width / 2, screen.height / 2
 PURPLE = color.rgb(200, 0, 200)
@@ -148,7 +141,6 @@ def update():
                 selection = random.choice(ANSWERS)
     except OSError:
         fatal_error("I/O Error", "\nUnable to communicate with the Multi-Sensor Stick!\n\nCheck your connection and try again.")
-
 
 
 run(update)

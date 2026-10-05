@@ -268,7 +268,7 @@ export function bootSimulator() {
         .catch(() => null)
         ?? 'badge.mode(HIRES)\n\ndef update():\n    screen.text("Hello!", 10, 10)\n';
     }
-    const startupApp = startupFile && !startupFile.system && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
+    const startupApp = startupFile && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
     const runnable = !startupFile || startupFile.scratch || startupFile.path.endsWith('.py');
     const startupCode = startupApp?.kind === 'app'
       ? `launch(${JSON.stringify(startupApp.path)})`

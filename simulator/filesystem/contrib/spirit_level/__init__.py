@@ -1,6 +1,3 @@
-import os
-import sys
-
 from lsm6ds3 import LSM6DS3, PERFORMANCE_MODE_416HZ
 from machine import I2C
 
@@ -12,11 +9,6 @@ except OSError:
 badge.mode(HIRES)
 badge.antialias = image.X4
 
-# Standalone bootstrap for finding app assets
-os.chdir("/contrib/spirit_level")
-
-# Standalone bootstrap for module imports
-sys.path.insert(0, "/contrib/spirit_level")
 
 CENTRE_X, CENTRE_Y = screen.width / 2, screen.height / 2
 

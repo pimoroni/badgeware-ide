@@ -1,16 +1,8 @@
-import os
-import sys
-
 from machine import I2C
 from ulab import numpy
 
 badge.mode(HIRES)
 
-# Standalone bootstrap for finding app assets
-os.chdir("/contrib/thermal_camera")
-
-# Standalone bootstrap for module imports
-sys.path.insert(0, "/contrib/thermal_camera")
 
 from mlx90640 import MLX90640, RefreshRate, init_float_array
 

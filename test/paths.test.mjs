@@ -4,6 +4,7 @@ import { runTargetFor, appSlug, slugify, SCRATCH_PATH } from '../simulator/devic
 
 test('apps run as a whole, other files on their own', () => {
   assert.deepEqual(runTargetFor('/apps/snake/game.py'), { kind: 'app', slug: 'snake', path: '/apps/snake' });
+  assert.deepEqual(runTargetFor('/contrib/blocks/__init__.py'), { kind: 'app', slug: 'blocks', path: '/contrib/blocks' });
   assert.deepEqual(runTargetFor('/hello.py'), { kind: 'file', path: '/hello.py' });
   assert.deepEqual(runTargetFor(null), { kind: 'scratch', path: SCRATCH_PATH });
   assert.equal(appSlug('/apps'), null);

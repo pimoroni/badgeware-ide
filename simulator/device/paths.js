@@ -1,15 +1,15 @@
 export const SCRATCH_PATH = '/.ide/scratch.py';
 
-const APP_PATTERN = /^\/apps\/([^/]+)(\/.*)?$/;
+const APP_PATTERN = /^\/(apps|contrib)\/([^/]+)(\/.*)?$/;
 
 export function appSlug(path) {
-  return path?.match(APP_PATTERN)?.[1] ?? null;
+  return path?.match(APP_PATTERN)?.[2] ?? null;
 }
 
 export function runTargetFor(path) {
   if (!path) return { kind: 'scratch', path: SCRATCH_PATH };
-  const slug = appSlug(path);
-  if (slug) return { kind: 'app', slug, path: `/apps/${slug}` };
+  const match = path.match(APP_PATTERN);
+  if (match) return { kind: 'app', slug: match[2], path: `/${match[1]}/${match[2]}` };
   return { kind: 'file', path };
 }
 

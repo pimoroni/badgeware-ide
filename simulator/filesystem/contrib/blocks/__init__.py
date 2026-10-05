@@ -12,14 +12,9 @@ Pause menu: Theme, Stats, Quit.
 Theme is random each launch — change it in the pause menu.
 """
 
-APP_DIR = "/contrib/blocks"
 
-import os
-import sys
 import random
 
-os.chdir(APP_DIR)
-sys.path.insert(0, APP_DIR)
 
 # Set HIRES before importing draw (it reads screen dimensions at module level)
 badge.mode(HIRES)

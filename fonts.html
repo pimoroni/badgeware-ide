@@ -75,7 +75,9 @@
     <button data-filter="all" class="active">All</button>
     <button data-filter="vector">Vector</button>
     <button data-filter="pixel">Pixel</button>
+    <button data-filter="icon">Icons</button>
   </div>
+  <output id="install-status"></output>
 </div>
 </header>
 
@@ -95,6 +97,11 @@
       <div id="modal-specimen"></div>
       <div class="dims-row" id="modal-dims"></div>
 
+      <div id="modal-glyphs-section" hidden>
+        <div class="modal-section-title">Glyphs <small>click one to copy its character</small></div>
+        <div id="modal-glyphs"></div>
+      </div>
+
       <div class="modal-section-title">Load it on your badge</div>
       <div class="code-block">
         <button class="copy-btn" id="modal-copy"><span class="material-symbols-outlined">content_copy</span>Copy</button>
@@ -102,11 +109,27 @@
       </div>
 
       <div class="modal-actions">
+        <button class="btn primary" id="modal-install" hidden><span class="material-symbols-outlined">install_desktop</span><span>Install on badge</span></button>
+        <button class="btn" id="modal-remove" hidden><span class="material-symbols-outlined">delete</span>Remove from badge</button>
         <button class="btn primary" id="modal-download"><span class="material-symbols-outlined">download</span>Download font</button>
       </div>
     </div>
   </div>
 </div>
+
+<dialog id="pair-dialog" aria-label="Pair your badge">
+  <header>
+    <span class="material-symbols-outlined">usb</span>
+    <h2></h2>
+  </header>
+  <form method="dialog">
+    <p class="pair-text"></p>
+    <footer>
+      <button value="cancel">Cancel</button>
+      <button value="choose" class="primary">Choose port</button>
+    </footer>
+  </form>
+</dialog>
 
 <script type="module" src="simulator/explorer.js"></script>
 </body>

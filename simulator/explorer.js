@@ -12,10 +12,15 @@
 
 import { afParse, afRender } from './af.js';
 import { ppfParse, ppfRender } from './ppf.js';
-import { initTargetSwitch } from './mode.js';
+import { initTargetSwitch, webSerialSupported, currentTarget } from './mode.js';
 import { highlightPython } from './font-snippet.js';
+import { badgeDevice } from './device/session.js';
+import { createConnector } from './device/connect.js';
 
 initTargetSwitch();
+
+const ICON_FONTS_URL = 'https://raw.githubusercontent.com/gadgetoid/iconfont-ppf/main/dist/fonts.js';
+const ICON_SAMPLE_LENGTH = 18;
 
 const FG = '#f0e8d8';                 // glyph colour (matches badgeware specimens)
 const DEFAULT_TEXT = 'The quick brown fox 0123';
@@ -59,11 +64,33 @@ async function loadAll() {
   const jobs = [];
   for (const file of manifest.vector) jobs.push(load('vector', VECTOR_DIR + file, file));
   for (const file of manifest.pixel)  jobs.push(load('pixel',  PIXEL_DIR  + file, file));
+  jobs.push(loadIcons());
   await Promise.all(jobs);
 
-  // Keep a stable, friendly order: vector first, then pixel, each alphabetical.
-  entries.sort((a, b) =>
-    a.kind === b.kind ? a.name.localeCompare(b.name) : (a.kind === 'vector' ? -1 : 1));
+  const order = { vector: 0, pixel: 1, icon: 2 };
+  entries.sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name));
+}
+
+async function loadIcons() {
+  try {
+    const source = await (await fetch(ICON_FONTS_URL)).text();
+    const categories = JSON.parse(source.slice(source.indexOf('['), source.lastIndexOf(']') + 1));
+    for (const category of categories) {
+      for (const [variant, label] of [[category, ''], [category.outline, ' outline']]) {
+        if (!variant?.b64) continue;
+        const bytes = Uint8Array.from(atob(variant.b64), (c) => c.charCodeAt(0));
+        const font = ppfParse(bytes.buffer);
+        entries.push({
+          kind: 'icon', file: variant.file, path: ICON_FONTS_URL.replace('fonts.js', variant.file),
+          name: category.title + label, font, buffer: bytes.buffer, glyphs: category.glyphs,
+          sample: category.glyphs.slice(0, ICON_SAMPLE_LENGTH).map((glyph) => glyph.char).join(''),
+          el: null, canvas: null,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Skipping icon fonts', err);
+  }
 }
 
 async function load(kind, path, file) {
@@ -113,7 +140,7 @@ function drawSpecimen(entry, canvas, text, scale, lores) {
     const px = Math.max(1, Math.round(scale));
     ctx.imageSmoothingEnabled = false;
     ctx.setTransform(px, 0, 0, px, 0, 0);
-    ppfRender(entry.font, ctx, t, Math.max(1, Math.round(hpad / px)), Math.round((H / px - gh) / 2), FG);
+    ppfRender(entry.font, ctx, entry.kind === 'icon' ? entry.sample : t, Math.max(1, Math.round(hpad / px)), Math.round((H / px - gh) / 2), FG);
   }
 }
 
@@ -133,22 +160,27 @@ function buildGallery() {
 
   const vector = entries.filter(e => e.kind === 'vector');
   const pixel  = entries.filter(e => e.kind === 'pixel');
+  const icons  = entries.filter(e => e.kind === 'icon');
 
   main.append(
     section('Vector fonts', '.af', vector),
     section('Pixel fonts', '.ppf', pixel),
   );
+  if (icons.length) {
+    main.append(section('Icon fonts', '.ppf', icons, 'Converted from nikoichu\'s CC0 <a href="https://nikoichu.itch.io/pixel-icons" target="_blank" rel="noopener">1-bit Pixel Icons</a>. Install one to use it as <code>font.&lt;name&gt;</code>.'));
+  }
 
   refreshSpecimens();
 }
 
-function section(title, ext, list) {
+function section(title, ext, list, note = null) {
   const frag = document.createDocumentFragment();
 
   const h = document.createElement('h2');
   h.className = 'section-title';
   h.dataset.kind = list[0]?.kind ?? '';
   h.innerHTML = `${title} <span class="count">${ext} · ${list.length}</span>`;
+  if (note) h.insertAdjacentHTML('beforeend', `<small class="section-note">${note}</small>`);
   frag.append(h);
 
   const grid = document.createElement('div');
@@ -168,7 +200,7 @@ function card(entry) {
   el.setAttribute('aria-label', `${entry.name} — open details`);
 
   const specimen = document.createElement('div');
-  specimen.className = 'specimen' + (entry.kind === 'pixel' ? ' pixel' : '');
+  specimen.className = 'specimen' + (entry.kind !== 'vector' ? ' pixel' : '');
   const canvas = document.createElement('canvas');
   specimen.append(canvas);
 
@@ -179,7 +211,17 @@ function card(entry) {
       <span class="name">${escapeHtml(entry.name)}</span>
       <span class="dims">${dimsText(entry)}</span>
     </div>
-    <span class="badge ${entry.kind}">${entry.kind === 'vector' ? 'Vector' : 'Pixel'}</span>`;
+    <span class="badge ${entry.kind}">${KIND_LABELS[entry.kind]}</span>`;
+  if (entry.kind === 'icon' && webSerialSupported()) {
+    const install = document.createElement('button');
+    install.className = 'install-btn';
+    install.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleInstall(entry);
+    });
+    meta.append(install);
+    entry.installButton = install;
+  }
 
   el.append(specimen, meta);
   el.addEventListener('click', () => openModal(entry));
@@ -191,6 +233,8 @@ function card(entry) {
   entry.canvas = canvas;
   return el;
 }
+
+const KIND_LABELS = { vector: 'Vector', pixel: 'Pixel', icon: 'Icons' };
 
 /* Redraw every visible card's specimen (after a text / size / filter change). */
 function refreshSpecimens() {
@@ -224,13 +268,13 @@ const backdrop = $('#modal-backdrop');
 function openModal(entry) {
   $('#modal-name').textContent = entry.name;
   const badge = $('#modal-badge');
-  badge.textContent = entry.kind === 'vector' ? 'Vector' : 'Pixel';
+  badge.textContent = KIND_LABELS[entry.kind];
   badge.className = 'badge ' + entry.kind;
 
   $('#modal-dims').innerHTML = modalDims(entry);
 
   const specimen = $('#modal-specimen');
-  specimen.className = entry.kind === 'pixel' ? 'pixel' : '';
+  specimen.className = entry.kind !== 'vector' ? 'pixel' : '';
   specimen.innerHTML = '';
   const canvas = document.createElement('canvas');
   specimen.append(canvas);
@@ -241,6 +285,9 @@ function openModal(entry) {
 
   const dl = $('#modal-download');
   dl.onclick = () => downloadFont(entry);
+  renderGlyphs(entry);
+  modalEntry = entry;
+  syncInstallButtons();
 
   backdrop.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -256,11 +303,11 @@ function openModal(entry) {
 function modalDims(entry) {
   const f = entry.font;
   const rows = [
-    ['Type',   entry.kind === 'vector' ? 'Vector (.af)' : 'Pixel (.ppf)'],
+    ['Type',   entry.kind === 'vector' ? 'Vector (.af)' : entry.kind === 'icon' ? 'Icon font (.ppf)' : 'Pixel (.ppf)'],
     ['Glyphs', f.glyphCount],
     ['File',   entry.file],
   ];
-  if (entry.kind === 'pixel') {
+  if (entry.kind !== 'vector') {
     rows.splice(2, 0, ['Cell size', `${f.cellWidth}×${f.glyphHeight} px`]);
   }
   const kb = (entry.buffer.byteLength / 1024).toFixed(1);
@@ -286,6 +333,16 @@ function openFromHash() {
 /* -- Code snippet --------------------------------------------------------- */
 function snippetFor(entry) {
   const name    = entry.file.replace(/\.(af|ppf)$/i, '');   // bare name, no extension
+  if (entry.kind === 'icon') {
+    const glyph = entry.glyphs[0];
+    const char = glyph.char.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return [
+      `# Install ${name} on your badge, then:`,
+      `screen.font = font.${name}`,
+      `screen.pen = color.white`,
+      `screen.text("${char}", 10, 10)  # ${glyph.name}`,
+    ].join('\n');
+  }
   const sample  = (state.text.length ? state.text : 'Hello, badge!').replace(/"/g, '\\"');
   // Vector fonts take a px size; pixel fonts take an integer scale (both in the
   // same screen.text() argument slot) — matching what the preview shows.
@@ -328,6 +385,102 @@ function flashCopied(btn) {
   btn.innerHTML = '<span class="material-symbols-outlined">check</span>Copied';
   setTimeout(() => { btn.innerHTML = orig; }, 1400);
 }
+
+/* -- Icon glyphs and installing -------------------------------------------- */
+let modalEntry = null;
+let installed = new Set();
+let busy = false;
+const installStatus = $('#install-status');
+const connector = badgeDevice
+  ? createConnector({
+    device: badgeDevice,
+    dialog: $('#pair-dialog'),
+    setStatus: (text) => { installStatus.textContent = text; },
+    onError: (error) => { installStatus.textContent = '✕ ' + error.message; },
+  })
+  : null;
+
+function renderGlyphs(entry) {
+  const section = $('#modal-glyphs-section');
+  const grid = $('#modal-glyphs');
+  section.hidden = entry.kind !== 'icon';
+  grid.replaceChildren();
+  if (entry.kind !== 'icon') return;
+  for (const glyph of entry.glyphs) {
+    const tile = document.createElement('button');
+    tile.className = 'glyph-tile';
+    tile.title = `${glyph.name}  "${glyph.char}"  U+${glyph.code}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = entry.font.cellWidth ?? 16;
+    canvas.height = entry.font.glyphHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ppfRender(entry.font, ctx, glyph.char, 0, 0, FG);
+    const label = document.createElement('span');
+    label.textContent = glyph.name.replace(/_/g, ' ');
+    tile.append(canvas, label);
+    tile.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(glyph.char);
+        installStatus.textContent = `Copied "${glyph.char}" (${glyph.name})`;
+      } catch (_) {}
+    });
+    grid.append(tile);
+  }
+}
+
+function syncInstallButtons() {
+  for (const entry of entries) {
+    if (!entry.installButton) continue;
+    const isInstalled = installed.has(entry.file);
+    entry.installButton.textContent = busy === entry.file ? 'Working…' : isInstalled ? 'Installed' : 'Install';
+    entry.installButton.classList.toggle('installed', isInstalled);
+    entry.installButton.disabled = !!busy;
+  }
+  const install = $('#modal-install');
+  const remove = $('#modal-remove');
+  const isIcon = modalEntry?.kind === 'icon' && !!connector;
+  const isInstalled = isIcon && installed.has(modalEntry.file);
+  install.hidden = !isIcon || isInstalled;
+  remove.hidden = !isIcon || !isInstalled;
+  install.disabled = remove.disabled = !!busy;
+  install.lastElementChild.textContent = busy ? 'Working…' : 'Install on badge';
+}
+
+async function refreshInstalled() {
+  if (!badgeDevice?.connected) return;
+  installed = new Set(await badgeDevice.romFonts().catch(() => []));
+  syncInstallButtons();
+}
+
+async function toggleInstall(entry, { remove = installed.has(entry.file) } = {}) {
+  if (busy || !connector) return;
+  if (!(await connector.connect({ prompt: true }))) return;
+  await refreshInstalled();
+  busy = entry.file;
+  syncInstallButtons();
+  try {
+    if (remove) {
+      installStatus.textContent = `Removing ${entry.file}…`;
+      await badgeDevice.romRemove(`fonts/${entry.file}`);
+      installStatus.textContent = `Removed ${entry.file} from your badge`;
+    } else {
+      installStatus.textContent = `Installing ${entry.file}…`;
+      await badgeDevice.romInstall(`fonts/${entry.file}`, new Uint8Array(entry.buffer), (sent, total) => {
+        installStatus.textContent = `Installing ${entry.file} ${Math.round((sent / total) * 100)}%`;
+      });
+      installStatus.textContent = `Installed. Use it as font.${entry.file.replace(/\.ppf$/, '')}`;
+    }
+  } catch (error) {
+    installStatus.textContent = '✕ ' + error.message;
+  } finally {
+    busy = false;
+    await refreshInstalled();
+  }
+}
+
+$('#modal-install').addEventListener('click', () => modalEntry && toggleInstall(modalEntry, { remove: false }));
+$('#modal-remove').addEventListener('click', () => modalEntry && toggleInstall(modalEntry, { remove: true }));
 
 /* -- Download ------------------------------------------------------------- */
 function downloadFont(entry) {
@@ -412,6 +565,8 @@ function initControls() {
   try {
     await loadAll();
     buildGallery();
+    syncInstallButtons();
+    if (connector && currentTarget() === 'badge' && (await badgeDevice.knownPorts()).length && await connector.connect({ prompt: false })) await refreshInstalled();
     openFromHash();
     window.addEventListener('hashchange', openFromHash);
   } catch (err) {

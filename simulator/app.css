@@ -668,6 +668,8 @@
     }
     .font-card .badge.vector,
     #modal-header .badge.vector { color: var(--blue); border-color: rgba(32, 189, 224, 0.4); }
+    .font-card .badge.icon,
+    #modal-header .badge.icon { color: var(--orange); border-color: rgba(224, 137, 32, 0.4); }
     .font-card .badge.pixel,
     #modal-header .badge.pixel  { color: var(--green); border-color: rgba(32, 224, 70, 0.4); }
 
@@ -1745,3 +1747,39 @@
     #new-app-dialog header { border-bottom: 1px solid var(--border); }
     #new-app-dialog header .material-symbols-outlined { color: var(--orange); }
     #new-app-dialog h2 { font-size: var(--text); font-weight: 400; }
+
+    .section-title .section-note { display: block; margin-top: 4px; color: var(--dim); font-size: var(--text-xs); font-weight: 300; text-transform: none; letter-spacing: 0; }
+    .section-title .section-note a { color: var(--blue); }
+    .section-title .section-note code { color: var(--orange); }
+    #install-status { margin-left: auto; color: var(--faint); font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40ch; }
+    .font-card .install-btn {
+      margin-left: 8px;
+      padding: 3px 10px;
+      font: inherit;
+      font-size: var(--text-xs);
+      color: var(--bg);
+      background: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .font-card .install-btn.installed { color: var(--green); background: none; }
+    .font-card .install-btn:disabled { opacity: 0.5; cursor: progress; }
+    .modal-section-title small { margin-left: 8px; color: var(--dim); text-transform: none; letter-spacing: 0; font-weight: 300; }
+    #modal-glyphs { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 280px; overflow-y: auto; margin-bottom: 8px; }
+    .glyph-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      font: inherit;
+      color: var(--dim);
+      background: rgb(6, 10, 16);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .glyph-tile:hover { border-color: var(--faint); color: var(--white); }
+    .glyph-tile canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+    .glyph-tile span { font-size: 0.65rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }

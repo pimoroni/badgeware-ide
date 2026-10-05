@@ -230,17 +230,34 @@ export class BadgeDevice extends EventTarget {
     return this.task(() => this.writeNow(path, bytes, onProgress));
   }
 
-  async writeNow(path, bytes, onProgress) {
+  romFonts() {
+    return this.task(async () => (await this.repl.execJson('import ide; ide.ls("/rom/fonts")')).map(([path]) => path.split('/').pop()));
+  }
+
+  romInfo() {
+    return this.task(() => this.repl.execJson('import ide; ide.rom_info()'));
+  }
+
+  romInstall(path, bytes, onProgress = null) {
+    return this.task(() => this.writeNow(path, bytes, onProgress, { command: 'rom_put', timeout: 120000 }));
+  }
+
+  romRemove(path) {
+    return this.task(() => this.repl.execJson(`import ide; ide.rom_remove(${py(path)})`, { timeout: 120000 }));
+  }
+
+  async writeNow(path, bytes, onProgress, { command = 'put', timeout = 10000 } = {}) {
     const link = this.replLink;
-    await this.repl.start(`import ide; ide.put(${py(path)}, ${bytes.length})`);
+    await this.repl.start(`import ide; ide.${command}(${py(path)}, ${bytes.length})`);
     await this.expectAck(link);
     for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
       await link.write(bytes.subarray(offset, offset + CHUNK_SIZE));
       await this.expectAck(link);
       onProgress?.(Math.min(offset + CHUNK_SIZE, bytes.length), bytes.length);
     }
-    const { stderr } = await this.repl.follow();
+    const { stdout, stderr } = await this.repl.follow({ timeout });
     if (stderr) throw new Error(stderr.trim().split('\n').pop());
+    return stdout;
   }
 
   async expectAck(link) {

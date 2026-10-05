@@ -1,4 +1,4 @@
-import { IncompatibleBadgeError, MissingReplError } from './device/badge.js';
+import { createConnector } from './device/connect.js';
 import { runTargetFor, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
@@ -32,33 +32,16 @@ function workspaceFiles() {
     .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
 }
 
-const PAIR_MESSAGES = {
-  first: ['Connect your badge', 'Your badge shows up twice in the list, because it has two connections: one for code and one for the debugger. Pick either one. If Chrome only grants that one, the IDE will ask for the other next.'],
-  repl: ['One more port', 'That was the debugger connection. Pick the other entry for your badge so the IDE can run your code.'],
-  debug: ['Enable debugging', 'To debug, the IDE also needs your badge\'s second connection. Pick the entry you didn\'t choose before.'],
-};
-
 export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks, autoConnect = true }) {
   let runningPath = null;
-
-  function askToPair(kind) {
-    const [title, text] = PAIR_MESSAGES[kind];
-    els.pairDialog.querySelector('h2').textContent = title;
-    els.pairDialog.querySelector('.pair-text').textContent = text;
-    els.pairDialog.returnValue = '';
-    els.pairDialog.showModal();
-    return new Promise((resolve) => {
-      els.pairDialog.addEventListener('close', async () => {
-        if (els.pairDialog.returnValue !== 'choose') return resolve(false);
-        try {
-          await device.requestPort();
-          resolve(true);
-        } catch (_) {
-          resolve(false);
-        }
-      }, { once: true });
-    });
-  }
+  const connector = createConnector({
+    device,
+    dialog: els.pairDialog,
+    setStatus,
+    onError: (error) => output.appendOut('✕ ' + error.message, 'out-error'),
+    onChange: () => render(),
+  });
+  const askToPair = connector.askToPair;
 
   function render() {
     const connected = device.connected;
@@ -69,43 +52,10 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
     document.body.classList.toggle('badge-running', !!runningPath);
   }
 
-  let connecting = null;
-
-  function connect(options) {
-    connecting ??= connectNow(options).finally(() => { connecting = null; });
-    return connecting;
-  }
-
-  async function connectNow({ prompt = true } = {}) {
-    if (device.connected) return true;
-    try {
-      if (!(await device.knownPorts()).length) {
-        if (!prompt || !(await askToPair('first'))) {
-          setStatus('');
-          return false;
-        }
-      }
-      setStatus('Connecting…');
-      try {
-        await device.connect();
-      } catch (error) {
-        if (!(error instanceof MissingReplError) || !prompt || !(await askToPair('repl'))) throw error;
-        await device.connect();
-      }
-      setStatus(`Connected to ${device.ident.board}`);
-      await badgeFS.reload();
-      return true;
-    } catch (error) {
-      if (error.name === 'NotFoundError' || (error instanceof MissingReplError && !prompt)) {
-        setStatus('');
-        return false;
-      }
-      setStatus(error instanceof IncompatibleBadgeError ? 'Incompatible badge' : 'Could not connect');
-      output.appendOut('✕ ' + error.message, 'out-error');
-      return false;
-    } finally {
-      render();
-    }
+  async function connect(options) {
+    const connected = await connector.connect(options);
+    if (connected) await badgeFS.reload();
+    return connected;
   }
 
   async function disconnect() {
@@ -182,10 +132,6 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
   device.addEventListener('disconnected', () => {
     render();
     flashStatus('Badge disconnected', 3000);
-  });
-
-  window.addEventListener('pagehide', () => {
-    if (device.connected) device.repl.restartFirmware();
   });
 
   els.connect.addEventListener('click', () => (device.connected ? disconnect() : connect()));

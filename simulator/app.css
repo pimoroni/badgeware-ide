@@ -1547,6 +1547,7 @@
     #file-ctx-menu [data-action="edit-icon"] { white-space: nowrap; }
 
     #icon-editor,
+    #new-app-dialog,
     #pair-dialog,
     #copy-dialog {
       margin: auto;
@@ -1557,6 +1558,7 @@
       border-radius: 12px;
       max-width: calc(100vw - 32px);
     }
+    #new-app-dialog::backdrop,
     #pair-dialog::backdrop,
     #copy-dialog::backdrop,
     #icon-editor::backdrop { background: rgba(0, 0, 0, 0.6); }
@@ -1565,7 +1567,9 @@
     #copy-dialog header,
     #copy-dialog footer,
     #pair-dialog header,
-    #pair-dialog footer {
+    #pair-dialog footer,
+    #new-app-dialog header,
+    #new-app-dialog footer {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -1622,6 +1626,36 @@
     #icon-editor footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
 
     #pair-dialog { min-width: min(480px, calc(100vw - 32px)); max-width: 520px; }
+    #new-app-dialog { width: min(460px, calc(100vw - 32px)); }
+    #new-app-dialog form { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 12px; color: var(--faint); }
+    #new-app-dialog .new-app-name { display: flex; flex-direction: column; gap: 6px; }
+    #new-app-dialog .new-app-name input {
+      padding: 8px 10px;
+      font: inherit;
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    #new-app-dialog .new-app-preview { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: var(--text-sm); }
+    #new-app-dialog .new-app-preview dt { color: var(--dim); }
+    #new-app-dialog .new-app-preview dd { color: var(--white); }
+    #new-app-dialog .new-app-preview .new-app-folder { font-family: Consolas, Monaco, monospace; }
+    #new-app-dialog .new-app-error { min-height: 1.2em; color: var(--red); font-size: var(--text-sm); }
+    #new-app-dialog .new-app-icon { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); }
+    #new-app-dialog .new-app-icon small { color: var(--dim); }
+    #new-app-dialog footer { margin: 4px -16px 0; justify-content: flex-end; border-top: 1px solid var(--border); }
+    #new-app-dialog footer button {
+      padding: 8px 14px;
+      font: inherit;
+      color: var(--faint);
+      background: var(--hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #new-app-dialog footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
+    #new-app-dialog footer button:disabled { opacity: 0.4; cursor: not-allowed; }
     #pair-dialog .pair-text { padding: 16px; color: var(--faint); line-height: 1.6; }
     #pair-dialog header { border-bottom: 1px solid var(--border); }
     #pair-dialog header .material-symbols-outlined { color: var(--blue); }
@@ -1708,3 +1742,6 @@
     .config-custom .config-bool { justify-self: start; width: 18px; height: 18px; }
     .config-unsupported { color: var(--orange); font-size: var(--text-sm); }
     .config-doc footer { display: flex; justify-content: space-between; gap: 10px; margin: 18px 0 30px; }
+    #new-app-dialog header { border-bottom: 1px solid var(--border); }
+    #new-app-dialog header .material-symbols-outlined { color: var(--orange); }
+    #new-app-dialog h2 { font-size: var(--text); font-weight: 400; }

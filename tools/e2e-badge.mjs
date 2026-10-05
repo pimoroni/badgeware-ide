@@ -189,8 +189,12 @@ await run();
 check('scratch run errors on line 3', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)' && monaco.editor.getModelMarkers({ owner: 'micropython' }).some((m) => m.startLineNumber === 3)`, 20000), await stdout());
 
 await evaluate(`(async () => {
-  window.prompt = () => 'E2E Rocket';
   document.querySelector('#fp-user [data-action="new-app"]').click();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const input = document.querySelector('#new-app-dialog [name="name"]');
+  input.value = 'E2E Rocket';
+  input.dispatchEvent(new Event('input'));
+  document.querySelector('#new-app-dialog button[value="create"]').click();
   await new Promise((resolve) => setTimeout(resolve, 1000));
   document.querySelector('#icon-editor [data-icon="save"]').click();
   return true;

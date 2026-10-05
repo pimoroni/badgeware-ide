@@ -25,7 +25,7 @@ export function runTargetFor(userPath) {
 }
 
 export function slugify(name) {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, '_$1');
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 const BADGE_APP_PATTERN = /^\/system\/apps\/([^/]+)(\/.*)?$/;
@@ -41,4 +41,8 @@ export function pathMapFor(mode) {
   return mode === 'badge'
     ? { toDevice: (path) => path, toEditor: (path) => path, appsRoot: '/system/apps' }
     : { toDevice: toDevicePath, toEditor: toUserPath, appsRoot: '/apps' };
+}
+
+export function launcherName(slug) {
+  return slug.split('_').map((word) => (word.length <= 1 ? word : word[0].toUpperCase() + word.slice(1))).join(' ');
 }

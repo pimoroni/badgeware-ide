@@ -215,7 +215,7 @@ export function createFileBrowser(els, host) {
     ctxTarget = { path, isDir, tree };
     const show = {
       open: !isDir,
-      'edit-icon': tree === 'user' && !isDir && path.toLowerCase().endsWith('.png'),
+      'edit-icon': tree === 'user' && (isDir ? /^\/apps\/[^/]+$/.test(path) : path.toLowerCase().endsWith('.png')),
       'copy-to-badge': tree === 'user' && host.badgeConnected(),
       'copy-to-workspace': tree === 'badge',
       rename: tree === 'user',
@@ -246,7 +246,7 @@ export function createFileBrowser(els, host) {
   const onTarget = (fn) => () => { if (!ctxTarget) return; const t = ctxTarget; hideCtxMenu(); fn(t); };
   delegate(menu, {
     open:           onTarget((t) => (t.tree === 'badge' ? host.openBadgeFile(t.path, { transient: false }) : host.openFile(t.path, { transient: false }))),
-    'edit-icon':    onTarget((t) => host.editIcon(t.path)),
+    'edit-icon':    onTarget((t) => host.editIcon(t.isDir ? t.path + '/icon.png' : t.path)),
     'copy-to-badge': onTarget((t) => host.copyToBadge(t.path, t.isDir)),
     'copy-to-workspace': onTarget((t) => host.copyToWorkspace(t.path, t.isDir)),
     rename:         onTarget((t) => renamePath(t.path, t.isDir)),

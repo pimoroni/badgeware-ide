@@ -295,6 +295,28 @@
 
 </div>
 
+<dialog id="new-app-dialog" aria-label="New app">
+  <header>
+    <span class="material-symbols-outlined">add_box</span>
+    <h2>New app</h2>
+  </header>
+  <form method="dialog">
+    <label class="new-app-name">What's it called?
+      <input name="name" type="text" placeholder="Space Race" spellcheck="false" autocomplete="off">
+    </label>
+    <dl class="new-app-preview">
+      <dt>Folder</dt><dd class="new-app-folder"></dd>
+      <dt>In the launcher</dt><dd class="new-app-label"></dd>
+    </dl>
+    <p class="new-app-error"></p>
+    <label class="new-app-icon"><input name="icon" type="checkbox" checked> Draw an icon now <small>(or later, from the app folder's menu)</small></label>
+    <footer>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="create" class="primary">Create app</button>
+    </footer>
+  </form>
+</dialog>
+
 <dialog id="pair-dialog" aria-label="Pair your badge">
   <header>
     <span class="material-symbols-outlined">usb</span>

@@ -15,6 +15,7 @@ import { createBadgeTarget } from './target.js';
 import { createDebugger } from './debugger.js';
 import { createIconEditor } from './icon-editor.js';
 import { createApp } from './app-scaffold.js';
+import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { pathMapFor, runTargetFor } from './device/paths.js';
@@ -83,16 +84,19 @@ async function initApp() {
       flashStatus('Saved ' + path);
     },
   });
+  const newAppDialog = createNewAppDialog(document.getElementById('new-app-dialog'), {
+    exists: (slug) => !!userFS.get(`/apps/${slug}/__init__.py`) || !!userFS.get(`/apps/${slug}/`),
+  });
   async function newApp() {
-    const name = prompt('What is your app called?', 'My App');
-    if (!name) return;
+    const choice = await newAppDialog.open();
+    if (!choice) return;
     try {
-      const app = await createApp(userFS, name);
+      const app = await createApp(userFS, choice.name);
       fb.refresh();
       tabs.openFile(app.main, { transient: false });
-      iconEditor.open(app.icon);
+      if (choice.drawIcon) iconEditor.open(app.icon);
     } catch (error) {
-      alert(error.message);
+      flashStatus('✕ ' + error.message, 4000);
     }
   }
 

@@ -47,6 +47,20 @@ The Files panel shows the workspace on top and the badge's own files below. Badg
 
 Keys: F5 run, F6 debug, F9 toggle breakpoint.
 
+## Firmware
+
+Config > Manage firmware installs firmware over WebUSB (the RP2350 bootloader's PICOBOOT interface): update to the latest IDE pre-release (keeps files), a fresh install, switching back to stock, or a local .uf2. Connecting a badge on stock firmware opens it automatically.
+
+Firmware comes from `pimoroni/tufty2350` releases. GitHub's release downloads have no CORS headers, so `.github/workflows/pages.yml` runs `tools/mirror_firmware.py`, which copies the latest IDE pre-releases (tags ending `-ide.N`) and the latest stock release into `firmware/` with a `manifest.json`, and deploys that alongside the site. It runs on push, every six hours, on demand, and on a `firmware-released` repository_dispatch.
+
+To publish a new IDE firmware:
+
+```sh
+gh release create v4.0.0-ide.N -R pimoroni/tufty2350 --target feature/ide-littlefs --prerelease --title "Badgeware IDE preview N" --notes "..."
+# once its CI has attached the .uf2 files:
+gh workflow run pages.yml -R pimoroni/badgeware-ide
+```
+
 ## Tests
 
 ```sh
@@ -62,7 +76,8 @@ tools/ws_serial_bridge.py 8799 &                       # serial over WebSocket
 ./start_server.py --cross 8123 &
 BRIDGE_URL=ws://localhost:8799 IDE_URL=http://localhost:8123/index.html \
   BADGE_PORTS=<repl>,<debug> node tools/e2e-badge.mjs  # drives the real page against the badge
-tools/flash.py <repl> firmware.uf2                     # reboot to BOOTSEL and load
+tools/flash.py <repl> firmware.uf2                     # reboot to BOOTSEL and load with picotool
+BADGE_FLASH=firmware.uf2 BADGE_PORTS=<repl>,<debug> npm test  # also flashes through simulator/device/picoboot.js
 ```
 
 `e2e-badge.mjs` injects `test/web-serial-shim.js` as `navigator.serial`, tunnelled through the bridge.

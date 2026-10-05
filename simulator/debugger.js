@@ -197,20 +197,23 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   }
 
   async function revealFrame(index) {
+    const stop = stopped;
+    if (!stop) return;
     selectedFrame = index;
-    const frame = stopped.stack[index];
+    const frame = stop.stack[index];
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
     if (frame.user) {
       await tabs.openFile(frame.file);
+      if (stopped !== stop) return;
       editor.revealLineInCenterIfOutsideViewport(frame.line);
     }
     renderCurrentLine();
     els.globals.replaceChildren(element('p', 'debug-empty', 'Loading…'));
     const scopes = await client.request({ cmd: 'scopes', frame: index }, 'scopes').catch((error) => {
-      els.globals.replaceChildren(element('p', 'debug-empty', `Could not read variables: ${error.message}`));
+      if (stopped === stop) els.globals.replaceChildren(element('p', 'debug-empty', `Could not read variables: ${error.message}`));
       return null;
     });
-    if (!scopes) return;
+    if (!scopes || stopped !== stop) return;
     const hasLocals = Array.isArray(scopes.locals);
     els.localsTitle.hidden = !hasLocals;
     els.locals.hidden = !hasLocals;

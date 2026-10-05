@@ -190,6 +190,8 @@
       margin-left: auto;
     }
     #toolbar button:hover,  #toolbar .navbtn:hover,  #toolbar .buy:hover  { filter: brightness(1.3); }
+    #toolbar button:disabled,
+    #toolbar .navbtn[aria-disabled="true"] { opacity: 0.35; cursor: not-allowed; filter: none; }
     #toolbar button:active, #toolbar .navbtn:active, #toolbar .buy:active { filter: brightness(0.9); }
 
     #toolbar button.active,

@@ -8,7 +8,9 @@
    to the main editor at index.html?file=examples/<file>, where boot.js loads it as
    an editable scratch buffer (see boot.js's startup override). */
 import { initGallery, SPINNER } from './gallery.js';
-import { editorUrlFor } from './mode.js';
+import { editorUrlFor, disableUnsupported } from './mode.js';
+
+disableUnsupported();
 
 const APP_BASE  = new URL('.', import.meta.url).href;
 const galleryEl = document.getElementById('gallery');

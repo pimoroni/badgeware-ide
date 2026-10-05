@@ -58,6 +58,7 @@ const send = (method, params = {}) => new Promise((resolve) => {
 await send('Runtime.enable');
 await send('Log.enable');
 await send('Page.enable');
+if (process.env.PRELOAD) await send('Page.addScriptToEvaluateOnNewDocument', { source: process.env.PRELOAD });
 await send('Page.navigate', { url });
 await sleep(settleMs);
 if (script) {

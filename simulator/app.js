@@ -18,7 +18,7 @@ import { createApp } from './app-scaffold.js';
 import { createConfigPane } from './config-pane.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { pathMapFor, appSlug, runTargetFor } from './device/paths.js';
-import { editorUrl } from './mode.js';
+import { editorUrl, disableUnsupported } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
@@ -26,6 +26,7 @@ async function initApp() {
   // Adopt the (already in-flight) simulator boot.
   const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, mode } = await bootSimulator();
   const paths = pathMapFor(mode);
+  disableUnsupported();
   document.querySelectorAll('#toolbar [data-action="editor"]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const mobileNav = document.getElementById('mobile-nav');
 

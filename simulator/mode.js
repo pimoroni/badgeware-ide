@@ -32,3 +32,17 @@ export function editorUrl(mode, query = '') {
 export function editorUrlFor(element, query = '') {
   return editorUrl(element?.closest('[data-mode]')?.dataset.mode ?? stored() ?? 'badge', query);
 }
+
+export function disableUnsupported(root = document) {
+  if (webSerialSupported()) return;
+  const reason = 'Needs a browser with Web Serial, such as Chrome or Edge';
+  root.querySelectorAll('#toolbar [data-mode="badge"], #toolbar [data-action="config"]').forEach((control) => {
+    if (control.tagName === 'A') {
+      control.removeAttribute('href');
+      control.setAttribute('aria-disabled', 'true');
+    } else {
+      control.disabled = true;
+    }
+    control.title = reason;
+  });
+}

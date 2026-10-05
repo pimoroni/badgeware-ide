@@ -11,7 +11,9 @@
    in the shared simulator (`launch("/system/.../<slug>")`, the same call the OS
    uses), and Edit opens the app's source (__init__.py) in the main editor. */
 import { initGallery, SPINNER } from './gallery.js';
-import { editorUrl, editorUrlFor } from './mode.js';
+import { editorUrl, editorUrlFor, disableUnsupported } from './mode.js';
+
+disableUnsupported();
 
 const APP_BASE  = new URL('.', import.meta.url).href;
 const FS_BASE   = APP_BASE + 'filesystem';   // static files under simulator/filesystem

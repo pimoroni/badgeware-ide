@@ -72,7 +72,7 @@ async function restorePanelSizes() {
     }
     // Restore the saved open/hidden state (overriding the data-drag-collapsed
     // default that initHandleDecor applied). Instant, so it doesn't slide on load.
-    if (cfg.axis === 'width') {
+    if (cfg.axis === 'width' && !handle.hasAttribute('data-drag-start-open')) {
       const wasCollapsed = await panelSizes.get(collapsedKey(handle.dataset.dragTarget));
       if (wasCollapsed != null) setCollapsed(handle, cfg.target, wasCollapsed, { animate: false });
     }

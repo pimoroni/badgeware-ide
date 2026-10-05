@@ -15,7 +15,7 @@ import { initBadge3D } from './badge3d.js';
 import { userFS } from './fs.js';
 import { delegate } from './util.js';
 import { runTargetFor } from './device/paths.js';
-import { currentMode } from './mode.js';
+import { currentTarget } from './mode.js';
 
 const BOOT_BASE = new URL('.', import.meta.url).href;
 
@@ -51,17 +51,15 @@ export function bootSimulator() {
       stdoutEl.scrollTop = stdoutEl.scrollHeight;
     };
 
-    const mode = currentMode();
-    document.body.dataset.mode = mode;
-    const simulator = mode === 'simulator' ? await BadgewareSimulator() : null;
-    const { applyCanvasToScreen, pauseScreen, rotateView } = simulator
-      ? initBadge3D(simulator, appendOut, badge3dWrap)
-      : { applyCanvasToScreen() {}, pauseScreen() {}, rotateView() {} };
+    const target = currentTarget();
+    document.body.dataset.target = target;
+    let simulator = null;
+    let simulatorReady = null;
+    let view = { applyCanvasToScreen() {}, pauseScreen() {}, rotateView() {} };
 
     // The editor half registers how to react when the running program changes user
     // files (reload the FS cache + repaint the Files panel). Until then it's a no-op.
     let fsChangedHandler = () => {};
-    if (simulator) simulator.onfschanged = () => fsChangedHandler();
 
     // The badge canvas spills down to overlap the OUTPUT title bar. CSS can't read
     // a sibling's height, so mirror #stdout h2's measured height into --badge-spill
@@ -135,7 +133,16 @@ export function bootSimulator() {
       const isError = parseTracebackLine(text);
       appendOut(text, isError ? 'out-error' : undefined);
     };
-    if (simulator) simulator.stdout = async (text) => outputLine(text);
+    const ensureSimulator = () => {
+      simulatorReady ??= (async () => {
+        simulator = await BadgewareSimulator();
+        view = initBadge3D(simulator, appendOut, badge3dWrap);
+        simulator.onfschanged = () => fsChangedHandler();
+        simulator.stdout = async (text) => outputLine(text);
+        return simulator;
+      })();
+      return simulatorReady;
+    };
 
     /* Shared run/stop, used by the boot run and the toolbar's Run/Stop. */
     const beginRun = (tabKey, label = 'Running…', mapFile = null) => {
@@ -158,10 +165,11 @@ export function bootSimulator() {
       beginRun(tabKey);
       // simulator.run() tears down the old worker first; drop the screen texture
       // so the render loop never touches a destroyed frame source.
-      pauseScreen();
       try {
-        await simulator.run(code, userFS.workerFiles());
-        applyCanvasToScreen();
+        const sim = await ensureSimulator();
+        view.pauseScreen();
+        await sim.run(code, userFS.workerFiles());
+        view.applyCanvasToScreen();
         setStatus(status);
       } catch (err) {
         appendOut('✕ ' + err, 'out-error');
@@ -173,8 +181,10 @@ export function bootSimulator() {
     let stopInterceptor = null;
     const stopProgram = async () => {
       if (stopInterceptor && await stopInterceptor()) return;
-      pauseScreen();
-      await simulator.stop();
+      if (simulator) {
+        view.pauseScreen();
+        await simulator.stop();
+      }
       setRunning(false);
       setStatus('Stopped');
     };
@@ -212,8 +222,8 @@ export function bootSimulator() {
       run,
       stop:        stopProgram,
       'run-os':    runOS,
-      'spin-prev': () => rotateView(-1),
-      'spin-next': () => rotateView(+1),
+      'spin-prev': () => view.rotateView(-1),
+      'spin-next': () => view.rotateView(+1),
       clear:       () => { stdoutEl.innerHTML = ''; },
     };
     delegate(document, actions);   // shared dispatcher — see simulator/util.js
@@ -240,10 +250,7 @@ export function bootSimulator() {
       } else {
         const path  = override.startsWith('/') ? override : '/' + override;
         const entry = userFS.get(path);
-        if (mode === 'badge') {
-          defaultCode = '';
-          startupFile = { path, tabKey: path, system: false };
-        } else if (entry && !entry.binary && !entry.isDir) {
+        if (entry && !entry.binary && !entry.isDir) {
           defaultCode = entry.text;
           startupFile = { path, tabKey: path, system: false };
         } else if (!entry) {
@@ -264,7 +271,7 @@ export function bootSimulator() {
     const startupApp = startupFile && !startupFile.system && !startupFile.scratch ? runTargetFor(startupFile.path) : null;
     const startupCode = startupApp?.kind === 'app' ? `launch(${JSON.stringify(startupApp.userPath)})` : defaultCode;
     // Run it now, in parallel with Monaco loading — don't await the program itself.
-    if (simulator) runProgram(startupCode, { tabKey: startupFile ? startupFile.tabKey : null });
+    if (target === 'simulator') runProgram(startupCode, { tabKey: startupFile ? startupFile.tabKey : null });
     if (warn) appendOut(warn, 'out-dim');
 
     // The editor half consumes these: trace markers, the startup file to open,
@@ -293,7 +300,17 @@ export function bootSimulator() {
       setRunInterceptor: (fn) => { runInterceptor = fn; },
       setStopInterceptor: (fn) => { stopInterceptor = fn; },
       output: { beginRun, endRun, outputLine, appendOut, clear: () => { stdoutEl.innerHTML = ''; } },
-      mode,
+      target,
+      simulatorView: {
+        start: runOS,
+        stop: async () => {
+          if (simulator) {
+            view.pauseScreen();
+            await simulator.stop();
+          }
+          setRunning(false);
+        },
+      },
     };
   })();
   return _bootCtx;

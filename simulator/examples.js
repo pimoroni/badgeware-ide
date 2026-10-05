@@ -8,9 +8,9 @@
    to the main editor at index.html?file=examples/<file>, where boot.js loads it as
    an editable scratch buffer (see boot.js's startup override). */
 import { initGallery, SPINNER } from './gallery.js';
-import { editorUrlFor, disableUnsupported } from './mode.js';
+import { editorUrl, initTargetSwitch } from './mode.js';
 
-disableUnsupported();
+initTargetSwitch();
 
 const APP_BASE  = new URL('.', import.meta.url).href;
 const galleryEl = document.getElementById('gallery');
@@ -48,7 +48,7 @@ const getCode = (file) =>
 
 initGallery(galleryEl, {
   render, getCode,
-  onEdit:    (file) => { location.href = editorUrlFor(null, { file: 'examples/' + file }); },
+  onEdit:    (file) => { location.href = editorUrl({ file: 'examples/' + file }); },
   setStatus: (text) => { if (statusEl) statusEl.textContent = text; },
 });
 
@@ -68,7 +68,7 @@ function toggleHelp(on = !helpOn) {
 document.addEventListener('click', (e) => {
   const act = e.target.closest('[data-action]')?.dataset.action;
   const tab = e.target.closest('[data-tab]')?.dataset.tab;
-  if (act === 'editor' || tab === 'code') { location.href = editorUrlFor(e.target); return; }
+  if (act === 'editor' || tab === 'code') { location.href = editorUrl(); return; }
   if (act === 'apps')  { location.href = 'apps.html'; return; }
   if (act === 'fonts') { location.href = 'fonts.html'; return; }
   if (act === 'help') { toggleHelp(); return; }

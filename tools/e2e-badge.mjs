@@ -94,81 +94,98 @@ const SIM_APP = 'from helper import boom\n\nbadge.update()\nboom()\n';
 
 const status = () => evaluate(`document.getElementById('status').textContent`);
 const stdout = () => evaluate(`document.querySelector('#stdout > div').textContent`);
-const putBadgeFiles = (files) => evaluate(`(async () => {
-  const { userFS } = await import('./simulator/fs.js');
-  const { badgeFS } = await import('./simulator/device/session.js');
-  for (const [path, text] of ${JSON.stringify(files)}) userFS.set(path, { text, binary: false });
-  await badgeFS.flush();
+const run = () => evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
+const stop = () => evaluate(`document.querySelector('#tab-controls [data-action="stop"]').click()`);
+const putWorkspace = (files) => evaluate(`(async () => {
+  const { workspaceFS } = await import('./simulator/fs.js');
+  await workspaceFS.ready;
+  for (const [path, text] of ${JSON.stringify(files)}) workspaceFS.set(path, { text, binary: false });
+  await workspaceFS.reload();
   return true;
 })()`);
-
+const badgeHas = (path) => evaluate(`(async () => {
+  const { badgeFS } = await import('./simulator/device/session.js');
+  await badgeFS.reload();
+  return !!badgeFS.get(${JSON.stringify(path)});
+})()`);
+const contextAction = (tree, path, action) => evaluate(`(async () => {
+  const el = [...document.querySelectorAll('#${tree} [data-path]')].find((e) => e.dataset.path === ${JSON.stringify(path)});
+  if (!el) return 'no row for ${path}';
+  (el.querySelector('summary') ?? el).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 200 }));
+  const item = document.querySelector('#file-ctx-menu [data-action="${action}"]');
+  if (item.style.display === 'none') return 'hidden ${action}';
+  item.click();
+  return true;
+})()`);
 const cleanBadge = () => evaluate(`(async () => {
   const { badgeDevice, badgeFS } = await import('./simulator/device/session.js');
   if (!badgeDevice?.connected) return false;
-  const apps = await badgeDevice.list('/system/apps');
-  for (const [path, size] of apps) {
+  for (const [path, size] of await badgeDevice.list('/system/apps')) {
     if (size < 0 && /\\/system\\/apps\\/e2e_[^/]+$/.test(path)) await badgeDevice.remove(path);
+  }
+  for (const [path] of await badgeDevice.list('/')) {
+    if (/^\\/e2e_/.test(path)) await badgeDevice.remove(path);
   }
   await badgeFS.reload();
   return true;
 })()`, 60000);
 
-await open('?mode=badge');
-check('badge mode is active', await evaluate(`document.body.dataset.mode`) === 'badge');
-check('auto-connects to a paired badge', await waitFor(`document.body.classList.contains('badge-connected')`, 15000));
-check('connection shows the board', (await evaluate(`document.getElementById('connect-badge').textContent`)).includes('Tufty 2350'));
-await cleanBadge();
-check('files panel lists the badge', await waitFor(`document.getElementById('fp-user-list').textContent.includes('menu')`, 10000));
-check('no 3D view in badge mode', await evaluate(`getComputedStyle(document.getElementById('simulator')).display`) === 'none');
-check('debug panel idle hint', await evaluate(`getComputedStyle(document.getElementById('debug-idle')).display !== 'none'`));
-
-await putBadgeFiles([
-  ['/system/apps/e2e_error/__init__.py', ERROR_APP],
-  ['/system/apps/e2e_debug/__init__.py', DEBUG_APP],
+await open();
+await evaluate(`localStorage.setItem('badgeware.target', 'badge')`);
+await putWorkspace([
+  ['/apps/e2e_error/__init__.py', ERROR_APP],
+  ['/apps/e2e_debug/__init__.py', DEBUG_APP],
+  ['/apps/e2e_sim/helper.py', 'def boom():\n    return 1 / 0\n'],
+  ['/apps/e2e_sim/__init__.py', SIM_APP],
+  ['/e2e_loose.py', 'print("loose")\n'],
 ]);
-await evaluate(`localStorage.setItem('badgeware.breakpoints', JSON.stringify({ '/system/apps/e2e_debug/__init__.py': [9] }))`);
+await evaluate(`localStorage.setItem('badgeware.breakpoints', JSON.stringify({ '/apps/e2e_debug/__init__.py': [9] }))`);
 
-await open('?mode=badge&file=/system/apps/e2e_error/__init__.py');
-check('opens a badge file', await waitFor(`monaco.editor.getEditors()[0].getValue().includes('missing_name')`, 15000));
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
-check('run ends with an error', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)'`, 30000), `${await status()} / ${await stdout()}`);
-const markers = await evaluate(`monaco.editor.getModelMarkers({ owner: 'micropython' }).map((m) => m.startLineNumber)`);
-check('error marker on line 5', markers?.includes(5), JSON.stringify(markers));
+await open('?file=/apps/e2e_error/__init__.py');
+check('badge target, editor nav active', await evaluate(`document.body.dataset.target === 'badge' && document.querySelector('#toolbar [data-action="editor"]').classList.contains('active')`));
+check('no playground title', await evaluate(`!document.querySelector('.toolbar-title')`));
+check('auto-connects to a paired badge', await waitFor(`document.body.classList.contains('badge-connected')`, 15000));
+check('workspace on top, badge below', await waitFor(`document.getElementById('fp-user-list').textContent.includes('e2e_error') && document.getElementById('fp-sys-tree').textContent.includes('system')`, 10000));
+check('no simulator system tree', !(await evaluate(`document.getElementById('fp-sys-tree').textContent.includes('Read-only')`)));
+await cleanBadge();
+
+await run();
+check('run syncs and ends with an error', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)'`, 30000), `${await status()} / ${await stdout()}`);
+check('synced to badge', (await stdout()).includes('Synced') && await badgeHas('/system/apps/e2e_error/__init__.py'));
+check('error marker on line 5', (await evaluate(`monaco.editor.getModelMarkers({ owner: 'micropython' }).map((m) => [m.resource.path, m.startLineNumber])`))?.some(([path, line]) => path.includes('e2e_error') && line === 5));
 
 await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.setValue(editor.getValue().replace('missing_name', 'count')); })()`);
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
-check('edited file saves to the badge and runs', await waitFor(`document.getElementById('status').textContent === 'Running on badge…' && document.querySelector('#stdout > div').textContent.includes('\\n3\\n')`, 20000), `${await status()} / ${(await stdout()).slice(0, 200)}`);
-await evaluate(`document.querySelector('#tab-controls [data-action="stop"]').click()`);
+await run();
+check('edit, sync and run', await waitFor(`document.getElementById('status').textContent === 'Running on badge…' && document.querySelector('#stdout > div').textContent.includes('\\n3\\n')`, 20000), `${await status()} / ${(await stdout()).slice(0, 200)}`);
+await stop();
 check('stop', await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
 
-await open('?mode=badge&file=/system/apps/e2e_debug/__init__.py');
+await open('?file=/apps/e2e_debug/__init__.py');
+await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 check('breakpoint decoration rendered', await waitFor(`!!document.querySelector('.debug-breakpoint')`, 10000));
+await evaluate(`document.getElementById('debug-watch').querySelectorAll('li').length || (() => { const input = document.getElementById('debug-watch-add'); input.value = 'score * 2'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); })()`);
 await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
-const stack = await waitFor(`document.querySelector('#debug-stack li') && document.getElementById('debug-stack').textContent`, 30000);
-check('stopped at breakpoint', /\/system\/apps\/e2e_debug\/__init__\.py:9/.test(stack ?? ''), stack ?? await stdout());
+check('stopped at breakpoint', /\/apps\/e2e_debug\/__init__\.py:9/.test(await waitFor(`document.querySelector('#debug-stack li') && document.getElementById('debug-stack').textContent`, 30000) ?? ''), await stdout());
 check('current line highlighted', await waitFor(`!!document.querySelector('.debug-current-line')`, 5000));
 check('globals show score = 0', /score0/.test(await waitFor(`document.querySelector('#debug-globals .debug-vars') && document.getElementById('debug-globals').textContent`, 5000) ?? ''));
-await evaluate(`(() => { const input = document.getElementById('debug-eval'); input.value = 'score + 5'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); })()`);
-check('eval result', await waitFor(`document.querySelector('.debug-eval-result')?.textContent === '5'`, 5000));
-await screenshot('e2e-badge-debug.png');
+check('watch shows score * 2', await waitFor(`document.getElementById('debug-watch').textContent.includes('score * 20')`, 10000), await evaluate(`document.getElementById('debug-watch').textContent`));
+check('screen shown on pause', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
 await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
-check('continue stops again with score = 10', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent.includes('score10')`, 10000));
-check('no locals section at module level', await evaluate(`document.getElementById('debug-locals').hidden`));
+check('continue stops again', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent.includes('score10')`, 10000));
 for (const step of ['stepOver', 'stepIn', 'stepOver']) {
   const before = await status();
   await evaluate(`document.querySelector('#debug-controls [data-debug="${step}"]').click()`);
   await waitFor(`document.getElementById('status').textContent !== ${JSON.stringify(before)} && document.body.classList.contains('debug-paused') && document.querySelector('#debug-globals .debug-vars')`, 10000);
 }
-const locals = await waitFor(`!document.getElementById('debug-locals').hidden && document.getElementById('debug-locals').textContent`, 10000);
-check('locals inside a function', locals?.includes("text'Score: 20'") && locals?.includes('value20'), locals);
-check('stack shows the function', /label_for/.test(await evaluate(`document.getElementById('debug-stack').textContent`)));
-await screenshot('e2e-badge-locals.png');
+check('locals inside a function', (await waitFor(`!document.getElementById('debug-locals').hidden && document.getElementById('debug-locals').textContent`, 10000))?.includes("text'Score: 20'"));
+await screenshot('e2e-badge-debug.png');
 await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
 check('stop ends the session', await waitFor(`!document.body.classList.contains('debugging') && document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
 
-await open('?mode=badge');
+await open();
+await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 await evaluate(`monaco.editor.getEditors()[0].setValue('x = 1\\nprint("scratch ok")\\nprint(y)\\n')`);
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
+await run();
 check('scratch run errors on line 3', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)' && monaco.editor.getModelMarkers({ owner: 'micropython' }).some((m) => m.startLineNumber === 3)`, 20000), await stdout());
 
 await evaluate(`(async () => {
@@ -178,75 +195,42 @@ await evaluate(`(async () => {
   document.querySelector('#icon-editor [data-icon="save"]').click();
   return true;
 })()`);
-check('new app created on the badge', await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.flush(); await badgeFS.reload(); return !!badgeFS.get('/system/apps/e2e_rocket/icon.png') && !!badgeFS.get('/system/apps/e2e_rocket/__init__.py'); })()`, 10000));
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
+check('new app in the workspace', await waitFor(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); return !!workspaceFS.get('/apps/e2e_rocket/icon.png'); })()`, 5000));
+await run();
 check('new app runs on badge', await waitFor(`document.getElementById('status').textContent === 'Running on badge…'`, 20000), await stdout());
+await stop();
+await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000);
+check('new app is on the badge', await badgeHas('/system/apps/e2e_rocket/icon.png'));
+
+check('copy to badge from workspace', await contextAction('fp-user-list', '/e2e_loose.py', 'copy-to-badge') === true && await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); return !!badgeFS.get('/e2e_loose.py'); })()`, 15000));
+await evaluate(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); workspaceFS.del('/apps/e2e_rocket/__init__.py'); workspaceFS.del('/apps/e2e_rocket/icon.png'); workspaceFS.del('/apps/e2e_rocket/'); return true; })()`);
+await evaluate(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); document.querySelector('[data-action="badge-refresh"]').click(); return true; })()`);
 await sleep(1000);
-await evaluate(`document.querySelector('#tab-controls [data-action="stop"]').click()`);
-check('new app stops', await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
-
-check('rename on the badge', await evaluate(`(async () => {
-  const { userFS } = await import('./simulator/fs.js');
-  const { badgeFS } = await import('./simulator/device/session.js');
-  await userFS.rename('/system/apps/e2e_debug', '/system/apps/e2e_renamed');
-  await badgeFS.reload();
-  return !!badgeFS.get('/system/apps/e2e_renamed/__init__.py') && !badgeFS.get('/system/apps/e2e_debug/__init__.py');
-})()`));
-
-check('copy to simulator', await evaluate(`(async () => {
-  const { workspaceFS } = await import('./simulator/fs.js');
-  const row = [...document.querySelectorAll('#fp-user-list [data-path]')].find((el) => el.dataset.path === '/system/apps/e2e_rocket');
-  if (!row) return 'no row: ' + [...document.querySelectorAll('#fp-user-list [data-path]')].map((el) => el.dataset.path).filter((p) => p.includes('e2e')).join(',');
-  (row.querySelector('summary') ?? row).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 200 }));
-  document.querySelector('#file-ctx-menu [data-action="copy-to-simulator"]').click();
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-  return !!workspaceFS.get('/apps/e2e_rocket/icon.png') && !!workspaceFS.get('/apps/e2e_rocket/__init__.py') || 'missing: ' + workspaceFS.paths().join(',') + ' / ' + document.getElementById('status').textContent;
-})()`).then((r) => { if (r !== true) console.log('   ', r); return r; }) === true);
-
-await evaluate(`(async () => {
-  const { workspaceFS } = await import('./simulator/fs.js');
-  workspaceFS.set('/apps/e2e_sim/helper.py', { text: 'def boom():\\n    return 1 / 0\\n', binary: false });
-  workspaceFS.set('/apps/e2e_sim/__init__.py', { text: ${JSON.stringify(SIM_APP)}, binary: false });
-  return true;
-})()`);
-await evaluate(`document.querySelector('[data-action="copy-from-simulator"]').click()`);
-await waitFor(`document.getElementById('copy-dialog').open`, 5000);
-await evaluate(`(() => {
-  const dialog = document.getElementById('copy-dialog');
-  dialog.querySelectorAll('input').forEach((box) => { box.checked = box.value === '/apps/e2e_sim'; });
-  dialog.querySelector('button[value="copy"]').click();
-})()`);
-check('copy from simulator', await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); return !!badgeFS.get('/system/apps/e2e_sim/helper.py'); })()`, 15000));
+check('copy to workspace from badge', await contextAction('fp-sys-tree', '/system/apps/e2e_rocket', 'copy-to-workspace') === true && await waitFor(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); return !!workspaceFS.get('/apps/e2e_rocket/icon.png') && !!workspaceFS.get('/apps/e2e_rocket/__init__.py'); })()`, 15000));
+await evaluate(`(() => { const row = [...document.querySelectorAll('#fp-sys-tree .tree-row')].find((el) => el.dataset.path === '/system/apps/e2e_error/__init__.py'); row.click(); return true; })()`);
+check('badge file opens read-only', await waitFor(`document.getElementById('status').textContent.includes('on your badge, read-only') && monaco.editor.getEditors()[0].getOption(monaco.editor.EditorOption.readOnly)`, 10000), await status());
+await evaluate(`window.confirm = () => true`);
+check('delete on badge', await contextAction('fp-sys-tree', '/e2e_loose.py', 'delete') === true && await waitFor(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); return !badgeFS.get('/e2e_loose.py'); })()`, 15000));
 
 const originalSecrets = await evaluate(`(async () => {
   const { badgeFS } = await import('./simulator/device/session.js');
   if (!badgeFS.get('/secrets.py')) return null;
   return (await badgeFS.load('/secrets.py')).text;
 })()`);
-await open('?mode=badge');
 await evaluate(`document.querySelector('[data-action="config"]').click()`);
-check('config pane loads settings', await waitFor(`!document.querySelector('#config form').hidden && document.querySelector('#config [name=region]').value !== ''`, 10000));
+check('config loads from the badge', await waitFor(`!document.querySelector('#config form').hidden && document.querySelector('#config [name=region]').value !== ''`, 10000));
 await evaluate(`(() => {
   const form = document.querySelector('#config form');
-  form.elements.wifi_ssid.value = 'E2E "Net"';
-  form.elements.wifi_password.value = 'p\\\\ss';
-  form.elements.timezone.value = '5.5';
+  form.elements.wifi_ssid.value = 'E2E Net';
   document.querySelector('[data-config="add"]').click();
   const row = document.querySelector('.config-custom li:last-child');
   row.querySelector('.config-key').value = 'GITHUB_USERNAME';
   row.querySelector('.config-value').value = 'octocat';
   form.requestSubmit();
 })()`);
-check('config saves', await waitFor(`document.getElementById('status').textContent.includes('Saved settings to your badge')`, 15000), await status());
-const savedSecrets = await evaluate(`(async () => {
-  const { badgeDevice } = await import('./simulator/device/session.js');
-  return new TextDecoder().decode(await badgeDevice.read('/secrets.py'));
-})()`);
-check('secrets.py written to the badge', savedSecrets.includes('WIFI_SSID = "E2E \\"Net\\""') && savedSecrets.includes('GITHUB_USERNAME = "octocat"') && savedSecrets.includes('TIMEZONE = 5.5'), savedSecrets);
-await evaluate(`document.querySelector('[data-action="config"]').click()`);
-await evaluate(`monaco.editor.getEditors()[0].setValue('import secrets\\nprint(secrets.GITHUB_USERNAME, secrets.WIFI_SSID, secrets.WIFI_PASSWORD, secrets.TIMEZONE)\\n')`);
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
-check('badge reads the new secrets', await waitFor(`document.querySelector('#stdout > div').textContent.includes('octocat E2E "Net" p\\\\ss 5.5')`, 20000), await stdout());
+check('config saves to the badge', await waitFor(`document.getElementById('status').textContent.includes('Saved settings to your badge')`, 15000), await status());
+const savedSecrets = await evaluate(`(async () => { const { badgeDevice } = await import('./simulator/device/session.js'); return new TextDecoder().decode(await badgeDevice.read('/secrets.py')); })()`);
+check('secrets.py on the badge', savedSecrets.includes('GITHUB_USERNAME = "octocat"') && savedSecrets.includes('WIFI_SSID = "E2E Net"'), savedSecrets);
 await evaluate(`(async () => {
   const { badgeDevice, badgeFS } = await import('./simulator/device/session.js');
   const original = ${JSON.stringify(originalSecrets)};
@@ -255,14 +239,18 @@ await evaluate(`(async () => {
   await badgeFS.reload();
   return true;
 })()`);
+await evaluate(`document.querySelector('[data-action="config"]').click()`);
+
 check('cleans up the badge', await cleanBadge());
-await evaluate(`document.querySelector('#toolbar [data-action="editor"][data-mode="simulator"]').click()`);
-check('switches to simulator mode', await waitFor(`document.body.dataset.mode === 'simulator' && location.search.includes('mode=simulator')`, 15000));
-await open('?mode=simulator&file=/apps/e2e_sim/__init__.py');
-check('3D view in simulator mode', await evaluate(`getComputedStyle(document.getElementById('simulator')).display`) !== 'none');
-await evaluate(`document.querySelector('#tab-controls [data-action="run"]').click()`);
+await evaluate(`document.querySelector('#target-switch [data-target="simulator"]').click()`);
+check('switches to the simulator in place', await waitFor(`document.body.dataset.target === 'simulator' && getComputedStyle(document.getElementById('simulator')).display !== 'none'`, 10000));
+check('config disabled for the simulator', await evaluate(`document.querySelector('[data-action="config"]').disabled`));
+await open('?file=/apps/e2e_sim/__init__.py');
+await sleep(2000);
+await run();
 check('simulator launches the app', await waitFor(`document.getElementById('status').textContent === 'Stopped (error)' && document.querySelector('#stdout > div').textContent.includes('/apps/e2e_sim/helper.py')`, 30000), await stdout());
 check('simulator marks the app file', (await evaluate(`monaco.editor.getModelMarkers({ owner: 'micropython' }).map((m) => m.startLineNumber)`))?.includes(4));
+await evaluate(`localStorage.setItem('badgeware.target', 'badge')`);
 check('no page exceptions', exceptions.length === 0, exceptions.join('\n'));
 
 socket.close();

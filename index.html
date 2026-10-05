@@ -67,14 +67,16 @@
 </nav>
 
 <div id="toolbar" role="toolbar" aria-label="Playground">
-  <span class="toolbar-title">Playground</span>
   <button data-action="gallery" title="Example gallery"><span class="material-symbols-outlined">grid_view</span>Examples</button>
   <button data-action="apps" title="Apps"><span class="material-symbols-outlined">apps</span>Apps</button>
-  <button data-action="editor" data-mode="badge" title="Code on your badge"><span class="material-symbols-outlined">developer_board</span>Badge</button>
-  <button data-action="editor" data-mode="simulator" title="Code in the simulator"><span class="material-symbols-outlined">view_in_ar</span>Simulator</button>
+  <button data-action="editor" title="Code editor" class="active"><span class="material-symbols-outlined">code</span>Editor</button>
   <button data-action="fonts" title="Font Explorer"><span class="material-symbols-outlined">font_download</span>Font Explorer</button>
-  <button data-action="config" title="Badge settings: WiFi, region and your own keys"><span class="material-symbols-outlined">tune</span>Config</button>
+  <div id="target-switch" role="group" aria-label="Run on">
+    <button data-target="badge" title="Run on your badge"><span class="material-symbols-outlined">developer_board</span>Badge</button>
+    <button data-target="simulator" title="Run in the simulator"><span class="material-symbols-outlined">view_in_ar</span>Simulator</button>
+  </div>
   <button id="connect-badge" title="Connect your badge"><span class="material-symbols-outlined">usb</span><span>Connect badge</span></button>
+  <button data-action="config" title="Badge settings: WiFi, region and your own keys"><span class="material-symbols-outlined">tune</span>Config</button>
   <button class="help" data-action="help" title="Help" aria-label="Help"><span class="material-symbols-outlined">help</span></button>
 </div>
 
@@ -82,14 +84,13 @@
 <div id="workspace">
 
   <nav id="file-panel" aria-label="Files">
-    <section id="fp-user" aria-label="User files">
+    <section id="fp-user" aria-label="Workspace files">
       <h2>
-        <span>Files</span>
+        <span>Workspace</span>
         <button data-action="new-app"  title="New app"     aria-label="New app"><span class="material-symbols-outlined">add_box</span></button>
         <button data-action="new-file" title="New file"    aria-label="New file"><span class="material-symbols-outlined">note_add</span></button>
         <button data-action="new-dir"  title="New folder"  aria-label="New folder"><span class="material-symbols-outlined">create_new_folder</span></button>
         <button data-action="upload"   title="Upload file" aria-label="Upload file"><span class="material-symbols-outlined">upload</span></button>
-        <button data-action="copy-from-simulator" title="Copy apps from the simulator" aria-label="Copy apps from the simulator"><span class="material-symbols-outlined">move_to_inbox</span></button>
         <input type="file" id="fp-upload-input" multiple hidden>
       </h2>
       <div id="fp-user-list"></div>
@@ -97,10 +98,10 @@
 
     <div data-drag-target="fp-user" data-drag-orientation="horizontal" data-drag-min="40" data-drag-max="85%"></div>
 
-    <section id="fp-sys" aria-label="System files">
+    <section id="fp-sys" aria-label="Badge files">
       <h2>
-        <span>System</span>
-        <span class="material-symbols-outlined" title="Read-only">lock</span>
+        <span>Badge</span>
+        <button data-action="badge-refresh" title="Refresh the badge's files" aria-label="Refresh the badge's files"><span class="material-symbols-outlined">refresh</span></button>
       </h2>
       <div id="fp-sys-tree"></div>
     </section>
@@ -109,7 +110,8 @@
   <div id="file-ctx-menu">
     <button data-action="open">Open</button>
     <button data-action="edit-icon">Edit icon</button>
-    <button data-action="copy-to-simulator">Copy to simulator</button>
+    <button data-action="copy-to-badge">Copy to badge</button>
+    <button data-action="copy-to-workspace">Copy to workspace</button>
     <button data-action="rename">Rename</button>
     <hr>
     <button data-action="new-here">New file here</button>
@@ -118,7 +120,7 @@
     <button data-action="delete">Delete</button>
   </div>
 
-  <div data-drag-target="file-panel" data-drag-orientation="vertical" data-drag-min="160" data-drag-max="450" data-drag-collapsed title="Drag to resize · click to show/hide Files"></div>
+  <div data-drag-target="file-panel" data-drag-orientation="vertical" data-drag-min="160" data-drag-max="450" title="Drag to resize · click to show/hide Files"></div>
 
   <main id="editor-panel">
     <nav id="tab-bar" aria-label="Open files">
@@ -221,7 +223,7 @@
           </fieldset>
           <p class="config-unsupported" hidden><span></span></p>
           <footer>
-            <button type="button" data-config="code">Edit secrets.py as code</button>
+            <button type="button" data-config="code">View secrets.py</button>
             <button type="submit" class="primary">Save settings</button>
           </footer>
         </form>
@@ -261,8 +263,6 @@
         <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
         <h3>Call stack</h3>
         <ol id="debug-stack"></ol>
-        <h3 id="debug-screen-title">Screen <small>as drawn so far this frame</small></h3>
-        <canvas id="debug-screen" width="160" height="120"></canvas>
         <h3 id="debug-locals-title">Locals</h3>
         <div id="debug-locals"></div>
         <h3>Globals</h3>
@@ -270,6 +270,8 @@
         <h3>Watch</h3>
         <ul id="debug-watch"></ul>
         <input id="debug-watch-add" type="text" placeholder="Add a watch, e.g. time.ticks_ms()" spellcheck="false" autocomplete="off">
+        <h3 id="debug-screen-title">Screen <small>as drawn so far this frame</small></h3>
+        <canvas id="debug-screen" width="160" height="120"></canvas>
         <h3>Evaluate</h3>
         <div id="debug-eval-log"></div>
         <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
@@ -298,21 +300,6 @@
     <footer>
       <button value="cancel">Cancel</button>
       <button value="choose" class="primary">Choose port</button>
-    </footer>
-  </form>
-</dialog>
-
-<dialog id="copy-dialog" aria-label="Copy from simulator">
-  <header>
-    <span class="material-symbols-outlined">move_to_inbox</span>
-    <h2>Copy from the simulator</h2>
-  </header>
-  <form method="dialog">
-    <ul class="copy-list"></ul>
-    <footer>
-      <span>Apps are copied to /system/apps, so they show up in the badge's launcher.</span>
-      <button value="cancel">Cancel</button>
-      <button value="copy" class="primary">Copy to badge</button>
     </footer>
   </form>
 </dialog>

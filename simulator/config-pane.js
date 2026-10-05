@@ -16,7 +16,7 @@ const element = (tag, attributes = {}, ...children) => {
 
 const typeOf = (value) => (typeof value === 'boolean' ? 'bool' : typeof value === 'number' ? 'number' : 'text');
 
-export function createConfigPane(el, { userFS, mode, flashStatus, openFile, refreshFile, isConnected }) {
+export function createConfigPane(el, { userFS, flashStatus, openFile, isConnected }) {
   const form = el.querySelector('form');
   const fields = {
     ssid: form.elements.wifi_ssid,
@@ -42,10 +42,6 @@ export function createConfigPane(el, { userFS, mode, flashStatus, openFile, refr
     for (const path of BASE_PATHS) {
       const text = await readEntry(path);
       if (text != null) return text;
-    }
-    if (mode === 'simulator') {
-      const response = await fetch('simulator/filesystem/system/secrets.py').catch(() => null);
-      if (response?.ok) return response.text();
     }
     return DEFAULT_SECRETS;
   }
@@ -109,7 +105,7 @@ export function createConfigPane(el, { userFS, mode, flashStatus, openFile, refr
   }
 
   async function load() {
-    const blocked = mode === 'badge' && !isConnected();
+    const blocked = !isConnected();
     notice.hidden = !blocked;
     form.hidden = blocked;
     if (blocked) return;
@@ -130,10 +126,9 @@ export function createConfigPane(el, { userFS, mode, flashStatus, openFile, refr
     const ordered = Object.fromEntries([...KNOWN_KEYS.map((key) => [key, values[key]]), ...Object.entries(values).filter(([key]) => !KNOWN_KEYS.includes(key))]);
     const text = updateSecrets(parsed, ordered);
     userFS.set(SECRETS_PATH, { text, binary: false });
-    await userFS.flush?.();
-    refreshFile(SECRETS_PATH, text);
+    await userFS.flush();
     parsed = parseSecrets(text);
-    flashStatus(mode === 'badge' ? '✓ Saved settings to your badge' : '✓ Saved settings', 3000);
+    flashStatus('✓ Saved settings to your badge', 3000);
   }
 
   form.addEventListener('submit', async (event) => {
@@ -157,7 +152,7 @@ export function createConfigPane(el, { userFS, mode, flashStatus, openFile, refr
   el.querySelector('[data-config="code"]').addEventListener('click', async () => {
     if (!userFS.get(SECRETS_PATH)) {
       userFS.set(SECRETS_PATH, { text: await readBase(), binary: false });
-      await userFS.flush?.();
+      await userFS.flush();
     }
     openFile(SECRETS_PATH);
   });

@@ -12,9 +12,9 @@
 
 import { afParse, afRender } from './af.js';
 import { ppfParse, ppfRender } from './ppf.js';
-import { disableUnsupported } from './mode.js';
+import { initTargetSwitch } from './mode.js';
 
-disableUnsupported();
+initTargetSwitch();
 
 const FG = '#f0e8d8';                 // glyph colour (matches badgeware specimens)
 const DEFAULT_TEXT = 'The quick brown fox 0123';

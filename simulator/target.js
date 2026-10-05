@@ -1,5 +1,5 @@
 import { IncompatibleBadgeError, MissingReplError } from './device/badge.js';
-import { badgeRunTarget, toDevicePath, toUserPath, SCRATCH_PATH } from './device/paths.js';
+import { runTargetFor, toDevicePath, toUserPath, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
 function lineSplitter(onLine) {
@@ -22,13 +22,23 @@ function lineSplitter(onLine) {
 
 const fileBytes = (entry) => (entry.binary ? entry.data : new TextEncoder().encode(entry.text));
 
+const NEVER_SYNC = new Set(['/secrets.py']);
+
+function workspaceFiles() {
+  return workspaceFS.paths()
+    .filter((path) => !path.endsWith('/') && !NEVER_SYNC.has(path))
+    .map((path) => [path, workspaceFS.get(path)])
+    .filter(([, entry]) => entry && !entry.isDir)
+    .map(([path, entry]) => ({ path: toDevicePath(path), bytes: fileBytes(entry) }));
+}
+
 const PAIR_MESSAGES = {
   first: ['Connect your badge', 'Your badge shows up twice in the list, because it has two connections: one for code and one for the debugger. Pick either one. If Chrome only grants that one, the IDE will ask for the other next.'],
   repl: ['One more port', 'That was the debugger connection. Pick the other entry for your badge so the IDE can run your code.'],
   debug: ['Enable debugging', 'To debug, the IDE also needs your badge\'s second connection. Pick the entry you didn\'t choose before.'],
 };
 
-export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks }) {
+export function createBadgeTarget(els, { device, badgeFS, output, setStatus, flashStatus, debuggerHooks, autoConnect = true }) {
   let runningPath = null;
 
   function askToPair(kind) {
@@ -109,13 +119,16 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       await device.stop();
       await device.queue;
     }
-    const runTarget = badgeRunTarget(request?.path ?? null);
-    const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : file);
+    const runTarget = runTargetFor(request?.path ?? null);
+    const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : toUserPath(file));
     output.beginRun(request?.tabKey ?? null, debug ? 'Debugging on badge' : 'Running on badge', mapFile);
     try {
-      setStatus('Saving…');
-      await badgeFS.flush();
-      if (runTarget.kind === 'scratch') await device.write(SCRATCH_PATH, new TextEncoder().encode(request?.code ?? ''));
+      setStatus('Syncing…');
+      const files = workspaceFiles();
+      if (runTarget.kind === 'scratch') files.push({ path: SCRATCH_PATH, bytes: new TextEncoder().encode(request?.code ?? '') });
+      const changed = await device.sync(files, (sent, total, path) => setStatus(`Syncing ${toUserPath(path)} ${Math.round((sent / total) * 100)}%`));
+      const synced = changed.filter((path) => path !== SCRATCH_PATH).length;
+      if (synced) output.appendOut(`Synced ${synced} file${synced === 1 ? '' : 's'} to your badge`, 'out-dim');
       runningPath = runTarget.devicePath;
       render();
       setStatus(debug ? 'Debugging on badge…' : 'Running on badge…');
@@ -177,10 +190,11 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
 
   els.connect.addEventListener('click', () => (device.connected ? disconnect() : connect()));
   render();
-  const ready = connect({ prompt: false });
+  const ready = autoConnect ? connect({ prompt: false }) : Promise.resolve(false);
 
   return {
     ready,
+    connect,
     run: async (request) => { await run(request); return true; },
     stop: async () => { await device.stop(); return true; },
     debug: async (request) => {

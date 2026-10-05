@@ -17,17 +17,16 @@ import { createIconEditor } from './icon-editor.js';
 import { createApp } from './app-scaffold.js';
 import { createConfigPane } from './config-pane.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
-import { pathMapFor, appSlug, runTargetFor } from './device/paths.js';
-import { editorUrl, disableUnsupported } from './mode.js';
+import { pathMapFor, runTargetFor } from './device/paths.js';
+import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
 async function initApp() {
   // Adopt the (already in-flight) simulator boot.
-  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, mode } = await bootSimulator();
-  const paths = pathMapFor(mode);
-  disableUnsupported();
-  document.querySelectorAll('#toolbar [data-action="editor"]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, simulatorView, runOS } = await bootSimulator();
+  const paths = pathMapFor('simulator');
+  initTargetSwitch();
   const mobileNav = document.getElementById('mobile-nav');
 
   // app.js is the wiring layer: it resolves the DOM by id and injects elements into
@@ -88,12 +87,35 @@ async function initApp() {
     const name = prompt('What is your app called?', 'My App');
     if (!name) return;
     try {
-      const app = await createApp(userFS, name, paths.appsRoot);
+      const app = await createApp(userFS, name);
       fb.refresh();
       tabs.openFile(app.main, { transient: false });
       iconEditor.open(app.icon);
     } catch (error) {
       alert(error.message);
+    }
+  }
+
+  const badgeConnected = () => !!badgeDevice?.connected;
+  let badge = null;
+
+  async function loadBadgeFile(path, as) {
+    const entry = await badgeFS.load(path);
+    if (!entry) return null;
+    if (as === 'text') return entry.binary ? new TextDecoder().decode(entry.data) : entry.text;
+    const bytes = entry.binary ? entry.data : new TextEncoder().encode(entry.text);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  }
+
+  function workspaceFilesUnder(path, isDir) {
+    return isDir ? workspaceFS.paths().filter((p) => p.startsWith(path + '/') && !p.endsWith('/')) : [path];
+  }
+
+  async function guard(task) {
+    try {
+      await task();
+    } catch (error) {
+      flashStatus('✕ ' + error.message, 4000);
     }
   }
 
@@ -107,27 +129,32 @@ async function initApp() {
     },
     {
       userFS,
-      getSystemPaths,            // imported accessor (fs.js) → current system file list
+      badgePaths: () => (badgeConnected() ? badgeFS.paths() : null),
+      badgeConnected,
       activePath: tabs.activePath,
+      activeBadgePath: () => (tabs.activeInfo()?.source === 'badge' ? tabs.activeInfo().path : null),
       openPaths:  tabs.openPaths,
       transientPath: tabs.transientPath,
       isTextFile: tabs.isTextFile,
       openFile:   tabs.openFile,
+      openBadgeFile: (path, options) => guard(() => tabs.openBadgeFile(path, loadBadgeFile, options)),
       newScratch: tabs.newScratch,
       onRenamed:  tabs.onRenamed,
       onDeleted:  tabs.onDeleted,
       newApp,
       editIcon:   (path) => iconEditor.open(path),
-      copyToSimulator: (path, isDir) => target?.copyToSimulator(path, isDir),
-      dirsOpenByDefault: mode !== 'badge',
+      copyToBadge: (path, isDir) => guard(() => badge.copyToBadge(workspaceFilesUnder(path, isDir))),
+      copyToWorkspace: (path, isDir) => guard(async () => { await badge.copyToSimulator(path, isDir); fb.refresh(); }),
+      deleteBadgePath: (path, isDir) => guard(async () => {
+        if (!confirm(`Delete ${path}${isDir ? ' and everything in it' : ''} from your badge?`)) return;
+        await badgeDevice.remove(path);
+        await badgeFS.reload();
+      }),
+      dirsOpenByDefault: true,
     },
   );
   tabs.connect(fb);
 
-  // Simulator -> editor file sync: when the running program writes/renames/deletes
-  // a user file, the worker mirrors it into the shared IndexedDB store and pings us.
-  // Reload the FS cache and repaint the tree, debounced so a burst of writes repaints
-  // once rather than per-file.
   let fsReloadTimer = null;
   setFsChangedHandler(() => {
     clearTimeout(fsReloadTimer);
@@ -151,70 +178,58 @@ async function initApp() {
     { editor, tabs, setStatus, paths },
   );
 
-  let target = null;
   if (badgeDevice) {
-    target = createBadgeTarget(
+    badge = createBadgeTarget(
       {
         connect:      document.getElementById('connect-badge'),
         connectLabel: document.querySelector('#connect-badge span:last-child'),
         pairDialog:   document.getElementById('pair-dialog'),
       },
-      { device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks },
+      { device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks, autoConnect: currentTarget() === 'badge' },
     );
-    setRunInterceptor(target.run);
-    setStopInterceptor(target.stop);
     badgeEvents.addEventListener('change', () => fb.refresh());
     badgeEvents.addEventListener('error', ({ detail }) => flashStatus('✕ ' + detail.message, 4000));
-    await target.ready;
-  } else {
-    setRunInterceptor(async (request) => {
-      const app = runTargetFor(request?.path ?? null);
-      if (app.kind === 'app') request.code = `launch(${JSON.stringify(app.userPath)})`;
-      return false;
-    });
+    badgeDevice.addEventListener('disconnected', () => fb.refresh());
   }
+  const onBadge = () => currentTarget() === 'badge' && badge;
+  setRunInterceptor(async (request) => {
+    if (onBadge()) return badge.run(request);
+    const app = runTargetFor(request?.path ?? null);
+    if (request && app.kind === 'app') request.code = `launch(${JSON.stringify(app.userPath)})`;
+    return false;
+  });
+  setStopInterceptor(async () => (onBadge() ? badge.stop() : false));
+
   const configPane = createConfigPane(document.getElementById('config'), {
-    userFS, mode, flashStatus,
-    openFile: (path) => { tabs.toggleView('editor'); tabs.openFile(path, { transient: false }); },
-    refreshFile: tabs.refreshFile,
-    isConnected: () => !!badgeDevice?.connected,
+    userFS: badgeFS, flashStatus,
+    openFile: (path) => { tabs.toggleView('editor'); guard(() => tabs.openBadgeFile(path, loadBadgeFile, { transient: false })); },
+    isConnected: badgeConnected,
   });
+  const configButton = document.querySelector('#toolbar [data-action="config"]');
+  const configOpen = () => document.getElementById('config').style.display === 'block';
   badgeEvents.addEventListener('change', () => {
-    const pane = document.getElementById('config');
-    if (pane.style.display === 'block' && pane.querySelector('form').hidden) configPane.load();
+    if (configOpen() && document.querySelector('#config form').hidden) configPane.load();
   });
-  const debugCurrent = () => (target ? target.debug(tabs.getRunRequest()) : flashStatus('Debugging needs Badge mode'));
-  const copyDialog = document.getElementById('copy-dialog');
-  async function copyFromSimulator() {
-    const roots = [...new Set(workspaceFS.paths().filter((p) => !p.endsWith('/')).map((p) => (appSlug(p) ? `/apps/${appSlug(p)}` : p)))];
-    const list = copyDialog.querySelector('.copy-list');
-    list.replaceChildren(...(roots.length ? roots : ['']).map((root) => {
-      const item = document.createElement('li');
-      if (!root) {
-        item.textContent = 'The simulator workspace is empty.';
-        return item;
-      }
-      const label = document.createElement('label');
-      const box = document.createElement('input');
-      box.type = 'checkbox';
-      box.value = root;
-      box.checked = root.startsWith('/apps/');
-      label.append(box, ' ', root.startsWith('/apps/') ? `${root.slice(6)} (app)` : root);
-      item.append(label);
-      return item;
-    }));
-    copyDialog.returnValue = '';
-    copyDialog.showModal();
-    await new Promise((resolve) => copyDialog.addEventListener('close', resolve, { once: true }));
-    if (copyDialog.returnValue !== 'copy') return;
-    const chosen = [...list.querySelectorAll('input:checked')].map((box) => box.value);
-    const files = workspaceFS.paths().filter((p) => !p.endsWith('/') && chosen.some((root) => p === root || p.startsWith(root + '/')));
-    try {
-      await target.copyToBadge(files);
-    } catch (error) {
-      flashStatus('✕ ' + error.message, 4000);
-    }
+  const debugCurrent = () => (onBadge() ? badge.debug(tabs.getRunRequest()) : flashStatus('Switch to Badge to debug', 3000));
+
+  function applyTarget(target) {
+    configButton.disabled = target !== 'badge' || !badgeDevice;
+    if (target !== 'badge' && configOpen()) tabs.toggleView('config');
   }
+  applyTarget(currentTarget());
+  await badge?.ready;
+  onTargetChange(async (target) => {
+    applyTarget(target);
+    if (target === 'badge') {
+      await simulatorView.stop();
+      output.clear();
+      await badge?.connect({ prompt: false });
+    } else {
+      if (badge && badgeDevice.running) await badgeDevice.stop();
+      await runOS();
+    }
+    fb.refresh();
+  });
 
   // Run provider + traceback markers: boot.js calls these into tabs.
   setRunProvider(tabs.getRunRequest);
@@ -250,8 +265,9 @@ async function initApp() {
     help:    tabs.toggleHelp,
     debug:   debugCurrent,
     config:  () => { if (tabs.toggleView('config')) configPane.load(); },
-    editor:  (button) => (button?.dataset.mode && button.dataset.mode !== mode ? (location.href = editorUrl(button.dataset.mode)) : tabs.focusCodeOrNew()),
-    ...(target ? { 'run-os': target.restartLauncher, 'copy-from-simulator': copyFromSimulator } : {}),
+    editor:  () => tabs.focusCodeOrNew(),
+    'run-os': () => (onBadge() ? badge.restartLauncher() : runOS()),
+    'badge-refresh': () => guard(() => (badgeConnected() ? badgeFS.reload() : badge?.connect())),
   });
 
   // Commit the home view FIRST: reopen the saved workspace + honour any ?file= /
@@ -266,7 +282,6 @@ async function initApp() {
     const fsData = await fetch(APP_BASE + 'filesystem.json').then(r => r.json());
     // Manifest shape: { files: { "/path": byteSize } } — we only need the paths here.
     setSystemPaths(Object.keys(fsData.files || {}));
-    fb.refresh({ rebuildSystem: true });   // real system paths arrived → (re)build the tree
   } catch (_) {}
 
   fb.refresh();              // initial file tree render

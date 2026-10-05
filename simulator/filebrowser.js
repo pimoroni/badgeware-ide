@@ -8,7 +8,7 @@
    userHeader }. host — data + callbacks it can't reach itself:
 
      host.userFS            — the IndexedDB-backed FS (see fs.js)
-     host.getSystemPaths()  — current system file list (populated after fetch)
+     host.badgePaths()      — the badge's file list, or null when not connected
      host.openFile(path, { transient, system })  — host opens it (model/tab/preview)
      host.onRenamed(old, new)  — host re-keys any open tab for that path
      host.onDeleted(path)      — host closes any open tab for that path
@@ -30,7 +30,7 @@ export function createFileBrowser(els, host) {
 
   const toggledDirs = new Set();
   const dirsOpenByDefault = host.dirsOpenByDefault ?? true;
-  let sysBuilt = false;
+  const badgeOpenDirs = new Set();
 
   const esc = (s) => String(s).replace(/[&<>"]/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -58,7 +58,7 @@ export function createFileBrowser(els, host) {
   // rows are tabbable (tabindex=0) so the keyboard reaches them too, not just the
   // directory summaries. `user` toggles editable (delete button, collapse-state,
   // active highlight) vs read-only system styling.
-  function nodeToHtml(node, prefix, user, activePath) {
+  function nodeToHtml(node, prefix, user, activePath, openDirs = null) {
     const entries = Object.entries(node)
       .filter(([k]) => k !== '__dir')
       .sort(([a, av], [b, bv]) => {
@@ -70,10 +70,12 @@ export function createFileBrowser(els, host) {
     for (const [name, child] of entries) {
       const full = prefix + '/' + name;
       if (child && child.__dir) {
-        const open = user && (dirsOpenByDefault !== toggledDirs.has(full) || (activePath ?? '').startsWith(full + '/'));
+        const open = user
+          ? (dirsOpenByDefault !== toggledDirs.has(full) || (activePath ?? '').startsWith(full + '/'))
+          : !!openDirs?.has(full);
         html += `<li><details class="tree-dir" data-path="${esc(full)}"${open ? ' open' : ''}>`
               +   `<summary><span class="dir-arrow material-symbols-outlined">chevron_right</span><span>${esc(name)}/</span></summary>`
-              +   `<ul class="dir-children">${nodeToHtml(child, full, user, activePath)}</ul>`
+              +   `<ul class="dir-children">${nodeToHtml(child, full, user, activePath, openDirs)}</ul>`
               + `</details></li>`;
       } else if (user) {
         const active = full === activePath ? ' active' : '';
@@ -84,7 +86,7 @@ export function createFileBrowser(els, host) {
       } else {
         html += `<li><div class="tree-row" tabindex="0" data-path="${esc(full)}" title="${esc(full)}">`
               +   `<span class="row-name">${esc(name)}</span>`
-              +   `<span class="row-badge material-symbols-outlined" title="System file">lock</span>`
+              +   `<span class="row-badge material-symbols-outlined" title="On your badge">memory</span>`
               + `</div></li>`;
       }
     }
@@ -92,7 +94,6 @@ export function createFileBrowser(els, host) {
   }
 
   function refresh(opts) {
-    if (opts && opts.rebuildSystem) sysBuilt = false;
 
     // Remember which user dirs are collapsed before we blow the DOM away.
     userList.querySelectorAll('details.tree-dir[data-path]').forEach(d => {
@@ -114,10 +115,13 @@ export function createFileBrowser(els, host) {
       userList.querySelector(`.tree-row[data-path="${refocusPath.replace(/["\\]/g, '\\$&')}"]`)?.focus();
     }
 
-    if (!sysBuilt) {
-      sysBuilt = true;
-      sysTree.innerHTML = `<ul class="tree">${nodeToHtml(buildDirTree(host.getSystemPaths()), '', false)}</ul>`;
-    }
+    sysTree.querySelectorAll('details.tree-dir[data-path]').forEach((d) => {
+      if (d.open) badgeOpenDirs.add(d.dataset.path); else badgeOpenDirs.delete(d.dataset.path);
+    });
+    const badgePaths = host.badgePaths();
+    sysTree.innerHTML = badgePaths
+      ? `<ul class="tree">${nodeToHtml(buildDirTree(badgePaths), '', false, null, badgeOpenDirs)}</ul>`
+      : '<div class="fp-empty">Connect your badge to see its files.</div>';
     syncRows();   // re-apply active/open/transient decorations after the rebuild
   }
 
@@ -130,12 +134,14 @@ export function createFileBrowser(els, host) {
     const active    = host.activePath();
     const open      = host.openPaths();
     const transient = host.transientPath();
-    for (const el of [...userList.querySelectorAll('.tree-row'), ...sysTree.querySelectorAll('.tree-row')]) {
+    const activeBadge = host.activeBadgePath();
+    for (const el of userList.querySelectorAll('.tree-row')) {
       const p = el.dataset.path;
-      el.classList.toggle('active',    p === active);
+      el.classList.toggle('active',    p === active && !activeBadge);
       el.classList.toggle('open',      open.has(p));
       el.classList.toggle('transient', p === transient);
     }
+    for (const el of sysTree.querySelectorAll('.tree-row')) el.classList.toggle('active', el.dataset.path === activeBadge);
   }
 
   /* -- Tree interaction (delegated) ----------------------------------------
@@ -182,28 +188,43 @@ export function createFileBrowser(els, host) {
 
   sysTree.addEventListener('click', (e) => {
     const row = e.target.closest('.tree-row');
-    if (row) host.openFile(row.dataset.path, { transient: true, system: true });
+    if (row) host.openBadgeFile(row.dataset.path, { transient: true });
   });
   sysTree.addEventListener('dblclick', (e) => {
     const row = e.target.closest('.tree-row');
-    if (row) host.openFile(row.dataset.path, { transient: false, system: true });
+    if (row) host.openBadgeFile(row.dataset.path, { transient: false });
   });
   sysTree.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     if (!e.target.classList.contains('tree-row')) return;
     e.preventDefault();
-    host.openFile(e.target.dataset.path, { transient: e.key === ' ', system: true });
+    host.openBadgeFile(e.target.dataset.path, { transient: e.key === ' ' });
+  });
+  sysTree.addEventListener('contextmenu', (e) => {
+    const row = e.target.closest('.tree-row');
+    if (row) { showCtxMenu(e, row.dataset.path, false, 'badge'); return; }
+    const summary = e.target.closest('summary');
+    if (summary) showCtxMenu(e, summary.closest('details').dataset.path, true, 'badge');
   });
 
   /* -- Context menu --------------------------------------------------------*/
-  let ctxTarget = null;   // { path, isDir }
+  let ctxTarget = null;
 
-  function showCtxMenu(e, path, isDir) {
+  function showCtxMenu(e, path, isDir, tree = 'user') {
     e.preventDefault();
-    ctxTarget = { path, isDir };
-    menu.querySelector('[data-action="open"]').style.display = isDir ? 'none' : '';
-    menu.querySelector('[data-action="new-here"]').style.display = '';
-    menu.querySelector('[data-action="edit-icon"]').style.display = !isDir && path.toLowerCase().endsWith('.png') ? '' : 'none';
+    ctxTarget = { path, isDir, tree };
+    const show = {
+      open: !isDir,
+      'edit-icon': tree === 'user' && !isDir && path.toLowerCase().endsWith('.png'),
+      'copy-to-badge': tree === 'user' && host.badgeConnected(),
+      'copy-to-workspace': tree === 'badge',
+      rename: tree === 'user',
+      delete: true,
+      'new-here': tree === 'user',
+      'new-dir-here': tree === 'user',
+    };
+    for (const [action, visible] of Object.entries(show)) menu.querySelector(`[data-action="${action}"]`).style.display = visible ? '' : 'none';
+    menu.querySelectorAll('hr').forEach((hr) => { hr.style.display = tree === 'user' ? '' : 'none'; });
     menu.style.left = e.clientX + 'px';
     menu.style.top  = e.clientY + 'px';
     menu.style.display = 'block';
@@ -224,11 +245,12 @@ export function createFileBrowser(els, host) {
   const dirOf = (t) => (t.isDir ? t.path : t.path.slice(0, t.path.lastIndexOf('/')));   // dir to create into
   const onTarget = (fn) => () => { if (!ctxTarget) return; const t = ctxTarget; hideCtxMenu(); fn(t); };
   delegate(menu, {
-    open:           onTarget((t) => host.openFile(t.path, { transient: false })),
+    open:           onTarget((t) => (t.tree === 'badge' ? host.openBadgeFile(t.path, { transient: false }) : host.openFile(t.path, { transient: false }))),
     'edit-icon':    onTarget((t) => host.editIcon(t.path)),
-    'copy-to-simulator': onTarget((t) => host.copyToSimulator?.(t.path, t.isDir)),
+    'copy-to-badge': onTarget((t) => host.copyToBadge(t.path, t.isDir)),
+    'copy-to-workspace': onTarget((t) => host.copyToWorkspace(t.path, t.isDir)),
     rename:         onTarget((t) => renamePath(t.path, t.isDir)),
-    delete:         onTarget((t) => deleteUserPath(t.path, t.isDir)),
+    delete:         onTarget((t) => (t.tree === 'badge' ? host.deleteBadgePath(t.path, t.isDir) : deleteUserPath(t.path, t.isDir))),
     'new-here':     onTarget((t) => createUserFile(dirOf(t) + '/')),
     'new-dir-here': onTarget((t) => createUserDirAt(dirOf(t))),
   });

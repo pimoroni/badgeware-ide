@@ -20,7 +20,6 @@ import { idbKv } from './util.js';
 import { ppfParse, ppfPreview } from './ppf.js';
 import { afParse, afPreview } from './af.js';
 import { delegate } from './util.js';
-import { currentMode } from './mode.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
@@ -29,8 +28,7 @@ const APP_BASE = new URL('.', import.meta.url).href;
 // holds the whole snapshot. See simulator/util.js.
 const sessionStore = (() => {
   const kv = idbKv('badgeware.session', 'state');
-  const key = currentMode() === 'badge' ? 'editor-badge' : 'editor';
-  return { load: () => kv.get(key), save: (value) => kv.set(key, value) };
+  return { load: () => kv.get('editor'), save: (value) => kv.set('editor', value) };
 })();
 
 /* panes: the editor-area elements tabs switches between (app.js owns the lookups) —
@@ -55,13 +53,13 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   const openPaths     = () => new Set([...openModels.values()].filter((t) => t.path).map((t) => t.path));
   const transientPath = () => (transientTabKey ? openModels.get(transientTabKey)?.path ?? null : null);
   // Read-only = system files and image previews; editable = user text files + scratch.
-  const isReadOnly = (t) => t.source === 'sys' || t.view === 'image' || (t.source === 'user' && !!userFS.get(t.path)?.readOnly);
+  const isReadOnly = (t) => t.source === 'sys' || t.source === 'badge' || t.view === 'image';
   // The opaque id for a record. The string scheme is unchanged (so Monaco URIs and
   // traceback-marker matching keep working) — it just lives in ONE place.
   const binPrefix  = (path) => FILE_HANDLERS[path.slice(path.lastIndexOf('.')).toLowerCase()]?.keyPrefix ?? 'img';
   function tabKey({ source, view, path, name }) {
     if (source === 'scratch') return 'scratch:' + name;
-    const sys = source === 'sys' ? 'sys:' : '';
+    const sys = source === 'sys' || source === 'badge' ? source + ':' : '';
     return view === 'image' ? binPrefix(path) + ':' + sys + path : sys + path;
   }
   // Single owner of the editor-area view switch: 'editor' | 'image' | 'help'.
@@ -125,6 +123,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     if (t.source === 'scratch') {
       return { source: 'scratch', name: t.name, content: t.model ? t.model.getValue() : '', transient: !!t.transient };
     }
+    if (t.source === 'badge') return null;
     return { source: t.source, path: t.path, transient: !!t.transient };
   }
   const snapshotSession = () => ({ tabs: openOrder.map(serializeTab).filter(Boolean), active: currentTabKey });
@@ -442,36 +441,37 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     return null;
   }
 
-  async function openSysFile(path, transient = false) {
+  async function openSysFile(path, transient = false, source = 'sys', load = fetchSysFile) {
+    const readOnlyNote = source === 'badge' ? ' on your badge, read-only' : ' — read-only';
     const ext     = path.slice(path.lastIndexOf('.'));
     const handler = FILE_HANDLERS[ext];
     if (!handler) return;
 
     if (handler.kind === 'text') {
-      const key = tabKey({ source: 'sys', view: 'editor', path });
+      const key = tabKey({ source, view: 'editor', path });
       if (openModels.has(key)) {
         if (openModels.get(key).transient && (!transient || currentTabKey === key)) promoteTab(key);
         focusTab(key);
-        setStatus(path + ' — read-only');
+        setStatus(path + readOnlyNote);
         return;
       }
       if (transient) evictTransient(key);
-      const text = await fetchSysFile(path, 'text');
+      const text = await load(path, 'text');
       if (text === null) return;
       try {
-        const uri   = monaco.Uri.parse('badgeware:///sys' + encodeURIComponent(path));
+        const uri   = monaco.Uri.parse('badgeware:///' + source + encodeURIComponent(path));
         const model = monaco.editor.createModel(formatForPreview(path, text), langForPath(path), uri);
-        openModels.set(key, { source: 'sys', view: 'editor', path, name: baseName(path), model, dirty: false, transient });
+        openModels.set(key, { source, view: 'editor', path, name: baseName(path), model, dirty: false, transient });
         openOrder.push(key);
         if (transient) transientTabKey = key;
       } catch (e) { console.warn('openSysFile: could not create model for', path, e); return; }
       focusTab(key);
     } else {
-      const buf = await fetchSysFile(path, 'buffer');
+      const buf = await load(path, 'buffer');
       if (buf === null) return;
-      openBinaryTab({ source: 'sys', path }, buf, handler, transient);
+      openBinaryTab({ source, path }, buf, handler, transient);
     }
-    setStatus(path + ' — read-only');
+    setStatus(path + readOnlyNote);
   }
 
   function openUserFile(path, transient = false) {
@@ -654,6 +654,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     openPaths, transientPath,
     isTextFile: (p) => FILE_HANDLERS[p.slice(p.lastIndexOf('.')).toLowerCase()]?.kind === 'text',
     openFile:   (path, { transient = false, system = false } = {}) => (system ? openSysFile(path, transient) : openUserFile(path, transient)),
+    openBadgeFile: (path, load, { transient = false } = {}) => openSysFile(path, transient, 'badge', load),
     newScratch, onRenamed, onDeleted,
     // Late-bind the file browser (syncRows / refresh) once it exists.
     connect: (filebrowser) => { fb = filebrowser; },

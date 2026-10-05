@@ -962,7 +962,7 @@
          title by exactly that title bar's height, so the badge overlaps it fully
          whatever the title's font/icon size is. boot.js measures #stdout h2 and
          mirrors its height into --badge-spill; the fallback covers first paint / no-JS. */
-      margin-top: -7%;
+      margin-top: 0;
       margin-bottom: calc(var(--badge-spill, 40px) * -1);
       transition: margin 0.25s ease;
     }
@@ -1385,35 +1385,32 @@
       #mobile-nav button.active { color: var(--orange); border-bottom-color: var(--orange); }
     }
 
-    #toolbar #connect-badge {
+    #toolbar #target-switch {
       margin-left: auto;
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    #toolbar #target-switch button { border: none; }
+    #toolbar #target-switch button.active { color: var(--bg); background: var(--blue); }
+    #toolbar #target-switch button:disabled { opacity: 0.35; cursor: not-allowed; }
+    #toolbar .help { margin-left: 0; }
+    #toolbar #connect-badge {
       min-width: 13em;
       justify-content: flex-start;
       gap: 6px;
     }
     #toolbar #connect-badge.connected { color: var(--green); }
-    body[data-mode="simulator"] #toolbar #connect-badge { display: none; }
-    body[data-mode="badge"] #toolbar .help { margin-left: 0; }
-    #toolbar [data-action="editor"].active { color: var(--orange); border-color: var(--orange); }
+    body[data-target="simulator"] #toolbar #connect-badge { display: none; }
 
     #tab-controls [data-action="debug"] { color: var(--orange); }
     #tab-controls [data-action="debug"]:hover { background: var(--faint-orange); }
-    body[data-mode="simulator"] #tab-controls [data-action="debug"] { display: none; }
+    body[data-target="simulator"] #tab-controls [data-action="debug"] { display: none; }
 
-    body[data-mode="badge"] #simulator,
-    body[data-mode="badge"] #fp-sys,
-    body[data-mode="badge"] [data-drag-target="fp-user"] { display: none; }
-    body[data-mode="badge"] #fp-user { flex: 1; height: auto !important; }
-    body[data-mode="badge"]:not(.badge-connected) #fp-user-list::before {
-      content: 'Connect your badge to see its files.';
-      display: block;
-      padding: 12px 10px;
-      color: var(--dim);
-      font-size: var(--text-xs);
-    }
-    body[data-mode="simulator"] [data-action="copy-from-simulator"],
-    body[data-mode="simulator"] #file-ctx-menu [data-action="copy-to-simulator"],
-    body[data-mode="simulator"] #debug-panel { display: none; }
+    body[data-target="badge"] #simulator,
+    body[data-target="simulator"] #debug-panel { display: none; }
 
     #debug-panel {
       flex: 1;
@@ -1498,7 +1495,7 @@
     .debug-empty { color: var(--dim); }
     #debug-eval-log { max-height: 120px; overflow-y: auto; }
     #debug-body h3 small { text-transform: none; letter-spacing: 0; color: var(--dim); }
-    #debug-screen { display: block; width: 100%; max-width: 320px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
+    #debug-screen { display: block; width: 100%; max-width: 240px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
     #debug-screen.ready { opacity: 1; }
     #debug-watch { list-style: none; }
     .debug-watch-row { display: flex; gap: 8px; align-items: center; padding: 1px 6px; }
@@ -1521,7 +1518,7 @@
       border: 1px solid var(--border);
       border-radius: 4px;
     }
-    body[data-mode="badge"] #stdout { flex: 0 0 40%; }
+    body[data-target="badge"] #stdout { flex: 0 0 40%; }
 
     .monaco-editor .debug-breakpoint::after {
       content: '';

@@ -1,48 +1,59 @@
-const MODE_KEY = 'badgeware.mode';
+const TARGET_KEY = 'badgeware.target';
+const TARGET_EVENT = 'badgeware-target';
 
 export const webSerialSupported = () => typeof navigator !== 'undefined' && 'serial' in navigator;
 
 function stored() {
   try {
-    return localStorage.getItem(MODE_KEY);
+    return localStorage.getItem(TARGET_KEY);
   } catch (_) {
     return null;
   }
 }
 
-function remember(mode) {
+export function currentTarget() {
+  const target = stored() ?? 'badge';
+  return target === 'badge' && webSerialSupported() ? 'badge' : 'simulator';
+}
+
+export function setTarget(target) {
   try {
-    localStorage.setItem(MODE_KEY, mode);
+    localStorage.setItem(TARGET_KEY, target);
   } catch (_) {}
+  document.body.dataset.target = currentTarget();
+  syncTargetButtons();
+  window.dispatchEvent(new CustomEvent(TARGET_EVENT, { detail: currentTarget() }));
 }
 
-export function currentMode() {
-  const requested = new URLSearchParams(location.search).get('mode') ?? stored() ?? 'badge';
-  const mode = requested === 'badge' && webSerialSupported() ? 'badge' : 'simulator';
-  remember(mode);
-  return mode;
+export const onTargetChange = (fn) => window.addEventListener(TARGET_EVENT, ({ detail }) => fn(detail));
+
+export function editorUrl(query = {}) {
+  const search = new URLSearchParams(query).toString();
+  return 'index.html' + (search ? '?' + search : '');
 }
 
-export function editorUrl(mode, query = '') {
-  const params = new URLSearchParams(query);
-  params.set('mode', mode);
-  return 'index.html?' + params.toString();
+function syncTargetButtons() {
+  const target = currentTarget();
+  document.querySelectorAll('#target-switch [data-target]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.target === target);
+    button.setAttribute('aria-pressed', String(button.dataset.target === target));
+  });
 }
 
-export function editorUrlFor(element, query = '') {
-  return editorUrl(element?.closest('[data-mode]')?.dataset.mode ?? stored() ?? 'badge', query);
+export function initTargetSwitch() {
+  document.body.dataset.target = currentTarget();
+  syncTargetButtons();
+  document.querySelectorAll('#target-switch [data-target]').forEach((button) => {
+    button.addEventListener('click', () => setTarget(button.dataset.target));
+  });
+  disableUnsupported();
 }
 
-export function disableUnsupported(root = document) {
+export function disableUnsupported() {
   if (webSerialSupported()) return;
   const reason = 'Needs a browser with Web Serial, such as Chrome or Edge';
-  root.querySelectorAll('#toolbar [data-mode="badge"], #toolbar [data-action="config"]').forEach((control) => {
-    if (control.tagName === 'A') {
-      control.removeAttribute('href');
-      control.setAttribute('aria-disabled', 'true');
-    } else {
-      control.disabled = true;
-    }
+  document.querySelectorAll('#target-switch [data-target="badge"], #toolbar [data-action="config"]').forEach((control) => {
+    control.disabled = true;
     control.title = reason;
   });
 }

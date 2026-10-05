@@ -21,12 +21,12 @@ The badge exposes two USB CDC interfaces:
 - **Tufty REPL**: raw REPL. The IDE soft resets into a clean VM, reads and writes files with `ide.get` / `ide.put`, and runs apps with `ide.execute()`. Tracebacks stream back and are mapped onto editor lines.
 - **Tufty Debug**: when idle, answers Ctrl-C with a JSON ident (`model`, `board`, `protocol`, `firmware`, `features`). The IDE uses this to tell the two ports apart and to reject incompatible badges, since VID/PID alone is shared with customised variants. During a debug session `ide_debug` claims the port and speaks newline-delimited JSON (breakpoints, step, stack, globals, eval) on top of `sys.settrace`.
 
-The editor has two modes, picked from the toolbar (`?mode=badge|simulator`, remembered):
+There is one workspace (IndexedDB) and one set of open tabs. The Badge / Simulator switch on the right of the toolbar picks where Run goes:
 
-- **Badge**: the Files tree is the badge's filesystem. Files load when opened and save straight back to the badge (held while an app runs, flushed before the next Run). `/rom` is read-only. New apps go in `/system/apps/<slug>/`, so they show up in the launcher. The side panel is the debugger plus output; there's no simulator.
-- **Simulator**: the browser workspace (IndexedDB) and the 3D simulator. Apps live in `/apps/<slug>/` and run with `launch()`.
+- **Badge**: Run syncs changed workspace files to the badge (by SHA-256) and runs there. `/apps/<slug>` maps to `/system/apps/<slug>`, so apps show up in the launcher; other files keep their path; `/secrets.py` is never synced. Unsaved tabs run as `/.ide/scratch.py`. The side panel is the debugger plus output.
+- **Simulator**: the 3D simulator. Apps run with `launch()`.
 
-"Copy from simulator" (Files header) and "Copy to simulator" (context menu) move apps between the two; `/apps/<slug>` maps to `/system/apps/<slug>`. Unsaved tabs run on the badge as `/.ide/scratch.py`.
+The Files panel shows the workspace on top and the badge's own files below. Badge files open read-only; the context menus copy files and folders either way, and delete from the badge. **Config** edits `/secrets.py` on the badge (WiFi, region, GMT offset, custom keys) and needs the Badge target.
 
 | File | Role |
 |---|---|
@@ -35,10 +35,11 @@ The editor has two modes, picked from the toolbar (`?mode=badge|simulator`, reme
 | `simulator/device/badge.js` | Port identification, compatibility, sync, run, stop, debug sessions |
 | `simulator/device/debug.js` | Debug channel client |
 | `simulator/device/paths.js` | Editor path to badge path mapping |
-| `simulator/device/badge-fs.js` | Badge filesystem backend for the editor |
-| `simulator/device/session.js` | Badge mode device + backend setup |
-| `simulator/mode.js` | Badge / Simulator mode |
-| `simulator/target.js` | Badge mode connect, run, copy between modes |
+| `simulator/device/badge-fs.js` | The badge's file listing, lazy reads and writes |
+| `simulator/device/session.js` | Shared badge device and filesystem |
+| `simulator/mode.js` | Badge / Simulator target switch |
+| `simulator/target.js` | Badge connect and pairing, run and debug on the badge, copying |
+| `simulator/config-pane.js`, `simulator/secrets-file.js` | Config pane and the secrets.py reader/writer |
 | `simulator/debugger.js` | Breakpoints (F9), debug panel |
 | `simulator/icon-editor.js` | 24 x 24 icon editor |
 | `simulator/app-scaffold.js` | New app template |

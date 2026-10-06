@@ -1286,7 +1286,7 @@
     .app-icon.missing { border: 1px dashed var(--dim); border-radius: 3px; }
 
     #fp-user-list ul, #fp-sys-tree ul { list-style: none; }   /* tree = nested lists */
-    .dir-children { padding-left: 10px; }                     /* indent each level */
+    .dir-children { padding-left: calc(1.25rem + 6px); }      /* children line up with the parent icon */
 
     /* -- Mobile-only chrome (hidden on desktop) ------------------- */
     #mobile-nav, #mobile-run { display: none; }

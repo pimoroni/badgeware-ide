@@ -244,6 +244,8 @@ await evaluate(`(async () => { const { workspaceFS } = await import('./simulator
 await evaluate(`(async () => { const { badgeFS } = await import('./simulator/device/session.js'); await badgeFS.reload(); document.querySelector('[data-action="badge-refresh"]').click(); return true; })()`);
 await sleep(1000);
 check('copy to workspace from badge', await contextAction('fp-sys-tree', '/apps/e2e_rocket', 'copy-to-workspace') === true && await waitFor(`(async () => { const { workspaceFS } = await import('./simulator/fs.js'); return !!workspaceFS.get('/apps/e2e_rocket/icon.png') && !!workspaceFS.get('/apps/e2e_rocket/__init__.py'); })()`, 15000));
+await sleep(3500);
+check('copy toast clears', !(await status()).includes('Copying') && await evaluate(`document.getElementById('status-progress').hidden`), await status());
 await evaluate(`(() => { const row = [...document.querySelectorAll('#fp-sys-tree .tree-row')].find((el) => el.dataset.path === '/apps/e2e_error/__init__.py'); row.click(); return true; })()`);
 check('badge file opens read-only', await waitFor(`document.getElementById('status').textContent.includes('on your badge, read-only') && monaco.editor.getEditors()[0].getOption(monaco.editor.EditorOption.readOnly)`, 10000), await status());
 check('rom is read-only in the badge tree', await evaluate(`(() => {

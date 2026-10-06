@@ -367,15 +367,17 @@
       flex-shrink: 0;
       display: flex;
       align-items: center;
-      min-height: 22px;
-      padding: 2px 12px;
+      gap: 12px;
+      min-height: 30px;
+      padding: 4px 12px;
       background: var(--bar-bg);
       border-top: 1px solid var(--border);
-      font-size: var(--text-xs);
+      font-size: var(--text-sm);
       color: var(--dim);
       user-select: none;
     }
     #status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #status-progress { flex: 0 0 160px; height: 6px; margin-left: auto; accent-color: var(--orange); }
 
     /* -- Image preview (shown instead of #editor for image tabs) --- */
     #img-preview {

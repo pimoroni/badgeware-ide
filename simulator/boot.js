@@ -35,12 +35,23 @@ export function bootSimulator() {
     // (tabs: saved / read-only; gallery: load errors) can't clobber each other. A
     // pending flash-restore is cancelled by any later write, so it can never land on
     // top of a newer message (e.g. a save toast settling over a "Running…").
+    const statusProgressEl = document.getElementById('status-progress');
     let flashTimer = null;
-    const setStatus   = (text) => { clearTimeout(flashTimer); statusEl.textContent = text; };
+    let baseStatus = '';
+    const showStatus = (text, fraction = null) => {
+      statusEl.textContent = text;
+      statusProgressEl.hidden = fraction === null;
+      if (fraction !== null) statusProgressEl.value = fraction;
+    };
+    const setStatus   = (text) => { clearTimeout(flashTimer); baseStatus = text; showStatus(text); };
     const flashStatus = (text, ms = 1500) => {
-      const prev = statusEl.textContent;
-      setStatus(text);
-      flashTimer = setTimeout(() => { statusEl.textContent = prev; }, ms);
+      clearTimeout(flashTimer);
+      showStatus(text);
+      flashTimer = setTimeout(() => showStatus(baseStatus), ms);
+    };
+    const progressStatus = (text, fraction) => {
+      clearTimeout(flashTimer);
+      showStatus(text, Math.max(0, Math.min(1, fraction)));
     };
 
     const appendOut = (text, cls) => {
@@ -293,7 +304,7 @@ export function bootSimulator() {
       // modules with transient messages write through these rather than reaching for
       // the node: setStatus(text) sets it; flashStatus(text, ms) shows a message then
       // restores whatever was there (tabs: saved/read-only; gallery: load errors).
-      setStatus, flashStatus,
+      setStatus, flashStatus, progressStatus,
       // Let the editor half register extra data-action commands (e.g. "gallery").
       addActions: (extra) => Object.assign(actions, extra),
       // Register the reaction to a program changing user files (host reloads the

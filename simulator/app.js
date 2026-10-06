@@ -26,7 +26,7 @@ const APP_BASE = new URL('.', import.meta.url).href;
 
 async function initApp() {
   // Adopt the (already in-flight) simulator boot.
-  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, simulatorView, runOS } = await bootSimulator();
+  const { trace, startupFile, run: runCurrent, setRunProvider, notifyRunTarget, setStatus, flashStatus, progressStatus, addActions, setFsChangedHandler, setRunInterceptor, setStopInterceptor, output, simulatorView, runOS } = await bootSimulator();
   initTargetSwitch();
   const mobileNav = document.getElementById('mobile-nav');
 
@@ -190,7 +190,7 @@ async function initApp() {
         pairDialog:   document.getElementById('pair-dialog'),
       },
       {
-        device: badgeDevice, badgeFS, output, setStatus, flashStatus, debuggerHooks: debugView.hooks,
+        device: badgeDevice, badgeFS, output, setStatus, flashStatus, progressStatus, debuggerHooks: debugView.hooks,
         autoConnect: currentTarget() === 'badge',
         onIncompatible: (error) => { if (!error.ident) firmwareDialog.open(null); },
       },

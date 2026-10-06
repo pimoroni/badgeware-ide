@@ -190,6 +190,7 @@ await sleep(1500);
 await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);
 check('pause stops the loop', await waitFor(`document.body.classList.contains('debug-paused') && document.querySelector('#debug-globals .debug-vars')`, 10000), await status());
 check('screen shown after pause', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
+check('copy from the badge fails fast while paused', await contextAction('fp-sys-tree', '/apps/e2e_error', 'copy-to-workspace') === true && await waitFor(`document.getElementById('status').textContent.includes('busy running an app')`, 3000), await status());
 await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
 check('continue after pause resumes', await waitFor(`!document.body.classList.contains('debug-paused') && document.getElementById('status').textContent === 'Debugging on badge…'`, 5000), await status());
 await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);

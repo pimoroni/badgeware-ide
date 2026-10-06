@@ -15,3 +15,10 @@ test('recovers from a screen payload that stops short', async () => {
   assert.deepEqual(events.map((event) => [event.event, event.id]), [['error', 'a'], ['continued', undefined]]);
   await client.close().catch(() => {});
 });
+
+test('badge commands fail fast while an app is running', async () => {
+  const { BadgeDevice, BadgeBusyError } = await import('../simulator/device/badge.js');
+  const badge = new BadgeDevice({ serial: {} });
+  badge.running = true;
+  await assert.rejects(badge.read('/apps/tennis/__init__.py'), BadgeBusyError);
+});

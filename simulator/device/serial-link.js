@@ -14,6 +14,9 @@ export class LinkClosedError extends Error {
 }
 
 const encoder = new TextEncoder();
+const CLOSE_TIMEOUT_MS = 1000;
+
+const withTimeout = (promise, ms) => Promise.race([promise, new Promise((resolve) => setTimeout(resolve, ms))]);
 
 export const toBytes = (data) => (data instanceof Uint8Array ? data : encoder.encode(data));
 
@@ -50,9 +53,10 @@ export class SerialLink {
     if (this.closed) return;
     this.closed = true;
     try { await this.reader?.cancel(); } catch (_) {}
-    await this.pumping?.catch(() => {});
+    await withTimeout(this.pumping?.catch(() => {}), CLOSE_TIMEOUT_MS);
+    try { await withTimeout(this.writer.abort(), CLOSE_TIMEOUT_MS); } catch (_) {}
     try { this.writer.releaseLock(); } catch (_) {}
-    try { await this.port.close(); } catch (_) {}
+    try { await withTimeout(this.port.close(), CLOSE_TIMEOUT_MS); } catch (_) {}
     this.wake();
   }
 

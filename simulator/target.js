@@ -117,7 +117,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       .map((path) => [path, workspaceFS.get(path)])
       .filter(([, entry]) => entry && !entry.isDir)
       .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
-    const changed = await device.sync(files, (sent, total, path) => setStatus(`Copying ${path} ${Math.round((sent / total) * 100)}%`));
+    const changed = await device.sync(files, (sent, total, path) => flashStatus(`Copying ${path} ${Math.round((sent / total) * 100)}%`, 30000));
     await badgeFS.reload();
     flashStatus(`Copied ${changed.length} file${changed.length === 1 ? '' : 's'} to your badge`, 3000);
   }
@@ -125,7 +125,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
   async function copyToSimulator(path, isDir) {
     const paths = isDir ? badgeFS.paths().filter((p) => p.startsWith(path + '/') && !p.endsWith('/')) : [path];
     for (const [index, devicePath] of paths.entries()) {
-      setStatus(`Copying ${devicePath} (${index + 1}/${paths.length})`);
+      flashStatus(`Copying ${devicePath} (${index + 1}/${paths.length})`, 30000);
       const entry = await badgeFS.load(devicePath);
       const { readOnly, size, ...plain } = entry;
       workspaceFS.set(devicePath, plain);

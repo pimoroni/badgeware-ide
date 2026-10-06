@@ -72,6 +72,13 @@ export function checkCompatible(ident) {
   }
 }
 
+export class BadgeBusyError extends Error {
+  constructor() {
+    super('Your badge is busy running an app. Stop it first.');
+    this.name = 'BadgeBusyError';
+  }
+}
+
 export class BadgeDevice extends EventTarget {
   constructor({ serial = globalThis.navigator?.serial } = {}) {
     super();
@@ -186,6 +193,7 @@ export class BadgeDevice extends EventTarget {
   }
 
   task(fn) {
+    if (this.running) return Promise.reject(new BadgeBusyError());
     const result = this.queue.then(() => {
       if (!this.connected) throw new LinkClosedError();
       return fn();

@@ -29,6 +29,8 @@ export function createFileBrowser(els, host) {
   const { userList, sysTree, ctxMenu: menu, uploadInput, userHeader } = els;
 
   const toggledDirs = new Set();
+  const iconUrls = new Map();
+  const APP_DIR = /^\/(apps|contrib)\/[^/]+$/;
   const dirsOpenByDefault = host.dirsOpenByDefault ?? true;
   const badgeOpenDirs = new Set();
 
@@ -74,7 +76,7 @@ export function createFileBrowser(els, host) {
           ? (dirsOpenByDefault !== toggledDirs.has(full) || (activePath ?? '').startsWith(full + '/'))
           : !!openDirs?.has(full);
         html += `<li><details class="tree-dir" data-path="${esc(full)}"${open ? ' open' : ''}>`
-              +   `<summary><span class="dir-arrow material-symbols-outlined">chevron_right</span><span>${esc(name)}/</span></summary>`
+              +   `<summary><span class="dir-arrow material-symbols-outlined">chevron_right</span>${APP_DIR.test(full) ? appIconHtml(user ? 'user' : 'badge', full + '/icon.png') : ''}<span>${esc(name)}/</span></summary>`
               +   `<ul class="dir-children">${nodeToHtml(child, full, user, activePath, openDirs)}</ul>`
               + `</details></li>`;
       } else if (user) {
@@ -91,6 +93,33 @@ export function createFileBrowser(els, host) {
       }
     }
     return html;
+  }
+
+  function appIconHtml(tree, iconPath) {
+    const source = host.appIcon?.(tree, iconPath);
+    const url = source && iconUrls.get(source.key);
+    if (url) return `<span class="app-icon" style="background-image: url(${url})"></span>`;
+    return `<span class="app-icon missing"${source ? ` data-tree="${tree}" data-icon="${esc(iconPath)}"` : ''}></span>`;
+  }
+
+  async function loadAppIcons(root) {
+    for (const el of root.querySelectorAll('.app-icon[data-icon]')) {
+      if (!el.offsetParent) continue;
+      const source = host.appIcon?.(el.dataset.tree, el.dataset.icon);
+      if (!source) continue;
+      try {
+        if (!iconUrls.has(source.key)) {
+          const bytes = await source.bytes();
+          iconUrls.set(source.key, URL.createObjectURL(new Blob([bytes], { type: 'image/png' })));
+        }
+        el.style.backgroundImage = `url(${iconUrls.get(source.key)})`;
+        el.classList.remove('missing');
+      } catch (_) {}
+    }
+  }
+
+  for (const tree of [userList, sysTree]) {
+    tree.addEventListener('toggle', (event) => { if (event.target.open) loadAppIcons(tree); }, true);
   }
 
   function refresh(opts) {
@@ -123,6 +152,7 @@ export function createFileBrowser(els, host) {
       ? `<ul class="tree">${nodeToHtml(buildDirTree(badgePaths), '', false, null, badgeOpenDirs)}</ul>`
       : '<div class="fp-empty">Connect your badge to see its files.</div>';
     syncRows();   // re-apply active/open/transient decorations after the rebuild
+    loadAppIcons(userList).then(() => loadAppIcons(sysTree));
   }
 
   // Project tab state onto the row decorations — active (highlight), open (bolder)

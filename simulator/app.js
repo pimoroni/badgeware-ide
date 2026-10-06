@@ -134,6 +134,14 @@ async function initApp() {
     {
       userFS,
       badgePaths: () => (badgeConnected() ? badgeFS.paths() : null),
+      appIcon: (tree, path) => {
+        if (tree === 'user') {
+          const entry = userFS.get(path);
+          return entry?.binary ? { key: entry.data, bytes: async () => entry.data } : null;
+        }
+        const entry = badgeConnected() ? badgeFS.get(path) : null;
+        return entry ? { key: `badge:${path}:${entry.size}`, bytes: async () => (await badgeFS.load(path)).data } : null;
+      },
       badgeConnected,
       activePath: tabs.activePath,
       activeBadgePath: () => (tabs.activeInfo()?.source === 'badge' ? tabs.activeInfo().path : null),

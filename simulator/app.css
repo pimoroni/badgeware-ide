@@ -1275,6 +1275,15 @@
       display: inline-block;
     }
     details.tree-dir[open] > summary .dir-arrow { transform: rotate(90deg); }
+    .app-icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      margin: -2px 2px;
+      background: center / contain no-repeat;
+      image-rendering: pixelated;
+    }
+    .app-icon.missing { border: 1px dashed var(--dim); border-radius: 3px; }
 
     #fp-user-list ul, #fp-sys-tree ul { list-style: none; }   /* tree = nested lists */
     .dir-children { padding-left: 10px; }                     /* indent each level */

@@ -65,7 +65,7 @@ test('stop interrupts a running app', { skip }, async () => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   await badge.stop();
   const result = await running;
-  assert.match(result.stderr, /KeyboardInterrupt/);
+  assert.ok(result.interrupted || /KeyboardInterrupt/.test(result.stderr));
 });
 
 test('debug session stops at a breakpoint and inspects globals', { skip }, async () => {

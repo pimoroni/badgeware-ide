@@ -116,17 +116,48 @@ export class DebugClient extends EventTarget {
       const onError = ({ detail }) => {
         if (id === null || (detail.id != null && detail.id !== id)) return;
         finish();
-        reject(new Error(detail.message));
+        reject(Object.assign(new Error(detail.message), { errno: detail.errno ?? null }));
       };
       this.addEventListener(event, handler);
       this.addEventListener('error', onError);
     });
   }
 
-  async request(command, event, timeout = 5000) {
+  async request(command, event, timeout = 5000, payload = null) {
     const id = Math.random().toString(36).slice(2);
     const reply = this.waitFor(event, timeout, (detail) => detail.id === id, id);
-    await this.send({ ...command, id });
+    if (payload) {
+      const header = new TextEncoder().encode(JSON.stringify({ ...command, id, bytes: payload.length }) + '\n');
+      await this.link.write(concatChunks([header, payload]));
+    } else {
+      await this.send({ ...command, id });
+    }
     return reply;
+  }
+}
+
+export class DebugSession extends EventTarget {
+  constructor(client) {
+    super();
+    this.client = client;
+    this.forward = ({ detail }) => this.dispatchEvent(new CustomEvent(detail.event, { detail }));
+    client.addEventListener('message', this.forward);
+  }
+
+  send(command) {
+    return this.client.send(command);
+  }
+
+  request(...args) {
+    return this.client.request(...args);
+  }
+
+  waitFor(...args) {
+    return this.client.waitFor(...args);
+  }
+
+  close() {
+    this.client.removeEventListener('message', this.forward);
+    this.dispatchEvent(new CustomEvent('closed'));
   }
 }

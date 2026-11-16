@@ -80,7 +80,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       setStatus('Syncing…');
       const files = workspaceFiles();
       if (runTarget.kind === 'scratch') files.push({ path: SCRATCH_PATH, bytes: new TextEncoder().encode(request?.code ?? '') });
-      const changed = await device.sync(files, (sent, total, path) => progressStatus(`Syncing ${path}`, sent / total));
+      const changed = await device.sync(files, (sent, total, path) => progressStatus(`Syncing ${path}`, sent / total), { hold: true });
       const synced = changed.filter((path) => path !== SCRATCH_PATH).length;
       if (synced) output.appendOut(`Synced ${synced} file${synced === 1 ? '' : 's'} to your badge`, 'out-dim');
       runningPath = runTarget.path;
@@ -89,7 +89,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       const lines = lineSplitter(output.outputLine);
       const result = await device.run(runTarget.path, { debug, onOutput: (text) => lines.push(text) });
       lines.flush();
-      const interrupted = /KeyboardInterrupt/.test(result.stderr);
+      const interrupted = result.interrupted || /KeyboardInterrupt/.test(result.stderr);
       if (interrupted) output.appendOut('■ Stopped', 'out-dim');
       else if (result.stderr) result.stderr.split('\n').forEach(output.outputLine);
       output.endRun(interrupted ? 'Stopped' : 'Finished');
@@ -105,6 +105,11 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
 
   async function restartLauncher() {
     if (!device.connected) return;
+    if (device.aux) {
+      await device.returnToLauncher();
+      output.appendOut('Badge returned to its launcher.', 'out-dim');
+      return;
+    }
     if (device.running) await device.stop();
     await device.disconnect();
     output.appendOut('Badge returned to its launcher. Connect again to keep coding.', 'out-dim');

@@ -65,7 +65,7 @@ export function createConnector({ device, dialog, setStatus = () => {}, onError 
   }
 
   window.addEventListener('pagehide', () => {
-    if (device.connected) device.repl.restartFirmware();
+    if (device.connected && !device.aux) device.repl.restartFirmware();
   });
 
   return { connect, askToPair };

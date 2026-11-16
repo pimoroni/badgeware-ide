@@ -1,5 +1,6 @@
 const TEXT_EXTENSIONS = ['.py', '.json', '.txt', '.md', '.csv', '.toml', '.ini', '.html', '.css', '.js'];
 const FLUSH_DELAY_MS = 400;
+const CHANGED_RELOAD_MS = 300;
 
 const MIME_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.bmp': 'image/bmp', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 
@@ -11,6 +12,7 @@ export function createBadgeFS(device, { onChange = () => {}, onError = () => {} 
   let entries = {};
   const dirty = new Set();
   let flushTimer = null;
+  let changedTimer = null;
   let flushing = Promise.resolve();
 
   function reject(path) {
@@ -67,6 +69,10 @@ export function createBadgeFS(device, { onChange = () => {}, onError = () => {} 
 
   device.addEventListener('stopped', () => { if (dirty.size) flush(); });
   device.addEventListener('disconnected', reload);
+  device.addEventListener('fs-changed', () => {
+    clearTimeout(changedTimer);
+    changedTimer = setTimeout(() => reload().catch(onError), CHANGED_RELOAD_MS);
+  });
 
   return {
     ready: Promise.resolve(),

@@ -1,20 +1,43 @@
 {
-  "version": "20260625c",
+  "version": "20260625c-boards",
   "categories": [
     {
       "name": "Basics",
       "examples": [
         {
+          "file": "name_badge.py",
+          "description": "e-ink name badge",
+          "boards": [
+            "badger"
+          ]
+        },
+        {
+          "file": "led_plasma.py",
+          "description": "supersampled plasma",
+          "boards": [
+            "blinky"
+          ]
+        },
+        {
           "file": "hello.py",
-          "description": "smallest app"
+          "description": "smallest app",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "colors.py",
-          "description": "rgb \u00b7 hsv \u00b7 oklch"
+          "description": "rgb \u00b7 hsv \u00b7 oklch",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "buttons.py",
-          "description": "reading input"
+          "description": "reading input",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -23,27 +46,45 @@
       "examples": [
         {
           "file": "circles.py",
-          "description": "circles & rnd"
+          "description": "circles & rnd",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "lines.py",
-          "description": "random lines"
+          "description": "random lines",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "triangles.py",
-          "description": "random triangles"
+          "description": "random triangles",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "intersect.py",
-          "description": "rect overlap"
+          "description": "rect overlap",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "shape.py",
-          "description": "custom shape"
+          "description": "custom shape",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "vector_shapes.py",
-          "description": "shape gallery"
+          "description": "shape gallery",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -52,27 +93,45 @@
       "examples": [
         {
           "file": "gradient.py",
-          "description": "gradients"
+          "description": "gradients",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "pattern.py",
-          "description": "bitmap patterns"
+          "description": "bitmap patterns",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "dither.py",
-          "description": "dithering"
+          "description": "dithering",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "stroke.py",
-          "description": "stroke alignment"
+          "description": "stroke alignment",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "joins_caps.py",
-          "description": "joins & caps"
+          "description": "joins & caps",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "fill_rules.py",
-          "description": "fill rules"
+          "description": "fill rules",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -81,23 +140,38 @@
       "examples": [
         {
           "file": "image_brush.py",
-          "description": "image brush"
+          "description": "image brush",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "lighten_darken.py",
-          "description": "lighten / darken"
+          "description": "lighten / darken",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "pixelate.py",
-          "description": "pixelate"
+          "description": "pixelate",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "blur.py",
-          "description": "frame blur"
+          "description": "frame blur",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "blur_brush.py",
-          "description": "blur brush"
+          "description": "blur brush",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -106,15 +180,24 @@
       "examples": [
         {
           "file": "sprites.py",
-          "description": "sprite blit"
+          "description": "sprite blit",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "spritesheet.py",
-          "description": "SpriteSheet anim"
+          "description": "SpriteSheet anim",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "transform_sprite.py",
-          "description": "transformed sprite"
+          "description": "transformed sprite",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -123,15 +206,24 @@
       "examples": [
         {
           "file": "scrolling_text.py",
-          "description": "marquee"
+          "description": "marquee",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "text.py",
-          "description": "rich text"
+          "description": "rich text",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "vector_text.py",
-          "description": "vector text"
+          "description": "vector text",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -140,15 +232,24 @@
       "examples": [
         {
           "file": "easing.py",
-          "description": "easing curves"
+          "description": "easing curves",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "menu.py",
-          "description": "selection menu"
+          "description": "selection menu",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "platformer.py",
-          "description": "movement & gravity"
+          "description": "movement & gravity",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -157,19 +258,31 @@
       "examples": [
         {
           "file": "caselights.py",
-          "description": "case LEDs"
+          "description": "case LEDs",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "battery.py",
-          "description": "hardware status"
+          "description": "hardware status",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "clock.py",
-          "description": "real-time clock"
+          "description": "real-time clock",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "state.py",
-          "description": "saved state"
+          "description": "saved state",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     },
@@ -178,15 +291,24 @@
       "examples": [
         {
           "file": "line_clip.py",
-          "description": "line clipping"
+          "description": "line clipping",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "mandelbrot.py",
-          "description": "fractal + FPS"
+          "description": "fractal + FPS",
+          "boards": [
+            "tufty"
+          ]
         },
         {
           "file": "raycast.py",
-          "description": "raycaster"
+          "description": "raycaster",
+          "boards": [
+            "tufty"
+          ]
         }
       ]
     }

@@ -9,6 +9,7 @@
    an editable scratch buffer (see boot.js's startup override). */
 import { initGallery, SPINNER } from './gallery.js';
 import { editorUrl, initTargetSwitch } from './mode.js';
+import { activeBoard, appliesTo } from './boards.js';
 
 initTargetSwitch();
 
@@ -35,11 +36,16 @@ async function render(el) {
   let manifest;
   try { manifest = await fetch(APP_BASE + 'examples/manifest.json', { cache: 'no-cache' }).then((r) => r.json()); }
   catch { el.innerHTML = '<p class="gallery-empty">Couldn’t load the example list.</p>'; return null; }
-  el.innerHTML = manifest.categories.map((cat) =>
+  const board = activeBoard();
+  const categories = manifest.categories
+    .map((cat) => ({ ...cat, examples: cat.examples.filter((example) => appliesTo(example, board.id)) }))
+    .filter((cat) => cat.examples.length);
+  if (!categories.length) { el.innerHTML = `<p class="gallery-empty">No examples for ${board.label} yet.</p>`; return null; }
+  el.innerHTML = categories.map((cat) =>
     `<h3 class="section-title">${cat.name} <span class="count">${cat.examples.length}</span></h3>` +
     `<div class="gallery-grid">${cat.examples.map(card).join('')}</div>`,
   ).join('');
-  return manifest.version || 'dev';
+  return `${manifest.version || 'dev'}-${board.id}`;
 }
 
 // The card's program is the example's own source (the core caches this per key).

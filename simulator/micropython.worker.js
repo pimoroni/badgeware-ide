@@ -107,13 +107,25 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, import.meta.url).hre
       Promise.resolve().then(() => { pingPending = false; worker.postMessage({ fsChanged: true }) })
     }
 
-    const idbPut = (key, value) => { enqueue(() => idbTx('readwrite', (s) => s.put(value, key))); notifyHost() }
-    const idbDel = (key)        => { enqueue(() => idbTx('readwrite', (s) => s.delete(key))); notifyHost() }
+    let hostPersist = false
+    const hostOp = (op) => { worker.postMessage({ fsOp: op }); notifyHost() }
+
+    const idbPut = (key, value) => {
+      if (hostPersist) return hostOp({ op: 'set', path: key, entry: value })
+      enqueue(() => idbTx('readwrite', (s) => s.put(value, key)))
+      notifyHost()
+    }
+    const idbDel = (key) => {
+      if (hostPersist) return hostOp({ op: 'del', path: key })
+      enqueue(() => idbTx('readwrite', (s) => s.delete(key)))
+      notifyHost()
+    }
 
     // Move every key under oldPath (a directory) to newPath in one cursor pass. A
     // directory rename rewires a single FS pointer, so the per-file hooks never
     // fire - we reconcile the persisted subtree here instead.
     const idbReKey = (oldPath, newPath) => {
+      if (hostPersist) return hostOp({ op: 'rename', path: oldPath, to: newPath })
       enqueue(() => idbTx('readwrite', (store) => {
         const req = store.openCursor()
         req.onsuccess = () => {
@@ -519,7 +531,7 @@ del __soft_reset
       }
     }
 
-    worker.onmessage = async ({ data: { program, stop, buttons, pause, file, files, debug } }) => {
+    worker.onmessage = async ({ data: { program, stop, buttons, pause, file, files, debug, persistToHost } }) => {
       if (typeof buttons !== 'undefined') {
         if (worker.debug) console.log(`WORKER: Got buttons`)
         worker.input = buttons
@@ -529,6 +541,8 @@ del __soft_reset
       if (typeof debug !== 'undefined') {
         worker.debug = debug
       }
+
+      if (typeof persistToHost !== 'undefined') hostPersist = persistToHost
 
       if (program) {
         if (worker.debug) console.log(`WORKER: Got program`)

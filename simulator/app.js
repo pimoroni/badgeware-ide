@@ -5,7 +5,7 @@
    wires them together — creates the Monaco editor, hands it to createTabs(), and
    connects the file browser, gallery, mobile nav, run provider and keybindings.
    The bottom awaits Monaco (loaded in parallel via the AMD shim in index.html). */
-import { userFS, workspaceFS, getSystemPaths, setSystemPaths } from './fs.js';
+import { userFS, getSystemPaths, setSystemPaths } from './fs.js';
 import { bootSimulator } from './boot.js';
 import { createFileBrowser } from './filebrowser.js';
 import { createTabs } from './tabs.js';
@@ -19,9 +19,11 @@ import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
 import { createFirmwareDialog, latestRelease, updateAvailable } from './firmware.js';
 import { createBackupDialog } from './backup-dialog.js';
+import { forgetFolder, localFoldersSupported, openFolder, reopenFolder, workspaceState } from './workspace.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
+import { delegate } from './util.js';
 
 const APP_BASE = new URL('.', import.meta.url).href;
 
@@ -113,7 +115,7 @@ async function initApp() {
   }
 
   function workspaceFilesUnder(path, isDir) {
-    return isDir ? workspaceFS.paths().filter((p) => p.startsWith(path + '/') && !p.endsWith('/')) : [path];
+    return isDir ? userFS.paths().filter((p) => p.startsWith(path + '/') && !p.endsWith('/')) : [path];
   }
 
   async function guard(task) {
@@ -170,11 +172,71 @@ async function initApp() {
   );
   tabs.connect(fb);
 
+  const inFolder = () => workspaceState().kind === 'folder';
   let fsReloadTimer = null;
   setFsChangedHandler(() => {
     clearTimeout(fsReloadTimer);
-    fsReloadTimer = setTimeout(async () => { await userFS.reload(); fb.refresh(); }, 150);
+    fsReloadTimer = setTimeout(async () => {
+      await userFS.reload();
+      if (inFolder()) tabs.syncUserTabs();
+      fb.refresh();
+    }, 150);
   });
+
+  const userHeader = document.querySelector('#fp-user h2');
+  const headerButton = (action) => userHeader.querySelector(`[data-action="${action}"]`);
+  function renderWorkspaceHeader() {
+    const state = workspaceState();
+    const folderButton = headerButton('workspace-folder');
+    const reopenButton = headerButton('workspace-reopen');
+    userHeader.querySelector('span').textContent = state.name ?? 'Workspace';
+    userHeader.querySelector('span').title = state.name ? `Local folder: ${state.name}` : '';
+    folderButton.hidden = !localFoldersSupported();
+    folderButton.title = state.name ? 'Use the browser workspace' : 'Open local folder...';
+    folderButton.setAttribute('aria-label', folderButton.title);
+    folderButton.querySelector('span').textContent = state.name ? 'folder_off' : 'folder_open';
+    headerButton('workspace-reload').hidden = !state.name;
+    reopenButton.hidden = !state.reopen;
+    reopenButton.title = state.reopen ? `Reopen ${state.reopen}` : '';
+    reopenButton.setAttribute('aria-label', reopenButton.title);
+  }
+
+  async function switchWorkspace(change) {
+    tabs.flushSaves();
+    try {
+      const name = await change();
+      flashStatus(name ? `Using local folder ${name}` : 'Using the browser workspace', 3000);
+    } catch (error) {
+      if (error.name !== 'AbortError') flashStatus(error.message, 5000);
+    }
+    tabs.syncUserTabs();
+    fb.refresh();
+    renderWorkspaceHeader();
+  }
+
+  async function reloadFolder({ announce = false } = {}) {
+    if (!inFolder()) return;
+    try {
+      const { added, removed, changed } = await userFS.reload();
+      const count = added.length + removed.length + changed.length;
+      if (count) {
+        tabs.syncUserTabs();
+        fb.refresh();
+      }
+      if (announce || count) flashStatus(count ? `Reloaded ${count} changed file${count === 1 ? '' : 's'} from the folder` : 'No changes in the folder', 2500);
+    } catch (error) {
+      flashStatus('Could not read the folder: ' + error.message, 5000);
+    }
+  }
+
+  delegate(userHeader, {
+    'workspace-folder': () => switchWorkspace(() => (inFolder() ? forgetFolder().then(() => null) : openFolder())),
+    'workspace-reopen': () => switchWorkspace(reopenFolder),
+    'workspace-reload': () => reloadFolder({ announce: true }),
+  });
+  addEventListener('focus', () => reloadFolder());
+  renderWorkspaceHeader();
+  if (workspaceState().reopen) flashStatus(`Click the orange folder in Workspace to reopen ${workspaceState().reopen}`, 6000);
 
   const debugView = createDebugger(
     {

@@ -55,6 +55,7 @@ export const workspaceFS = (() => {
 
   return {
     ready,
+    workerPersists: true,
     // Re-pull the whole store into the cache. The simulator worker writes user
     // files straight into the same IndexedDB store (see micropython.worker.js);
     // IndexedDB fires no cross-context change events, so the host calls this on the
@@ -88,6 +89,7 @@ export const setUserFSBackend = (next) => { backend = next; };
 
 export const userFS = {
   get ready() { return backend.ready; },
+  get workerPersists() { return !!backend.workerPersists; },
   reload:      ()     => backend.reload(),
   get:         (p)    => backend.get(p),
   set:         (p, v) => backend.set(p, v),

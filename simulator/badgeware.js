@@ -80,7 +80,12 @@ export const BadgewareSimulator = async (target = null) => {
         const worker = new Worker(_simulatorBase + 'micropython.worker.js?v=3', { type: "module" })
         simulator.micropython = worker
 
-        worker.onmessage = async ({ data: { stdout, ready, running, caselights, frame, stuck, fsChanged } }) => {
+        worker.onmessage = async ({ data: { stdout, ready, running, caselights, frame, stuck, fsChanged, fsOp } }) => {
+
+            if (fsOp) {
+                simulator.onfsop(fsOp)
+                return
+            }
 
             if (fsChanged) {
                 // The running program wrote/renamed/deleted a user file, which the
@@ -105,7 +110,7 @@ export const BadgewareSimulator = async (target = null) => {
                 worker.terminate()
                 if (simulator.micropython === worker) simulator.micropython = null
                 if (simulator.program !== null) {
-                    await simulator.run(simulator.program, simulator.files)
+                    await simulator.run(simulator.program, simulator.files, { persistToHost: simulator.persistToHost })
                 }
                 return
             }
@@ -113,7 +118,7 @@ export const BadgewareSimulator = async (target = null) => {
             if (ready){
                 // Worker is ready — hand it the program to run (if any).
                 if (simulator.program !== null) {
-                    await worker.postMessage({program: simulator.program, debug: simulator.debug, files: simulator.files})
+                    await worker.postMessage({program: simulator.program, debug: simulator.debug, files: simulator.files, persistToHost: simulator.persistToHost})
                 }
                 return
             }
@@ -186,16 +191,17 @@ export const BadgewareSimulator = async (target = null) => {
         from frame buffers the worker pushes via send_frame(), and keyboard input
         is handled on the 3D canvas. Nothing to create or transfer here.
     */
-    simulator.run = async (code, userFiles = []) => {
+    simulator.run = async (code, userFiles = [], { persistToHost = false } = {}) => {
         simulator.program = code
         simulator.files = userFiles
+        simulator.persistToHost = persistToHost
 
         if (simulator.micropython === null) {
             debug_log("HOST: Spawning worker and running code from editor...")
             createWorker()   // posts {ready}; onmessage then sends the program
         } else {
             debug_log("HOST: Restarting code in the live worker...")
-            await simulator.micropython.postMessage({program: code, debug: simulator.debug, files: userFiles})
+            await simulator.micropython.postMessage({program: code, debug: simulator.debug, files: userFiles, persistToHost})
         }
     }
 
@@ -229,6 +235,8 @@ export const BadgewareSimulator = async (target = null) => {
     // them into the shared user store). Override in the host to reload + repaint the
     // file browser; default is a no-op.
     simulator.onfschanged = async () => {}
+
+    simulator.onfsop = (_op) => {}
 
     return simulator
 }

@@ -1,7 +1,7 @@
 import { createConnector } from './device/connect.js';
 import { IncompatibleBadgeError } from './device/badge.js';
 import { badgeRunTarget, SCRATCH_PATH } from './device/paths.js';
-import { workspaceFS } from './fs.js';
+import { userFS } from './fs.js';
 
 function lineSplitter(onLine) {
   let pending = '';
@@ -26,9 +26,9 @@ const fileBytes = (entry) => (entry.binary ? entry.data : new TextEncoder().enco
 const NEVER_SYNC = new Set(['/secrets.py']);
 
 function workspaceFiles() {
-  return workspaceFS.paths()
+  return userFS.paths()
     .filter((path) => !path.endsWith('/') && !NEVER_SYNC.has(path))
-    .map((path) => [path, workspaceFS.get(path)])
+    .map((path) => [path, userFS.get(path)])
     .filter(([, entry]) => entry && !entry.isDir)
     .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
 }
@@ -119,7 +119,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
   async function copyToBadge(userPaths) {
     if (!(await connect())) return;
     const files = userPaths
-      .map((path) => [path, workspaceFS.get(path)])
+      .map((path) => [path, userFS.get(path)])
       .filter(([, entry]) => entry && !entry.isDir)
       .map(([path, entry]) => ({ path, bytes: fileBytes(entry) }));
     const changed = await device.sync(files, (sent, total, path) => progressStatus(`Copying ${path} to your badge`, sent / total));
@@ -136,7 +136,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       progressStatus(`Copying ${devicePath} (${index + 1}/${paths.length})`, done / total);
       const entry = await badgeFS.load(devicePath);
       const { readOnly, size, ...plain } = entry;
-      workspaceFS.set(devicePath, plain);
+      userFS.set(devicePath, plain);
       done += sizes[index];
     }
     flashStatus(`Copied ${paths.length} file${paths.length === 1 ? '' : 's'} to the simulator`, 3000);

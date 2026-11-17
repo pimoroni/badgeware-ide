@@ -150,6 +150,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
      but more unsaved text at risk if the tab dies mid-edit. */
   const AUTOSAVE_DEBOUNCE_MS = 400;
   let pendingSave = null;     // { path, text } awaiting its timer, or null
+  let applyingOutsideChange = false;
   let saveTimer   = null;
 
   function flushPendingSave() {
@@ -570,7 +571,21 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     const t = openModels.get(path);
     if (!t?.model || t.model.getValue() === text) return;
     if (pendingSave?.path === path) dropPendingSave(path);
-    t.model.setValue(text);
+    applyingOutsideChange = true;
+    try {
+      t.model.pushEditOperations([], [{ range: t.model.getFullModelRange(), text }], () => null);
+    } finally {
+      applyingOutsideChange = false;
+    }
+  }
+
+  function syncUserTabs() {
+    for (const t of [...openModels.values()]) {
+      if (t.source !== 'user') continue;
+      const entry = userFS.get(t.path);
+      if (!entry || entry.isDir) onDeleted(t.path);
+      else if (t.view === 'editor' && !entry.binary && pendingSave?.path !== t.path) refreshFile(t.path, formatForPreview(t.path, entry.text));
+    }
   }
 
   /* -- File-browser host callbacks ----------------------------------------- */
@@ -661,7 +676,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   /* -- Editor reactions + lifecycle listeners ------------------------------ */
   editor.onDidChangeModelContent(() => {
     const t = activeTab();
-    if (!t) return;
+    if (!t || applyingOutsideChange) return;
     // Editing a transient tab promotes it permanently
     if (t.transient) {
       t.transient = false;
@@ -700,7 +715,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     // Late-bind the file browser (syncRows / refresh) once it exists.
     connect: (filebrowser) => { fb = filebrowser; },
     // App-facing operations:
-    toggleHelp, toggleView, refreshFile, openScratchTab, saveCurrentFile, focusCodeOrNew, bootstrap,
+    toggleHelp, toggleView, refreshFile, syncUserTabs, flushSaves: flushPendingSave, openScratchTab, saveCurrentFile, focusCodeOrNew, bootstrap,
     getRunRequest, clearMarkers: clearRuntimeMarkers, applyMarkers: applyTracebackMarkers,
   };
 }

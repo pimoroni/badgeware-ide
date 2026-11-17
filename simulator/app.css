@@ -1094,6 +1094,9 @@
     #file-panel h2 > span:first-child,
     #stdout h2 > span:first-child { padding: 0 0 0 10px; align-content: center; }
     #file-panel h2 { gap: 2px; }
+    #file-panel h2 button[hidden] { display: none; }
+    #fp-user h2 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #fp-user [data-action="workspace-reopen"] { color: var(--orange); }
     #file-panel h2 > span:first-child,
     #stdout h2 > span:first-child { flex: 1; }     /* title text pushes controls right */
 

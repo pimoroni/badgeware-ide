@@ -13,6 +13,7 @@ import './device/session.js';
 import { BadgewareSimulator } from './badgeware.js';
 import { initBadge3D } from './badge3d.js';
 import { userFS } from './fs.js';
+import { restoreWorkspace } from './workspace.js';
 import { delegate } from './util.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget } from './mode.js';
@@ -24,6 +25,7 @@ let _bootCtx = null;
 export function bootSimulator() {
   if (_bootCtx) return _bootCtx;
   _bootCtx = (async () => {
+    await restoreWorkspace();
     await userFS.ready;   // populate the in-memory FS cache before any read below
     const stdoutEl    = document.querySelector('#stdout > div');   // the scrolling log inside the view
     const statusEl    = document.getElementById('status');
@@ -144,11 +146,17 @@ export function bootSimulator() {
       const isError = parseTracebackLine(text);
       appendOut(text, isError ? 'out-error' : undefined);
     };
+    const applyWorkerFsOp = ({ op, path, entry, to }) => {
+      if (op === 'set') userFS.set(path, entry);
+      else if (op === 'del') userFS.del(path);
+      else if (op === 'rename') userFS.rename(path, to);
+    };
     const ensureSimulator = () => {
       simulatorReady ??= (async () => {
         simulator = await BadgewareSimulator();
         view = initBadge3D(simulator, appendOut, badge3dWrap);
         simulator.onfschanged = () => fsChangedHandler();
+        simulator.onfsop = applyWorkerFsOp;
         simulator.stdout = async (text) => outputLine(text);
         return simulator;
       })();
@@ -179,7 +187,7 @@ export function bootSimulator() {
       try {
         const sim = await ensureSimulator();
         view.pauseScreen();
-        await sim.run(code, userFS.workerFiles());
+        await sim.run(code, userFS.workerFiles(), { persistToHost: !userFS.workerPersists });
         view.applyCanvasToScreen();
         setStatus(status);
       } catch (err) {

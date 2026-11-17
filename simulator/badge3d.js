@@ -1,9 +1,16 @@
 /* -- 3D badge display ------------------------------------------------------ */
+import { activeBoard } from './boards.js';
+import { einkPixels, ledLevels } from './screens.js';
+
 const _badge3dBase = new URL('.', import.meta.url).href;
+const BADGE_NODES = ['tufty', 'badger', 'blinky'];
 
 // wrap is the container element the renderer mounts into (boot.js injects it).
-export function initBadge3D(simulator, appendOut, wrap) {
+export function initBadge3D(simulator, appendOut, wrap, board = activeBoard()) {
+  const view = board.view;
+  const screenKind = board.screen.kind;
   let three = null, screenMesh = null, screenTex = null;
+  let ledScreen = null;
   let screenLive = false;   // true while the live simulator is driving the screen
   let rotateView = () => {};  // assigned once the scene is ready (spin in 180° steps)
 
@@ -34,6 +41,13 @@ export function initBadge3D(simulator, appendOut, wrap) {
   // Configure the screen mesh material; the picture is filled in by uploadFrame().
   function applyCanvasToScreen() {
     if (!three || !screenMesh) return;
+    if (ledScreen) {
+      ledScreen.apply();
+      screenLive  = true;
+      frameDirty  = latestFrame !== null;
+      renderDirty = true;
+      return;
+    }
     // Standard material driven by the emissive channel: the diffuse is black so
     // scene lights can't lift the blacks, and the picture comes from the
     // emissive map — slightly over 1.0 so the panel reads as gently self-lit.
@@ -46,7 +60,7 @@ export function initBadge3D(simulator, appendOut, wrap) {
     m.roughness         = 1;
     m.map               = null;
     m.emissive.setRGB(1, 1, 1);
-    m.emissiveIntensity = 1.5;   // slight glow on top of the displayed image
+    m.emissiveIntensity = screenKind === 'eink' ? 1.0 : 1.5;   // slight glow on top of the displayed image
     m.toneMapped        = false; // the screen is the literal framebuffer - don't tone-map the app's pixels
     // Near-black until the first frame lands, so the panel never flashes white.
     m.emissiveMap       = screenTex || offTexture();
@@ -61,8 +75,12 @@ export function initBadge3D(simulator, appendOut, wrap) {
   function uploadFrame() {
     if (!screenLive || !frameDirty || !latestFrame) return false;
     frameDirty = false;
-    const { buffer, width, height } = latestFrame;
-    const data = new Uint8Array(buffer);
+    if (ledScreen) {
+      ledScreen.draw(latestFrame);
+      return true;
+    }
+    const { width, height } = latestFrame;
+    const data = screenKind === 'eink' ? einkPixels(latestFrame) : new Uint8Array(latestFrame.buffer);
     if (!screenTex || texW !== width || texH !== height) {
       if (screenTex) screenTex.dispose();
       screenTex = new three.DataTexture(data, width, height, three.RGBAFormat, three.UnsignedByteType);
@@ -93,6 +111,11 @@ export function initBadge3D(simulator, appendOut, wrap) {
     latestFrame = null;
     if (screenTex) { screenTex.dispose(); screenTex = null; }
     texW = texH = 0;
+    if (ledScreen) {
+      ledScreen.clear();
+      renderDirty = true;
+      return;
+    }
     if (screenMesh && screenMesh.material) {
       // Show the near-black "off" panel rather than a blank white screen.
       const m = screenMesh.material;
@@ -124,6 +147,117 @@ export function initBadge3D(simulator, appendOut, wrap) {
       const { VerticalBlurShader }   = await import('three/addons/shaders/VerticalBlurShader.js');
       three = THREE;
 
+      function tuneLedMatrix(node) {
+        node?.traverse((o) => {
+          const materials = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+          for (const m of materials) {
+            if (m.name !== 'pcb_blinky_leds') continue;
+            m.map = null;
+            m.color?.setRGB(0, 0, 0);
+            m.roughness = 1;
+            m.metalness = 0;
+            m.needsUpdate = true;
+          }
+        });
+        node?.getObjectByName('blinky_led_packages')?.traverse((o) => {
+          if (!o.isMesh) return;
+          const dim = (m) => {
+            const c = m.clone();
+            c.color?.multiplyScalar(0.12);
+            c.metalness = Math.min(c.metalness ?? 0, 0.2);
+            c.depthWrite = false;
+            return c;
+          };
+          o.material = Array.isArray(o.material) ? o.material.map(dim) : dim(o.material);
+          o.renderOrder = 1;
+        });
+      }
+
+      function ledSprite() {
+        const size = 64, mid = size / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const core = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid);
+        core.addColorStop(0, 'rgba(255,255,255,1)');
+        core.addColorStop(0.28, 'rgba(255,255,255,0.85)');
+        core.addColorStop(0.6, 'rgba(255,255,255,0.18)');
+        core.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = core;
+        ctx.fillRect(0, 0, size, size);
+        return canvas;
+      }
+
+      function uvBounds(mesh) {
+        const uv = mesh.geometry?.attributes?.uv;
+        if (!uv) return { u0: 0, u1: 1, v0: 0, v1: 1 };
+        let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+        for (let i = 0; i < uv.count; i++) {
+          u0 = Math.min(u0, uv.getX(i)); u1 = Math.max(u1, uv.getX(i));
+          v0 = Math.min(v0, uv.getY(i)); v1 = Math.max(v1, uv.getY(i));
+        }
+        return { u0, u1, v0, v1 };
+      }
+
+      function createLedScreen(mesh, { width: cols, height: rows }) {
+        const TW = 781, TH = 527;
+        const canvas = document.createElement('canvas');
+        canvas.width = TW;
+        canvas.height = TH;
+        const ctx = canvas.getContext('2d');
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.flipY = false;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        const sprite = ledSprite();
+        const { u0, u1, v0, v1 } = uvBounds(mesh);
+        const pitchX = ((u1 - u0) * TW) / cols;
+        const pitchY = ((v1 - v0) * TH) / rows;
+        const size = Math.max(pitchX, pitchY);
+        const clear = () => {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.clearRect(0, 0, TW, TH);
+          texture.needsUpdate = true;
+        };
+        clear();
+        return {
+          apply() {
+            const m = mesh.material;
+            m.map = texture;
+            m.emissiveMap = texture;
+            m.emissive = new THREE.Color(0xffffff);
+            m.emissiveIntensity = 1.7;
+            m.transparent = true;
+            m.alphaTest = 0;
+            m.depthWrite = false;
+            m.side = THREE.FrontSide;
+            m.color?.setRGB(0, 0, 0);
+            m.metalness = 0;
+            m.roughness = 1;
+            m.toneMapped = false;
+            m.needsUpdate = true;
+            mesh.renderOrder = 2;
+          },
+          clear,
+          draw(frame) {
+            clear();
+            ctx.globalCompositeOperation = 'lighter';
+            for (const { col, row, level } of ledLevels(frame, cols, rows)) {
+              const cx = (u0 + ((col + 0.5) / cols) * (u1 - u0)) * TW;
+              const cy = (v0 + ((row + 0.5) / rows) * (v1 - v0)) * TH;
+              const r = size * (0.45 + 0.55 * level);
+              ctx.globalAlpha = level;
+              ctx.drawImage(sprite, cx - r, cy - r, r * 2, r * 2);
+            }
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            texture.needsUpdate = true;
+          },
+        };
+      }
+
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       // Skip three.js's per-program getProgramInfoLog() check — it forces a
       // synchronous GPU sync as each material first compiles (~110ms at startup
@@ -150,7 +284,7 @@ export function initBadge3D(simulator, appendOut, wrap) {
       /* View — the model spins around its Y axis in 180° steps. No free orbit;
          rotateView(±1) nudges the target angle and the render loop eases to it. */
       const FRONT_Y = -0.2;            // slight tilt that reads as "front"
-      let viewNode    = null;          // the tufty node we rotate
+      let viewNode    = null;          // the badge node we rotate
       let viewTargetY = FRONT_Y;       // angle we're easing toward
       let contactShadow = null;        // soft contact-shadow system (built on load)
       let shadowDirty   = false;       // re-render the shadow next frame (badge silhouette changed)
@@ -268,8 +402,9 @@ export function initBadge3D(simulator, appendOut, wrap) {
       lightRig.add(keyLight, fillLight);
 
       /* -- Case look tunables --------------------------------------------------
-         CASE_COLOR: the orange tint (multiplies the GLB albedo). Drop the green
-           channel toward red for a deeper look, raise toward ~0.42 for factory orange.
+         view.tint (boards.js): the case tint (multiplies the GLB albedo). For Tufty,
+           drop the green channel toward red for a deeper look, raise toward ~0.42 for
+           factory orange. Badger keeps the clear case from the GLB.
          CASE_FROST: roughness of the translucent back shell. It's a transmission
            material, so this is the frosted-glass blur - the GLB ships it near-clear
            (0.2 = glossy); raise toward ~0.6 for more frost. The normal map still adds
@@ -281,7 +416,6 @@ export function initBadge3D(simulator, appendOut, wrap) {
          CASE_NORMAL: strength of the shell's own GLB normal map (the moulded-plastic
            surface texture/definition). Note it's low-res, so cranking it hard starts
            to read as blocky/faceted. (Tune with exposure.) */
-      const CASE_COLOR    = [1.0, 0.42, 0.0];
       const CASE_FROST    = 0.25;
       const CASE_SPECULAR = 0.3;
       const CASE_NORMAL   = 1.0;
@@ -375,6 +509,8 @@ export function initBadge3D(simulator, appendOut, wrap) {
           }
           return best ? { mask: best.mask, worldPt } : { mask: 0, worldPt: null };
         }
+
+        if (!view.markers) return { mask: 0, worldPt: null };
 
         // Fallback (marker-less GLB): hardcoded screen-local zones.
         const lp = worldToNodeMetres(screenMesh, hits[0].point);
@@ -522,7 +658,7 @@ export function initBadge3D(simulator, appendOut, wrap) {
       /* -- Button press animation (siloed — swap out when geometry improves) --
          Approach: onBeforeCompile vertex displacement on the cap mesh(es)
          found by raycasting at each button zone, plus a screen-space ripple. */
-      function initButtonAnimator(root, tuftyNode) {
+      function initButtonAnimator(root) {
         root.updateWorldMatrix(true, true);
 
         // Badge face outward normal in world space (= screen local +Y → world)
@@ -799,35 +935,35 @@ export function initBadge3D(simulator, appendOut, wrap) {
         return { group, render };
       }
 
-      /* Load the Tufty badge model */
+      /* Load the badge model */
       const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-      gltfLoader.load(new URL('../static/models/badgeware.glb', _badge3dBase).href, (gltf) => {
+      gltfLoader.load(new URL('../static/models/' + view.model, _badge3dBase).href, (gltf) => {
         const root      = gltf.scene;
-        const tuftyNode = root.getObjectByName('tufty');
+        const badgeNode = root.getObjectByName(view.node);
         const caseBack  = root.getObjectByName('badger_case_back');
         const caseFront = root.getObjectByName('badger_case_front');
 
-        /* Clone orange case for Tufty before hiding Badger. Kept so the case-LED
-           glow shader can be applied to the visible clone (not the hidden original). */
+        /* Clone the Badger case, tinted, for the other badges before hiding Badger.
+           Kept so the case-LED glow shader can be applied to the visible clone. */
         let caseBackClone = null;
-        if (caseBack && tuftyNode) {
+        let caseFrontClone = null;
+        if (view.tint && caseBack && badgeNode) {
           caseBackClone = caseBack.clone(true);
           caseBackClone.traverse(child => {
             if (child.isMesh) {
               child.material = child.material.clone();
-              child.material.color.setRGB(...CASE_COLOR);
+              child.material.color.setRGB(...view.tint);
             }
           });
-          tuftyNode.add(caseBackClone);
+          badgeNode.add(caseBackClone);
         }
-        let caseFrontClone = null;
-        if (caseFront && tuftyNode) {
+        if (view.tint && caseFront && badgeNode) {
           caseFrontClone = caseFront.clone(true);
-          tuftyNode.add(caseFrontClone);
+          badgeNode.add(caseFrontClone);
         }
 
-        /* Hide the other two badges */
-        ['badger', 'blinky'].forEach(name => {
+        /* Hide the other badges */
+        BADGE_NODES.filter(name => name !== view.node).forEach(name => {
           const n = root.getObjectByName(name);
           if (n) n.visible = false;
         });
@@ -837,35 +973,41 @@ export function initBadge3D(simulator, appendOut, wrap) {
 
         /* Button anchor markers baked into the GLB (see claude/tools/isolate_badge.py).
            Parented under `tufty`, so they spin with the badge. */
-        buttonMarkers = [
+        buttonMarkers = view.markers ? [
           ['sim_btn_a', BTN.a], ['sim_btn_b', BTN.b], ['sim_btn_c', BTN.c],
           ['sim_btn_up', BTN.up], ['sim_btn_down', BTN.down],
         ].map(([name, mask]) => ({ mask, node: root.getObjectByName(name) }))
-         .filter(b => b.node);
+         .filter(b => b.node) : [];
 
         /* Grab the active screen mesh and clone its material */
-        screenMesh = root.getObjectByName('tufty_screen_active');
+        screenMesh = root.getObjectByName(view.screen);
         if (screenMesh) {
           screenMesh.material = screenMesh.material.clone();
+          if (screenKind === 'led') {
+            tuneLedMatrix(badgeNode);
+            ledScreen = createLedScreen(screenMesh, board.screen);
+          }
           // If the model finishes loading mid-run, wire the screen up now.
           if (simulator.micropython) applyCanvasToScreen();
         }
 
         /* Register the node we spin between Front/Back, starting on the front. */
-        if (tuftyNode) {
-          viewNode = tuftyNode;
-          tuftyNode.rotation.y = FRONT_Y;
+        if (badgeNode) {
+          viewNode = badgeNode;
+          badgeNode.rotation.y = FRONT_Y;
         }
 
         /* Position camera along screen's outward normal for a face-on view.
            The screen mesh lies in the local XZ plane, so local +Y is the face normal. */
-        if (screenMesh && tuftyNode) {
+        if (screenMesh && badgeNode) {
           const screenNormal = new THREE.Vector3(0, 1, 0)
             .transformDirection(screenMesh.matrixWorld);
 
-          const tuftyBox = new THREE.Box3().setFromObject(tuftyNode);
-          const center   = tuftyBox.getCenter(new THREE.Vector3());
-          const size     = tuftyBox.getSize(new THREE.Vector3());
+          const badgeBox = view.frame === 'case' && caseBackClone
+            ? new THREE.Box3().setFromObject(caseBackClone).union(new THREE.Box3().setFromObject(caseFrontClone ?? caseBackClone))
+            : new THREE.Box3().setFromObject(badgeNode);
+          const center   = badgeBox.getCenter(new THREE.Vector3());
+          const size     = badgeBox.getSize(new THREE.Vector3());
           const maxDim   = Math.max(size.x, size.y, size.z);
           const fovRad   = camera.fov * (Math.PI / 180);
           const dist     = (maxDim / 2) / Math.tan(fovRad / 2) * 1.0;
@@ -885,21 +1027,21 @@ export function initBadge3D(simulator, appendOut, wrap) {
           screenFocusReady = true;
 
           // Ground the badge with a soft contact shadow at its lowest point.
-          contactShadow = buildContactShadow(center, size, tuftyBox.min.y);
+          contactShadow = buildContactShadow(center, size, badgeBox.min.y);
           scene.add(contactShadow.group);
           shadowDirty = true;
         }
 
-        /* Collect all tufty meshes for raycasting — button detection uses hit position */
-        if (tuftyNode) {
-          tuftyNode.traverse(child => {
+        /* Collect the badge's meshes for raycasting — button detection uses hit position */
+        if (badgeNode) {
+          badgeNode.traverse(child => {
             if (child.isMesh) allHitMeshes.push(child);
           });
         }
 
         /* Init button animator after meshes are collected and matrices settled */
-        if (screenMesh && tuftyNode) {
-          buttonAnimator = initButtonAnimator(root, tuftyNode);
+        if (screenMesh && badgeNode && view.markers) {
+          buttonAnimator = initButtonAnimator(root, badgeNode);
           ledState = createCaseLeds(caseBackClone, root, caseFrontClone);
         }
 

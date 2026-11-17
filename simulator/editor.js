@@ -2,8 +2,11 @@
    createEditor() registers the Python language tweaks, the badgeware theme and
    the completion provider (once), then mounts and returns the editor instance.
    app.js just calls it; all editor knobs live here. */
-import { BADGEWARE_GLOBALS, MEMBERS } from './completions.js';
+import { completionsFor } from './completions.js';
 import { userFS, getSystemPaths } from './fs.js';
+import { activeBoard } from './boards.js';
+
+const { globals: BADGEWARE_GLOBALS, members: MEMBERS } = completionsFor(activeBoard().id);
 
 /* -- Help text -> markdown ----------------------------------------------------
    Completion/signature `documentation` renders as markdown when handed an

@@ -1,19 +1,22 @@
 /* -------------------------------------------------------------------------
    completions.js - declarative Monaco completion DATA for the Badgeware editor.
-   Pure data (no logic): the toCompletionItem() mapper lives in editor.js, its
-   only consumer.
+   Data plus completionsFor(): the toCompletionItem() mapper lives in editor.js,
+   its only consumer.
 
    Exports:
      BADGEWARE_GLOBALS  - top-level identifiers: Badgeware API + MicroPython
      MEMBERS            - member completions, keyed by the identifier before "."
+     completionsFor(id) - both, filtered by each entry's `boards` tag and merged with BOARD_OVERRIDES
 
    Sources:
-     simulator/filesystem/badgeware/__init__.py
-     simulator/filesystem/badgeware/badge.py    (+ text, math, memory, state, rtc, filesystem)
+     simulator/boards/<board>/filesystem/badgeware/__init__.py
+     simulator/boards/<board>/filesystem/badgeware/badge.py    (+ text, math, memory, state, rtc, filesystem)
      picovector api/ stubs (color, brush, image, shape, spritesheet,
        vec2, rect, mat3, tween, indexed_image, algorithm)
      MicroPython 1.x built-in functions / types / exceptions / modules
    ------------------------------------------------------------------------- */
+
+import { appliesTo } from './boards.js';
 
 /* -- Reusable signature help (parameter hints) --------------------------------
    Attach to an entry via `signature`. Consumed by the SignatureHelpProvider in
@@ -72,12 +75,15 @@ export const BADGEWARE_GLOBALS = [
 
   // -- Display mode flags ----------------------------------------------------
   { label: 'LORES',         kind: 'Constant', detail: '0b00',     doc: 'Low-resolution mode: 160x120 pixels.' },
-  { label: 'HIRES',         kind: 'Constant', detail: '0b01',     doc: 'High-resolution mode: 320x240 pixels.' },
-  { label: 'VSYNC',         kind: 'Constant', detail: '0b10',     doc: 'Enable vertical sync.' },
-  { label: 'FAST_UPDATE',   kind: 'Constant', detail: '3 << 4',   doc: 'Fast e-ink update speed (Badger).' },
-  { label: 'FULL_UPDATE',   kind: 'Constant', detail: '0 << 4',   doc: 'Full/slow e-ink update (Badger).' },
-  { label: 'MEDIUM_UPDATE', kind: 'Constant', detail: '2 << 4',   doc: 'Medium e-ink update speed (Badger).' },
-  { label: 'DITHER',        kind: 'Constant', detail: '1 << 8',   doc: 'Enable dithering.' },
+  { label: 'HIRES',          boards: ['tufty'], kind: 'Constant', detail: '0b01',     doc: 'High-resolution mode: 320x240 pixels.' },
+  { label: 'VSYNC',          boards: ['tufty'], kind: 'Constant', detail: '0b10',     doc: 'Enable vertical sync.' },
+  { label: 'FAST_UPDATE',    boards: ['badger'], kind: 'Constant', detail: '3 << 4',   doc: 'Fast e-ink update speed (Badger).' },
+  { label: 'FULL_UPDATE',    boards: ['badger'], kind: 'Constant', detail: '0 << 4',   doc: 'Full/slow e-ink update (Badger).' },
+  { label: 'MEDIUM_UPDATE', boards: ['badger'], kind: 'Constant', detail: '2 << 4',   doc: 'Medium e-ink update speed (Badger).' },
+  { label: 'DITHER',         boards: ['badger'], kind: 'Constant', detail: '1 << 8',   doc: 'Enable dithering.' },
+  { label: 'NON_BLOCKING', boards: ['badger'], kind: 'Constant', detail: '1 << 9', doc: 'Mode flag: badge.update() returns while the e-ink panel refreshes. Check display.busy() before the next update.' },
+  { label: 'SS_X2', boards: ['blinky'], kind: 'Constant', detail: '2 << 12', doc: 'Mode flag: render at 2x and downsample to the LEDs for smoother motion. display.SCALE becomes 2 and screen is 78x52.' },
+  { label: 'SS_X4', boards: ['blinky'], kind: 'Constant', detail: '4 << 12', doc: 'Mode flag: render at 4x and downsample to the LEDs for smoother motion. display.SCALE becomes 4 and screen is 156x104.' },
 
   // -- Button constants -------------------------------------------------------
   { label: 'BUTTON_A',      kind: 'Constant', detail: '0b010000', doc: 'Button A (left side button).' },
@@ -517,7 +523,7 @@ export const MEMBERS = {
       doc: 'True if the battery is currently charging (bool). Requires USB to be connected.' },
     { label: 'disk_free',     kind: 'Method', insertText: 'disk_free()',
       doc: 'Disk usage for a mount point. Returns (total, used, free) in bytes. Args: mountpoint="/".' },
-    { label: 'light_level',   kind: 'Method', insertText: 'light_level()',
+    { label: 'light_level',    boards: ['tufty'], kind: 'Method', insertText: 'light_level()',
       doc: 'Raw u16 ambient light sensor reading (Tufty only). Raises RuntimeError on unsupported models.' },
     { label: 'caselights',    kind: 'Method', insertText: 'caselights(${1:value})',
       doc: 'Get/set case LED brightness. Pass one value (all LEDs) or four values. Range 0.0-1.0.' },
@@ -535,18 +541,33 @@ export const MEMBERS = {
 
   // -- Badgeware: display (ST7789) --------------------------------------------
   display: [
-    { label: 'backlight',     kind: 'Method', insertText: 'backlight(${1:value})',
+    { label: 'backlight',      boards: ['tufty'], kind: 'Method', insertText: 'backlight(${1:value})',
       doc: 'Set backlight brightness. value: a fraction 0.0-1.0 (gamma corrected; the driver maps it, so ~<0.5 reads as off). NOT 0-255.' },
-    { label: 'set_framerate', kind: 'Method', insertText: 'set_framerate(${1:hz})',
+    { label: 'set_framerate', boards: ['tufty'], kind: 'Method', insertText: 'set_framerate(${1:hz})',
       doc: 'Set the panel refresh rate (39-119 Hz). badge.mode() sets 90.' },
-    { label: 'set_vsync',     kind: 'Method', insertText: 'set_vsync(${1:enable})',
+    { label: 'set_vsync',      boards: ['tufty'], kind: 'Method', insertText: 'set_vsync(${1:enable})',
       doc: 'Enable/disable vsync. When true, update() blocks on the panel.' },
     { label: 'update',        kind: 'Method', insertText: 'update()',
       doc: 'Flip the display buffer to the panel (blocks on vsync when enabled).' },
-    { label: 'fullres',       kind: 'Method', insertText: 'fullres(${1:enable})',
+    { label: 'fullres',        boards: ['tufty'], kind: 'Method', insertText: 'fullres(${1:enable})',
       doc: 'Switch the panel between full-resolution (HIRES) and half (LORES). Tufty.' },
-    { label: 'speed',         kind: 'Method', insertText: 'speed(${1:value})',
+    { label: 'speed',          boards: ['badger'], kind: 'Method', insertText: 'speed(${1:value})',
       doc: 'Set the e-ink update speed (Badger).' },
+    { label: 'blocking', boards: ['badger'], kind: 'Method', insertText: 'blocking(${1:enable})',
+      doc: 'When true, update() waits for the e-ink refresh to finish. badge.mode() sets this from NON_BLOCKING.' },
+    { label: 'busy', boards: ['badger'], kind: 'Method', insertText: 'busy()',
+      doc: 'True while the e-ink panel is still refreshing (bool).' },
+    { label: 'set_brightness', boards: ['blinky'], kind: 'Method', insertText: 'set_brightness(${1:value})',
+      doc: 'Set the LED brightness, 0.0-1.0.' },
+    { label: 'get_brightness', boards: ['blinky'], kind: 'Method', insertText: 'get_brightness()',
+      doc: 'Current LED brightness, 0.0-1.0 (float).' },
+    { label: 'adjust_brightness', boards: ['blinky'], kind: 'Method', insertText: 'adjust_brightness(${1:delta})',
+      doc: 'Change the LED brightness by delta.' },
+    { label: 'set_supersample', boards: ['blinky'], kind: 'Method', insertText: 'set_supersample(${1:scale})',
+      doc: 'Set the supersample factor: 1, 2 or 4. badge.mode() sets this from SS_X2 / SS_X4.' },
+    { label: 'clear', boards: ['blinky'], kind: 'Method', insertText: 'clear()',
+      doc: 'Zero the LED framebuffer.' },
+    { label: 'SCALE', boards: ['blinky'], kind: 'Property', doc: 'Current supersample factor: 1, 2 or 4.' },
     { label: 'WIDTH',         kind: 'Property', doc: 'Panel width in pixels.' },
     { label: 'HEIGHT',        kind: 'Property', doc: 'Panel height in pixels.' },
   ],
@@ -1511,3 +1532,58 @@ export const MEMBERS = {
       doc: 'Open a URL (fetch-backed). urlopen(url, data=None, method="GET"). Returns a stream with .read()/.readline()/.close() and .status.' },
   ],
 };
+
+const BOARD_OVERRIDES = {
+  badger: {
+    globals: [
+      { label: 'LORES', kind: 'Constant', detail: '0b00', doc: 'Default mode flag. The e-ink panel is always 264x176.' },
+      { label: 'screen', kind: 'Variable', detail: 'image', doc: 'The active display canvas, 264x176. Draw, then call badge.update() to refresh the e-ink panel. Set screen.pen and call screen.clear(), screen.text(), screen.shape().' },
+      { label: 'display', kind: 'Variable', detail: 'SSD1680', doc: 'E-ink display driver. display.update(), display.speed(n), display.blocking(bool), display.busy(). badge.mode() sets the speed and blocking from FAST_UPDATE / MEDIUM_UPDATE / FULL_UPDATE and NON_BLOCKING.' },
+      { label: 'wait_for_button_or_alarm', kind: 'Function', insertText: 'wait_for_button_or_alarm(${1:timeout=30_000})',
+        doc: 'Block until a button is pressed or the RTC alarm fires. Sleeps the badge after timeout ms on battery. Pass timeout=None to wait forever.' },
+    ],
+    members: {
+      screen: [
+        { label: 'width', kind: 'Property', doc: 'Display width in pixels (264). Read-only.' },
+        { label: 'height', kind: 'Property', doc: 'Display height in pixels (176). Read-only.' },
+      ],
+      badge: [
+        { label: 'mode', kind: 'Method', insertText: 'mode(${1:FAST_UPDATE})',
+          doc: 'Get or set the display mode. Combine flags with |:\n  FAST_UPDATE, MEDIUM_UPDATE, FULL_UPDATE (e-ink refresh speed)\n  DITHER, NON_BLOCKING' },
+        { label: 'update', kind: 'Method', insertText: 'update()',
+          doc: 'Refresh the e-ink panel from screen, then clear and poll buttons. run() does not refresh the panel on Badger, so call this when the picture changes.' },
+      ],
+    },
+  },
+  blinky: {
+    globals: [
+      { label: 'LORES', kind: 'Constant', detail: '0b00', doc: 'Default mode flag: 39x26, one pixel per LED. Combine with SS_X2 or SS_X4 to supersample.' },
+      { label: 'screen', kind: 'Variable', detail: 'image', doc: 'The active display canvas: 39x26 LEDs, or 78x52 / 156x104 with SS_X2 / SS_X4. Brightness only; colours show as white.' },
+      { label: 'display', kind: 'Variable', detail: 'Blinky', doc: 'LED matrix driver. display.set_brightness(0.0-1.0), display.update(), display.SCALE. badge.mode() sets the supersample factor from SS_X2 / SS_X4.' },
+    ],
+    members: {
+      screen: [
+        { label: 'width', kind: 'Property', doc: 'Display width in pixels: 39, times display.SCALE when supersampling. Read-only.' },
+        { label: 'height', kind: 'Property', doc: 'Display height in pixels: 26, times display.SCALE when supersampling. Read-only.' },
+      ],
+      badge: [
+        { label: 'mode', kind: 'Method', insertText: 'mode(${1:LORES | SS_X2})',
+          doc: 'Get or set the display mode. Combine flags with |:\n  LORES (39x26)\n  SS_X2, SS_X4 (supersample)' },
+      ],
+    },
+  },
+};
+
+function merge(shared, overrides = [], board) {
+  const replaced = new Map(overrides.map((entry) => [entry.label, entry]));
+  const merged = shared.filter((entry) => appliesTo(entry, board)).map((entry) => replaced.get(entry.label) ?? entry);
+  const present = new Set(merged.map((entry) => entry.label));
+  return merged.concat(overrides.filter((entry) => !present.has(entry.label)));
+}
+
+export function completionsFor(board) {
+  const overrides = BOARD_OVERRIDES[board] ?? { globals: [], members: {} };
+  const members = {};
+  for (const [name, entries] of Object.entries(MEMBERS)) members[name] = merge(entries, overrides.members[name], board);
+  return { globals: merge(BADGEWARE_GLOBALS, overrides.globals, board), members };
+}

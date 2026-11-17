@@ -21,6 +21,7 @@ const listing = [
 
 test('backup names use the date', () => {
   assert.equal(backupName(new Date(2026, 0, 5)), 'tufty-backup-2026-01-05.zip');
+  assert.equal(backupName(new Date(2026, 0, 5), 'badger'), 'badger-backup-2026-01-05.zip');
 });
 
 test('backups skip the ROM and leave out secrets.py unless asked', () => {

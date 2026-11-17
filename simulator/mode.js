@@ -1,3 +1,5 @@
+import { BOARD_LIST, activeBoard, activeBoardId, setActiveBoard } from './boards.js';
+
 const TARGET_KEY = 'badgeware.target';
 const TARGET_EVENT = 'badgeware-target';
 
@@ -40,9 +42,34 @@ function syncTargetButtons() {
   });
 }
 
+let beforeBoardSwitch = async () => {};
+
+export const setBeforeBoardSwitch = (fn) => { beforeBoardSwitch = fn; };
+
+export async function switchBoard(id) {
+  if (id === activeBoardId()) return;
+  await beforeBoardSwitch(id);
+  setActiveBoard(id);
+  const url = new URL(location.href);
+  url.searchParams.delete('board');
+  location.replace(url.href);
+}
+
+function initBoardSwitch() {
+  const { id, screen } = activeBoard();
+  document.body.dataset.board = id;
+  document.documentElement.style.setProperty('--screen-aspect', `${screen.width} / ${screen.height}`);
+  const select = document.getElementById('board-select');
+  if (!select) return;
+  select.replaceChildren(...BOARD_LIST.map((board) => new Option(board.label, board.id)));
+  select.value = id;
+  select.addEventListener('change', () => switchBoard(select.value));
+}
+
 export function initTargetSwitch() {
   document.body.dataset.target = currentTarget();
   syncTargetButtons();
+  initBoardSwitch();
   document.querySelectorAll('#target-switch [data-target]').forEach((button) => {
     button.addEventListener('click', () => setTarget(button.dataset.target));
   });

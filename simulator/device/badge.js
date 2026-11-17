@@ -2,14 +2,13 @@ import { SerialLink, LinkClosedError } from './serial-link.js';
 import { RawRepl } from './raw-repl.js';
 import { DebugClient, DebugSession } from './debug.js';
 import { AuxClient, RESET_TIMEOUT_MS, supportsAux } from './aux.js';
+import { BOARD_LIST } from '../boards.js';
 
-export const BADGE_FILTERS = [
-  { usbVendorId: 0x2e8a, usbProductId: 0x1100 },
-  { usbVendorId: 0x2e8a, usbProductId: 0x1101 },
-  { usbVendorId: 0x2e8a, usbProductId: 0x1102 },
-];
+export const BADGE_FILTERS = BOARD_LIST
+  .map((board) => ({ usbVendorId: 0x2e8a, usbProductId: board.usbProductId }))
+  .sort((a, b) => a.usbProductId - b.usbProductId);
 
-export const SUPPORTED_MODELS = { tufty2350: 'Tufty 2350' };
+export const SUPPORTED_MODELS = Object.fromEntries(BOARD_LIST.map((board) => [board.model, board.label]));
 export const PROTOCOL_VERSION = 1;
 
 export class MissingReplError extends Error {
@@ -114,6 +113,7 @@ export class BadgeDevice extends EventTarget {
     this.debugPort = null;
     this.aux = null;
     this.ident = null;
+    this.productId = null;
     this.queue = Promise.resolve();
     this.auxQueue = Promise.resolve();
     this.running = false;
@@ -149,6 +149,7 @@ export class BadgeDevice extends EventTarget {
   async openPorts() {
     const ports = await this.knownPorts();
     if (!ports.length) throw new Error('No paired badge found.');
+    this.productId = ports[0].getInfo().usbProductId;
     const candidates = [];
     for (const port of ports) {
       const link = new SerialLink(port);

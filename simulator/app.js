@@ -17,15 +17,17 @@ import { createIconEditor } from './icon-editor.js';
 import { createApp } from './app-scaffold.js';
 import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
-import { createFirmwareDialog, latestRelease, updateAvailable } from './firmware.js';
+import { boardForIdent, createFirmwareDialog, latestRelease, updateAvailable } from './firmware.js';
 import { createBackupDialog } from './backup-dialog.js';
 import { forgetFolder, localFoldersSupported, openFolder, reopenFolder, workspaceState } from './workspace.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { runTargetFor } from './device/paths.js';
-import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
+import { currentTarget, initTargetSwitch, onTargetChange, setBeforeBoardSwitch, switchBoard } from './mode.js';
+import { activeBoard, boardForModel } from './boards.js';
 import { delegate } from './util.js';
 
-const APP_BASE = new URL('.', import.meta.url).href;
+const BOARD = activeBoard();
+const BUNDLE_BASE = new URL(BOARD.simulator, import.meta.url).href;
 
 async function initApp() {
   // Adopt the (already in-flight) simulator boot.
@@ -299,11 +301,27 @@ async function initApp() {
     : null;
   async function checkFirmware() {
     if (!badgeDevice?.connected) return;
-    firmwareUpdate = updateAvailable(badgeDevice.ident, await latestRelease());
+    firmwareUpdate = updateAvailable(badgeDevice.ident, await latestRelease(boardForIdent(badgeDevice.ident)));
     document.querySelector('#toolbar [data-action="config"]').classList.toggle('update-available', !!firmwareUpdate);
     if (firmwareUpdate) flashStatus(`Firmware ${firmwareUpdate.tag} is available. Open Config to update.`, 6000);
   }
   badgeDevice?.addEventListener('connected', checkFirmware);
+
+  const boardSelect = document.getElementById('board-select');
+  setBeforeBoardSwitch(async () => {
+    tabs.flushSaves();
+    await userFS.flush();
+  });
+  function followBadge() {
+    const board = boardForModel(badgeDevice?.ident?.model);
+    boardSelect.disabled = !!board;
+    boardSelect.title = board ? `Follows the connected badge: ${board.label}` : 'Badge to simulate';
+    if (!board || board.id === BOARD.id || document.querySelector('dialog[open]')) return;
+    flashStatus(`Switching to ${board.label}`, 3000);
+    switchBoard(board.id);
+  }
+  badgeDevice?.addEventListener('connected', followBadge);
+  badgeDevice?.addEventListener('disconnected', followBadge);
   const configPane = createConfigPane(document.getElementById('config'), {
     userFS: badgeFS, flashStatus,
     firmwareText: () => {
@@ -389,7 +407,7 @@ async function initApp() {
 
   /* -- Load system file list (populates the System tree) ----------- */
   try {
-    const fsData = await fetch(APP_BASE + 'filesystem.json').then(r => r.json());
+    const fsData = await fetch(BUNDLE_BASE + 'filesystem.json').then(r => r.json());
     // Manifest shape: { files: { "/path": byteSize } } — we only need the paths here.
     setSystemPaths(Object.keys(fsData.files || {}));
   } catch (_) {}

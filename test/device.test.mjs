@@ -92,7 +92,9 @@ test('debug session stops at a breakpoint and inspects globals', { skip }, async
 test('rejects badges without IDE firmware or with unsupported models', async () => {
   const { checkCompatible, IncompatibleBadgeError } = await import('../simulator/device/badge.js');
   assert.throws(() => checkCompatible(null), IncompatibleBadgeError);
-  assert.throws(() => checkCompatible({ ident: 'badgeware-ide', protocol: 1, model: 'badger2350', board: 'Pimoroni Badger 2350' }), /Badger 2350 is not supported/);
+  assert.throws(() => checkCompatible({ ident: 'badgeware-ide', protocol: 1, model: 'presto', board: 'Pimoroni Presto' }), /Presto is not supported/);
+  assert.doesNotThrow(() => checkCompatible({ ident: 'badgeware-ide', protocol: 1, model: 'badger2350' }));
+  assert.doesNotThrow(() => checkCompatible({ ident: 'badgeware-ide', protocol: 1, model: 'blinky2350' }));
   assert.throws(() => checkCompatible({ ident: 'badgeware-ide', protocol: 2, model: 'tufty2350' }), /protocol 2/);
   assert.doesNotThrow(() => checkCompatible({ ident: 'badgeware-ide', protocol: 1, model: 'tufty2350' }));
 });

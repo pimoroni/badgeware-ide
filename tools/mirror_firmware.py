@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy Tufty 2350 firmware releases into firmware/ so the IDE can fetch them same-origin.
+"""Copy Badgeware firmware releases into firmware/ so the IDE can fetch them same-origin.
 
 GitHub release downloads don't send CORS headers, so the browser can't fetch them
 directly. Needs the gh CLI (GH_TOKEN in Actions).
@@ -14,8 +14,11 @@ import pathlib
 import re
 import subprocess
 
-REPO = "pimoroni/tufty2350"
-BOARD = "tufty2350"
+BOARDS = {
+    "tufty2350": "pimoroni/tufty2350",
+    "badger2350": "pimoroni/badger2350",
+    "blinky2350": "pimoroni/blinky2350",
+}
 IDE_TAG = re.compile(r"-ide\.\d+$")
 OUT = pathlib.Path(__file__).resolve().parent.parent / "firmware"
 
@@ -31,17 +34,17 @@ def assets(release):
     return firmware, full
 
 
-def mirror(release):
+def mirror(repo, board, release):
     firmware, full = assets(release)
     if not firmware or not full:
         return None
     tag = release["tag_name"]
-    target = OUT / BOARD / tag
+    target = OUT / board / tag
     target.mkdir(parents=True, exist_ok=True)
     for name in (firmware, full):
         if not (target / name).exists():
-            gh("release", "download", tag, "-R", REPO, "-p", name, "-D", str(target))
-    base = f"firmware/{BOARD}/{tag}/"
+            gh("release", "download", tag, "-R", repo, "-p", name, "-D", str(target))
+    base = f"firmware/{board}/{tag}/"
     return {
         "tag": tag,
         "name": release["name"] or tag,
@@ -52,24 +55,29 @@ def mirror(release):
     }
 
 
+def board_releases(repo, board, keep):
+    try:
+        releases = json.loads(gh("api", f"repos/{repo}/releases?per_page=50"))
+    except subprocess.CalledProcessError as error:
+        print(f"{repo}: {error.stderr.strip()}")
+        return {"ide": [], "stock": None}
+    releases = [release for release in releases if not release["draft"]]
+    ide = [release for release in releases if release["prerelease"] and IDE_TAG.search(release["tag_name"])][:keep]
+    stock = next((release for release in releases if not release["prerelease"]), None)
+    return {
+        "ide": [entry for entry in (mirror(repo, board, release) for release in ide) if entry],
+        "stock": mirror(repo, board, stock) if stock else None,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--keep", type=int, default=5, help="IDE pre-releases to keep")
+    parser.add_argument("--keep", type=int, default=5, help="IDE pre-releases to keep per board")
     args = parser.parse_args()
-
-    releases = json.loads(gh("api", f"repos/{REPO}/releases?per_page=50"))
-    releases = [release for release in releases if not release["draft"]]
-    ide = [release for release in releases if release["prerelease"] and IDE_TAG.search(release["tag_name"])][:args.keep]
-    stock = next((release for release in releases if not release["prerelease"]), None)
 
     manifest = {
         "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-        "boards": {
-            BOARD: {
-                "ide": [entry for entry in (mirror(release) for release in ide) if entry],
-                "stock": mirror(stock) if stock else None,
-            },
-        },
+        "boards": {board: board_releases(repo, board, args.keep) for board, repo in BOARDS.items()},
     }
     OUT.mkdir(exist_ok=True)
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

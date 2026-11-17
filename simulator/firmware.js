@@ -1,12 +1,9 @@
 import { parseUf2 } from './device/uf2.js';
 import { Picoboot, BOOTSEL_FILTERS } from './device/picoboot.js';
 import { romfsPaths, imageFromSectors } from './device/romfs.js';
+import { activeBoard, boardForModel, boardForProductId } from './boards.js';
 
 const MANIFEST_URL = 'firmware/manifest.json';
-const BOARD = 'tufty2350';
-const ROMFS_BASE = 0x10200000;
-const ROMFS_SIZE = 0x100000;
-const FILESYSTEM_BASE = 0x10300000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const webUsbSupported = () => typeof navigator !== 'undefined' && 'usb' in navigator;
@@ -17,10 +14,16 @@ export function loadManifest() {
   return manifestPromise;
 }
 
-export async function latestRelease() {
-  const manifest = await loadManifest();
-  return manifest?.boards?.[BOARD] ?? { ide: [], stock: null };
+export function releasesFor(manifest, board) {
+  const releases = manifest?.boards?.[board.firmware.manifestKey];
+  return { ide: releases?.ide ?? [], stock: releases?.stock ?? null };
 }
+
+export async function latestRelease(board = activeBoard()) {
+  return releasesFor(await loadManifest(), board);
+}
+
+export const boardForIdent = (ident, productId = null) => boardForModel(ident?.model) ?? boardForProductId(productId) ?? activeBoard();
 
 export function updateAvailable(ident, releases) {
   const latest = releases.ide[0];
@@ -74,6 +77,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
   const fileInput = dialog.querySelector('input[type="file"]');
   let plan = null;
   let busy = false;
+  let board = activeBoard();
 
   const setStatus = (text, progress = null) => {
     status.textContent = text;
@@ -89,13 +93,13 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
   }
 
   async function render(ident) {
-    const releases = await latestRelease();
+    const releases = await latestRelease(board);
     const latest = releases.ide[0];
     const stock = releases.stock;
     const installed = ident?.version ?? (ident ? 'unknown' : 'stock firmware');
     const update = updateAvailable(ident, releases);
     body.replaceChildren(
-      element('p', {}, 'On your badge: ', element('b', {}, installed)),
+      element('p', {}, `On your ${board.label}: `, element('b', {}, installed)),
       element('div', { className: 'firmware-options' },
         option({
           key: 'update',
@@ -113,7 +117,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
         option({
           key: 'stock',
           title: stock ? `Switch back to stock firmware ${stock.tag}` : 'Switch back to stock firmware',
-          detail: 'The regular Tufty 2350 firmware with USB disk mode. Replaces every file on your badge.',
+          detail: `The regular ${board.label} firmware with USB disk mode. Replaces every file on your badge.`,
           destructive: true,
           disabled: !stock,
         }),
@@ -122,7 +126,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
       element('label', { className: 'firmware-confirm', hidden: '' }, element('input', { type: 'checkbox' }), ' I understand the files on my badge will be erased'),
       element('p', { className: 'firmware-backup', hidden: '' }, element('button', { type: 'button', 'data-firmware': 'backup' }, 'Back up first'), ' to save your files to a .zip.'),
     );
-    if (!releases.ide.length && !releases.stock) body.append(element('p', { className: 'firmware-note' }, 'No firmware releases are published here yet. You can still install a .uf2 file.'));
+    if (!releases.ide.length && !releases.stock) body.append(element('p', { className: 'firmware-note' }, `No ${board.label} firmware releases yet. You can still install a .uf2 file.`));
     const first = [...body.querySelectorAll('input[name="firmware-option"]')].find((input) => !input.disabled);
     if (first) first.checked = true;
     sync();
@@ -146,7 +150,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
   body.addEventListener('change', sync);
 
   async function prepare(key) {
-    const releases = await latestRelease();
+    const releases = await latestRelease(board);
     if (key === 'file') {
       fileInput.value = '';
       const file = await new Promise((resolve) => {
@@ -155,7 +159,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
       });
       if (!file) return null;
       const { sectors } = parseUf2(new Uint8Array(await file.arrayBuffer()));
-      return { label: file.name, sectors, keepsFiles: ![...sectors.keys()].some((address) => address >= FILESYSTEM_BASE) };
+      return { label: file.name, sectors, keepsFiles: ![...sectors.keys()].some((address) => address >= board.firmware.filesystemBase) };
     }
     const release = key === 'stock' ? releases.stock : releases.ide[0];
     const url = key === 'update' ? release.firmware : release.full;
@@ -165,7 +169,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
 
   async function savedRomFonts(sectors) {
     if (!device.connected) return [];
-    const incoming = new Set(romfsPaths(imageFromSectors(sectors, ROMFS_BASE, ROMFS_SIZE)));
+    const incoming = new Set(romfsPaths(imageFromSectors(sectors, board.firmware.romfsBase, board.firmware.romfsSize)));
     const fonts = [];
     for (const name of await device.romFonts().catch(() => [])) {
       const path = `fonts/${name}`;
@@ -265,6 +269,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
       }
       delete flashButton.dataset.ready;
       setStatus('');
+      board = boardForIdent(ident, device.productId);
       await render(ident);
       dialog.showModal();
     },

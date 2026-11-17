@@ -6,7 +6,7 @@ export const SECRETS_PATH = '/secrets.py';
 const isJunk = (path) => path.startsWith('/__MACOSX/') || path.split('/').pop() === '.DS_Store';
 const pad = (number) => String(number).padStart(2, '0');
 
-export const backupName = (date = new Date()) => `tufty-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.zip`;
+export const backupName = (date = new Date(), board = 'tufty') => `${board}-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.zip`;
 
 const ancestors = (path) => {
   const parts = path.split('/').filter(Boolean);

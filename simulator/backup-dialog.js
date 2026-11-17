@@ -1,4 +1,5 @@
 import { backupBadge, backupName, planRestore, readBackup, restoreBadge } from './device/backup.js';
+import { boardForModel } from './boards.js';
 
 const MAX_PREVIEW = 200;
 
@@ -117,7 +118,7 @@ export function createBackupDialog(dialog, { device, flashStatus, onRestored }) 
     if (!requireConnection()) return;
     const includeSecrets = !body.querySelector('[name="skip-secrets"]').checked;
     const { zip, fileCount } = await backupBadge(device, { includeSecrets, onProgress: setStatus });
-    const name = backupName();
+    const name = backupName(new Date(), boardForModel(device.ident?.model)?.id ?? 'badge');
     saveDownload(zip, name);
     const summary = `Saved ${plural(fileCount, 'file')} to ${name} (${formatSize(zip.length)}).`;
     setStatus(summary);

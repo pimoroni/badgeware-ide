@@ -499,6 +499,16 @@ export class BadgeDevice extends EventTarget {
     }
   }
 
+  lock() {
+    if (!this.aux) return Promise.resolve();
+    return this.auxTask((aux) => aux.lock());
+  }
+
+  unlock() {
+    if (!this.aux) return Promise.resolve();
+    return this.auxTask((aux) => aux.unlock());
+  }
+
   returnToLauncher() {
     if (this.running) return this.stop();
     return this.auxTask((aux) => aux.unlock());

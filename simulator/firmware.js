@@ -65,7 +65,7 @@ async function findBootsel() {
   return (await navigator.usb.getDevices()).find((device) => BOOTSEL_FILTERS.some((f) => f.vendorId === device.vendorId && f.productId === device.productId)) ?? null;
 }
 
-export function createFirmwareDialog(dialog, { device, connect, onFinished }) {
+export function createFirmwareDialog(dialog, { device, connect, onFinished, onBackup = null }) {
   const body = dialog.querySelector('.firmware-body');
   const status = dialog.querySelector('.firmware-status');
   const bar = dialog.querySelector('progress');
@@ -120,6 +120,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished }) {
         option({ key: 'file', title: 'Install a .uf2 file', detail: 'From your computer, eg. a CI build.' }),
       ),
       element('label', { className: 'firmware-confirm', hidden: '' }, element('input', { type: 'checkbox' }), ' I understand the files on my badge will be erased'),
+      element('p', { className: 'firmware-backup', hidden: '' }, element('button', { type: 'button', 'data-firmware': 'backup' }, 'Back up first'), ' to save your files to a .zip.'),
     );
     if (!releases.ide.length && !releases.stock) body.append(element('p', { className: 'firmware-note' }, 'No firmware releases are published here yet. You can still install a .uf2 file.'));
     const first = [...body.querySelectorAll('input[name="firmware-option"]')].find((input) => !input.disabled);
@@ -136,6 +137,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished }) {
     const destructive = key === 'full' || key === 'stock';
     const confirm = body.querySelector('.firmware-confirm');
     confirm.hidden = !destructive;
+    body.querySelector('.firmware-backup').hidden = !destructive || !onBackup || !device.connected;
     flashButton.disabled = busy || !key || (destructive && !confirm.querySelector('input').checked);
     const ready = flashButton.dataset.ready === 'yes';
     flashButton.textContent = ready ? 'Install' : key === 'file' ? 'Choose file…' : 'Download';
@@ -243,6 +245,9 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished }) {
     }
   }
 
+  body.addEventListener('click', (event) => {
+    if (event.target.closest('[data-firmware="backup"]') && !busy) onBackup?.();
+  });
   flashButton.addEventListener('click', install);
   closeButton.addEventListener('click', () => { if (!busy) dialog.close(); });
   dialog.addEventListener('cancel', (event) => { if (busy) event.preventDefault(); });

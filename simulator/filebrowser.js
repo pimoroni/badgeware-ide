@@ -253,9 +253,11 @@ export function createFileBrowser(els, host) {
       delete: !rom,
       'new-here': tree === 'user',
       'new-dir-here': tree === 'user',
+      'backup-badge': tree === 'badge',
+      'restore-badge': tree === 'badge',
     };
     for (const [action, visible] of Object.entries(show)) menu.querySelector(`[data-action="${action}"]`).style.display = visible ? '' : 'none';
-    menu.querySelectorAll('hr').forEach((hr) => { hr.style.display = tree === 'user' ? '' : 'none'; });
+    menu.querySelectorAll('hr').forEach((hr) => { hr.style.display = hr.classList.contains('badge-only') === (tree === 'badge') ? '' : 'none'; });
     menu.style.left = e.clientX + 'px';
     menu.style.top  = e.clientY + 'px';
     menu.style.display = 'block';
@@ -284,6 +286,8 @@ export function createFileBrowser(els, host) {
     delete:         onTarget((t) => (t.tree === 'badge' ? host.deleteBadgePath(t.path, t.isDir) : deleteUserPath(t.path, t.isDir))),
     'new-here':     onTarget((t) => createUserFile(dirOf(t) + '/')),
     'new-dir-here': onTarget((t) => createUserDirAt(dirOf(t))),
+    'backup-badge': onTarget(() => host.backupBadge()),
+    'restore-badge': onTarget(() => host.restoreBadge()),
   });
 
   /* -- FS operations (mutate userFS, then tell the host about open tabs) ----*/

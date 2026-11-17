@@ -18,6 +18,7 @@ import { createApp } from './app-scaffold.js';
 import { createNewAppDialog } from './new-app-dialog.js';
 import { createConfigPane } from './config-pane.js';
 import { createFirmwareDialog, latestRelease, updateAvailable } from './firmware.js';
+import { createBackupDialog } from './backup-dialog.js';
 import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange } from './mode.js';
@@ -157,6 +158,8 @@ async function initApp() {
       editIcon:   (path) => iconEditor.open(path),
       copyToBadge: (path, isDir) => guard(() => badge.copyToBadge(workspaceFilesUnder(path, isDir))),
       copyToWorkspace: (path, isDir) => guard(async () => { await badge.copyToSimulator(path, isDir); fb.refresh(); }),
+      backupBadge: () => backupDialog?.open('backup'),
+      restoreBadge: () => backupDialog?.open('restore'),
       deleteBadgePath: (path, isDir) => guard(async () => {
         if (!confirm(`Delete ${path}${isDir ? ' and everything in it' : ''} from your badge?`)) return;
         await badgeDevice.remove(path);
@@ -216,12 +219,20 @@ async function initApp() {
   });
   setStopInterceptor(async () => (onBadge() ? badge.stop() : false));
 
+  const backupDialog = badgeDevice
+    ? createBackupDialog(document.getElementById('backup-dialog'), {
+      device: badgeDevice,
+      flashStatus,
+      onRestored: () => badgeFS.reload(),
+    })
+    : null;
   let firmwareUpdate = null;
   const firmwareDialog = badgeDevice
     ? createFirmwareDialog(document.getElementById('firmware-dialog'), {
       device: badgeDevice,
       connect: (options) => badge.connect(options),
       onFinished: (summary) => { flashStatus(summary, 6000); checkFirmware(); },
+      onBackup: () => backupDialog.open('backup'),
     })
     : null;
   async function checkFirmware() {
@@ -238,6 +249,7 @@ async function initApp() {
       return firmwareUpdate ? `${version} <span class="update">(${firmwareUpdate.tag} available)</span>` : version;
     },
     onFirmware: () => firmwareDialog?.open(badgeDevice?.ident ?? null),
+    onBackup: (mode) => backupDialog?.open(mode),
     openFile: (path) => { tabs.toggleView('editor'); guard(() => tabs.openBadgeFile(path, loadBadgeFile, { transient: false })); },
     isConnected: badgeConnected,
   });

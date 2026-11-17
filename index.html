@@ -118,6 +118,9 @@
     <button data-action="new-dir-here">New folder here</button>
     <hr>
     <button data-action="delete">Delete</button>
+    <hr class="badge-only">
+    <button data-action="backup-badge">Back up badge...</button>
+    <button data-action="restore-badge">Restore backup...</button>
   </div>
 
   <div data-drag-target="file-panel" data-drag-orientation="vertical" data-drag-min="160" data-drag-max="450" data-drag-start-open title="Drag to resize · click to show/hide Files"></div>
@@ -208,6 +211,11 @@
           <fieldset class="config-firmware">
             <legend>Firmware</legend>
             <p><span class="config-firmware-version"></span> <button type="button" data-config="firmware"><span class="material-symbols-outlined">system_update</span>Manage firmware</button></p>
+          </fieldset>
+          <fieldset class="config-backup">
+            <legend>Backup</legend>
+            <p>Save every file on your badge to a .zip, or put a backup back.</p>
+            <p><button type="button" data-config="backup"><span class="material-symbols-outlined">download</span>Back up</button> <button type="button" data-config="restore"><span class="material-symbols-outlined">upload</span>Restore...</button></p>
           </fieldset>
           <fieldset>
             <legend>WiFi</legend>
@@ -333,6 +341,21 @@
   <footer>
     <button data-firmware="close">Close</button>
     <button data-firmware="flash" class="primary">Download</button>
+  </footer>
+</dialog>
+
+<dialog id="backup-dialog" aria-label="Back up or restore your badge">
+  <header>
+    <span class="material-symbols-outlined">archive</span>
+    <h2></h2>
+  </header>
+  <div class="backup-body"></div>
+  <p class="backup-status"></p>
+  <progress max="1" value="0" hidden></progress>
+  <input type="file" accept=".zip,application/zip" hidden>
+  <footer>
+    <button data-backup="close">Close</button>
+    <button data-backup="go" class="primary">Back up</button>
   </footer>
 </dialog>
 

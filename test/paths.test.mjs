@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runTargetFor, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
+import { runTargetFor, badgeRunTarget, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
 
 test('apps run as a whole, other files on their own', () => {
   assert.deepEqual(runTargetFor('/apps/snake/game.py'), { kind: 'app', slug: 'snake', path: '/apps/snake' });
@@ -21,4 +21,16 @@ test('launcher names match the badge menu', async () => {
   assert.equal(launcherName('space_race'), 'Space Race');
   assert.equal(launcherName('3d_cube'), '3d Cube');
   assert.equal(launcherName('a_b_tree'), 'a b Tree');
+});
+
+test('locked tabs run their app on the badge when it is there', () => {
+  const scratch = { kind: 'scratch', path: SCRATCH_PATH };
+  const app = { kind: 'app', slug: 'clock', path: '/apps/clock' };
+  const onBadge = (path) => path === '/apps/clock/__init__.py';
+  assert.deepEqual(badgeRunTarget({ lockedPath: '/apps/clock/__init__.py', lockedSource: 'sys' }, onBadge), app);
+  assert.deepEqual(badgeRunTarget({ lockedPath: '/apps/clock/face.py', lockedSource: 'badge' }, () => false), app);
+  assert.deepEqual(badgeRunTarget({ lockedPath: '/contrib/blocks/__init__.py', lockedSource: 'sys' }, onBadge), scratch);
+  assert.deepEqual(badgeRunTarget({ lockedPath: '/system/boot.py', lockedSource: 'sys' }, onBadge), scratch);
+  assert.deepEqual(badgeRunTarget({ path: null }, onBadge), scratch);
+  assert.deepEqual(badgeRunTarget({ path: '/apps/mine/__init__.py' }, onBadge), { kind: 'app', slug: 'mine', path: '/apps/mine' });
 });

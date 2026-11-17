@@ -13,6 +13,15 @@ export function runTargetFor(path) {
   return { kind: 'file', path };
 }
 
+export function badgeRunTarget(request, existsOnBadge) {
+  const target = runTargetFor(request?.path ?? null);
+  if (target.kind !== 'scratch' || !request?.lockedPath) return target;
+  const app = runTargetFor(request.lockedPath);
+  if (app.kind !== 'app') return target;
+  if (request.lockedSource === 'badge' || existsOnBadge(`${app.path}/__init__.py`)) return app;
+  return target;
+}
+
 export function slugify(name) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }

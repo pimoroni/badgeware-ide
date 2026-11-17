@@ -619,7 +619,15 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     const code = editor.getValue();
     const isUserText = t.source === 'user' && t.view === 'editor';
     if (isUserText) userFS.set(t.path, { text: code, binary: false });
-    return { code, tabKey: currentTabKey, status: isUserText ? t.path : '', path: isUserText ? t.path : null };
+    const isLockedText = (t.source === 'sys' || t.source === 'badge') && t.view === 'editor';
+    return {
+      code,
+      tabKey: currentTabKey,
+      status: isUserText ? t.path : '',
+      path: isUserText ? t.path : null,
+      lockedPath: isLockedText ? t.path : null,
+      lockedSource: isLockedText ? t.source : null,
+    };
   }
 
   // Mobile "Code" tab: focus the active tab, else the last open, else a fresh one.

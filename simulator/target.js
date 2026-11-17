@@ -1,6 +1,6 @@
 import { createConnector } from './device/connect.js';
 import { IncompatibleBadgeError } from './device/badge.js';
-import { runTargetFor, SCRATCH_PATH } from './device/paths.js';
+import { badgeRunTarget, SCRATCH_PATH } from './device/paths.js';
 import { workspaceFS } from './fs.js';
 
 function lineSplitter(onLine) {
@@ -73,7 +73,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
       await device.stop();
       await device.queue;
     }
-    const runTarget = runTargetFor(request?.path ?? null);
+    const runTarget = badgeRunTarget(request, (path) => !!badgeFS.get(path));
     const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : file);
     output.beginRun(request?.tabKey ?? null, debug ? 'Debugging on badge' : 'Running on badge', mapFile);
     try {

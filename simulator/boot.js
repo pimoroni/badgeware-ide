@@ -17,8 +17,11 @@ import { restoreWorkspace } from './workspace.js';
 import { delegate } from './util.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget } from './mode.js';
+import { activeBoard } from './boards.js';
 
 const BOOT_BASE = new URL('.', import.meta.url).href;
+const BOARD = activeBoard();
+const BUNDLE_BASE = new URL(BOARD.simulator, import.meta.url).href;
 
 /* Resolves to a shared context the editor wires itself into. Idempotent. */
 let _bootCtx = null;
@@ -153,8 +156,8 @@ export function bootSimulator() {
     };
     const ensureSimulator = () => {
       simulatorReady ??= (async () => {
-        simulator = await BadgewareSimulator();
-        view = initBadge3D(simulator, appendOut, badge3dWrap);
+        simulator = await BadgewareSimulator(null, BOARD);
+        view = initBadge3D(simulator, appendOut, badge3dWrap, BOARD);
         simulator.onfschanged = () => fsChangedHandler();
         simulator.onfsop = applyWorkerFsOp;
         simulator.stdout = async (text) => outputLine(text);
@@ -273,7 +276,7 @@ export function bootSimulator() {
           defaultCode = entry.text;
           startupFile = { path, tabKey: path, system: false };
         } else if (!entry) {
-          defaultCode = await fetch(BOOT_BASE + 'filesystem' + path)
+          defaultCode = await fetch(BUNDLE_BASE + 'filesystem' + path)
             .then(r => r.ok ? r.text() : null).catch(() => null);
           if (defaultCode != null) startupFile = { path, tabKey: 'sys:' + path, system: true };
         }

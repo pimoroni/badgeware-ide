@@ -12,11 +12,13 @@
    uses), and Edit opens the app's source (__init__.py) in the main editor. */
 import { initGallery, SPINNER } from './gallery.js';
 import { editorUrl, initTargetSwitch } from './mode.js';
+import { activeBoard } from './boards.js';
 
 initTargetSwitch();
 
-const APP_BASE  = new URL('.', import.meta.url).href;
-const FS_BASE   = APP_BASE + 'filesystem';   // static files under simulator/filesystem
+const BOARD     = activeBoard();
+const APP_BASE  = new URL(BOARD.simulator, import.meta.url).href;
+const FS_BASE   = APP_BASE + 'filesystem';
 const galleryEl = document.getElementById('gallery');
 const statusEl  = document.getElementById('status');
 
@@ -83,7 +85,7 @@ async function render(el) {
   ).join('');
   // The leading scheme tag (v3) lets us bust every cached still at once if the
   // capture logic changes; `sig` busts an individual app when its files change.
-  return 'apps-v3-' + sig;
+  return `apps-v3-${BOARD.id}-${sig}`;
 }
 
 // The card's program launches the app the same way the OS does. We first put the

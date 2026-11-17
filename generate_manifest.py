@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Regenerate simulator/fonts-manifest.json and simulator/filesystem.json.
+"""Regenerate each board's fonts-manifest.json and filesystem.json.
 
-A static site can't list a directory, so the explorer (fonts.html) reads the set
-of fonts to load from a manifest. The fonts themselves are NOT vendored for the
-explorer -- it loads the exact files the simulator ships, straight from the
-emulated filesystem. Run this whenever you add or remove font files:
+A static site can't list a directory, so the explorer (fonts.html) and the simulator
+worker read manifests. Run this whenever you add or remove files in a bundle:
 
-    ./generate_manifest.py
+    ./generate_manifest.py            # every board under simulator/boards
+    ./generate_manifest.py badger     # one board
 
-Scans the simulator's font directories (relative to this script, so it works from
-any working directory) and writes a sorted manifest:
+For each simulator/boards/<board>/:
 
-    vector (.af)  <- simulator/filesystem/fonts
-    pixel  (.ppf) <- simulator/filesystem/rom/fonts
+    fonts-manifest.json  vector (.af) <- filesystem/fonts, pixel (.ppf) <- filesystem/rom/fonts
+    filesystem.json      every file under filesystem/ with its size
 """
 
 import json
@@ -20,39 +18,42 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-FILESYSTEM = ROOT / "simulator" / "filesystem"
-
-SOURCES = {
-    "vector": (FILESYSTEM / "fonts", ".af"),
-    "pixel": (FILESYSTEM / "rom" / "fonts", ".ppf"),
-}
-
-OUT = ROOT / "simulator" / "fonts-manifest.json"
-FILESYSTEM_OUT = ROOT / "simulator" / "filesystem.json"
+BOARDS = ROOT / "simulator" / "boards"
 
 
 def collect(directory: Path, ext: str) -> list[str]:
     if not directory.is_dir():
-        print(f"warning: {directory} not found — skipping", file=sys.stderr)
+        print(f"warning: {directory} not found, skipping", file=sys.stderr)
         return []
     return sorted(p.name for p in directory.iterdir() if p.suffix.lower() == ext)
 
 
-def main() -> int:
-    manifest = {kind: collect(directory, ext) for kind, (directory, ext) in SOURCES.items()}
-
-    OUT.write_text(json.dumps(manifest, indent=2) + "\n")
-
+def write_manifests(board_dir: Path) -> None:
+    filesystem = board_dir / "filesystem"
+    sources = {
+        "vector": (filesystem / "fonts", ".af"),
+        "pixel": (filesystem / "rom" / "fonts", ".ppf"),
+    }
+    manifest = {kind: collect(directory, ext) for kind, (directory, ext) in sources.items()}
+    fonts_out = board_dir / "fonts-manifest.json"
+    fonts_out.write_text(json.dumps(manifest, indent=2) + "\n")
     counts = ", ".join(f"{len(v)} {k}" for k, v in manifest.items())
-    print(f"Wrote {OUT.relative_to(ROOT)} ({counts})")
+    print(f"Wrote {fonts_out.relative_to(ROOT)} ({counts})")
 
     files = {
-        "/" + path.relative_to(FILESYSTEM).as_posix(): path.stat().st_size
-        for path in sorted(FILESYSTEM.rglob("*"))
+        "/" + path.relative_to(filesystem).as_posix(): path.stat().st_size
+        for path in sorted(filesystem.rglob("*"))
         if path.is_file() and "__pycache__" not in path.parts and path.name != ".DS_Store"
     }
-    FILESYSTEM_OUT.write_text(json.dumps({"files": dict(sorted(files.items()))}, indent=4) + "\n")
-    print(f"Wrote {FILESYSTEM_OUT.relative_to(ROOT)} ({len(files)} files)")
+    filesystem_out = board_dir / "filesystem.json"
+    filesystem_out.write_text(json.dumps({"files": dict(sorted(files.items()))}, indent=4) + "\n")
+    print(f"Wrote {filesystem_out.relative_to(ROOT)} ({len(files)} files)")
+
+
+def main() -> int:
+    names = sys.argv[1:] or sorted(path.name for path in BOARDS.iterdir() if (path / "filesystem").is_dir())
+    for name in names:
+        write_manifests(BOARDS / name)
     return 0
 
 

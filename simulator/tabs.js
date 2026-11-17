@@ -21,14 +21,15 @@ import { ppfParse, ppfPreview } from './ppf.js';
 import { fontUsage, highlightPython } from './font-snippet.js';
 import { afParse, afPreview } from './af.js';
 import { delegate } from './util.js';
+import { activeBoard } from './boards.js';
 
-const APP_BASE = new URL('.', import.meta.url).href;
+const BUNDLE_BASE = new URL(activeBoard().simulator, import.meta.url).href;
 
 // The editor session (which tabs are open + which is active) persists in its own
 // IndexedDB store, isolated from userFS and the panel-size prefs. One fixed key
 // holds the whole snapshot. See simulator/util.js.
 const sessionStore = (() => {
-  const kv = idbKv('badgeware.session', 'state');
+  const kv = idbKv(activeBoard().sessionStore, 'state');
   return { load: () => kv.get('editor'), save: (value) => kv.set('editor', value) };
 })();
 
@@ -463,7 +464,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   // bypassing the HTTP cache on later attempts, and return null (logged) instead of
   // failing silently.
   async function fetchSysFile(path, as) {
-    const url = APP_BASE + 'filesystem' + path;
+    const url = BUNDLE_BASE + 'filesystem' + path;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const r = await fetch(url, attempt ? { cache: 'reload' } : undefined);

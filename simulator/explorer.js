@@ -1,7 +1,7 @@
 /* explorer.js — Badgeware Font Explorer
  *
  * A Google-Fonts-style browser for the .af (vector) and .ppf (pixel) fonts
- * shipped with Badgeware. Loads every font listed in simulator/fonts-manifest.json
+ * shipped with Badgeware. Loads every font listed in the board's fonts-manifest.json
  * (the exact files the simulator ships, straight from its filesystem — nothing is
  * vendored), renders a live specimen for each into a <canvas>, and lets you:
  *   - type your own specimen text (updates every card live)
@@ -13,6 +13,7 @@
 import { afParse, afRender } from './af.js';
 import { ppfParse, ppfRender } from './ppf.js';
 import { initTargetSwitch, webSerialSupported, currentTarget } from './mode.js';
+import { activeBoard } from './boards.js';
 import { highlightPython } from './font-snippet.js';
 import { badgeDevice } from './device/session.js';
 import { createConnector } from './device/connect.js';
@@ -52,13 +53,14 @@ const resTabs    = $('#res-tabs');
 /* Font sources — the same files the simulator ships, loaded straight from the
    emulated filesystem so there's no vendored copy to keep in sync. Vector (.af)
    live under the system assets; pixel (.ppf) live in the ROM. generate_manifest.py
-   scans these dirs and writes simulator/fonts-manifest.json. */
-const VECTOR_DIR = 'simulator/filesystem/fonts/';
-const PIXEL_DIR  = 'simulator/filesystem/rom/fonts/';
+   scans these dirs and writes each board's fonts-manifest.json. */
+const BUNDLE_DIR = 'simulator/' + activeBoard().simulator;
+const VECTOR_DIR = BUNDLE_DIR + 'filesystem/fonts/';
+const PIXEL_DIR  = BUNDLE_DIR + 'filesystem/rom/fonts/';
 
 /* -- Font loading --------------------------------------------------------- */
 async function loadAll() {
-  const manifest = await (await fetch('simulator/fonts-manifest.json')).json();
+  const manifest = await (await fetch(BUNDLE_DIR + 'fonts-manifest.json')).json();
 
   const jobs = [];
   for (const file of manifest.vector) jobs.push(load('vector', VECTOR_DIR + file, file));

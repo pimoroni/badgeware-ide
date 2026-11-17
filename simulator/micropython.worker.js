@@ -1,4 +1,5 @@
 import { idbOpen } from './util.js'
+import { activeBoard } from './boards.js'
 
 const worker = self
 
@@ -37,7 +38,10 @@ worker.async_backend =
     : 'asyncify'
 console.log(`WORKER: MicroPython async backend: ${worker.async_backend}`)
 
-import(new URL(`./${worker.async_backend}/micropython.mjs`, import.meta.url).href).then((mp_mjs) => {
+worker.board = activeBoard()
+const boardBase = new URL(worker.board.simulator, import.meta.url)
+
+import(new URL(`./${worker.async_backend}/micropython.mjs`, boardBase).href).then((mp_mjs) => {
   const stdoutWriter = (line) => {
     if (worker.debug) console.log(`WORKER: stdout: ${line}`)
     worker.postMessage({stdout: line})
@@ -78,7 +82,7 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, import.meta.url).hre
        truncating, renaming or deleting one raises EROFS. A coalesced {fsChanged}
        ping tells the host to reload its cache and repaint the tree. The forward
        direction (editor -> simulator) stays as injectFiles() below. */
-    const USER_FS_DB = 'badgeware.userfs'
+    const USER_FS_DB = worker.board.userStore
     const USER_FS_STORE = 'files'
     const EROFS = 69   // WASI errno used by this Emscripten build (see ERRNO_CODES)
     const SYS_PREFIXES = ['/dev', '/proc', '/tmp', '/sys', '/home']
@@ -286,7 +290,7 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, import.meta.url).hre
 
     // Fetch JSON Manifest generated with "python3 filesystem.py > filesystem.json"
     // Shape: { "files": { "/path": byteSize, ... } }
-    await fetch(new URL('./filesystem.json', import.meta.url).href).then(async (response) => {
+    await fetch(new URL('./filesystem.json', boardBase).href).then(async (response) => {
       if(response.ok) {
         // Pray we don't have a parsing error...
         const file_sizes = (await response.json())["files"]
@@ -304,7 +308,7 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, import.meta.url).hre
           // Use the file list to create lazy-loading file entries in the FS
           // I am in awe that this works.
           paths.forEach((file) => {
-            createKnownLazyFile(`${file}`, new URL(`./filesystem${file}`, import.meta.url).href, file_sizes[file])
+            createKnownLazyFile(`${file}`, new URL(`./filesystem${file}`, boardBase).href, file_sizes[file])
           })
         })
 

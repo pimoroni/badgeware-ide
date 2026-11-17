@@ -1,12 +1,15 @@
 
+import { activeBoard } from './boards.js'
+
 const _simulatorBase = new URL('.', import.meta.url).href;
 
 // `target` is optional: embeds pass their <figure> (for debug/stdout attributes
 // and scroll pause/resume); the main app drives the simulator headlessly and
 // passes nothing.
-export const BadgewareSimulator = async (target = null) => {
+export const BadgewareSimulator = async (target = null, board = activeBoard()) => {
     let simulator = {
         target:        target,
+        board:         board,
         micropython:   null,
         program:       null,   // last program requested (re-run on hard reset)
         files:         [],      // user files accompanying that program
@@ -77,7 +80,7 @@ export const BadgewareSimulator = async (target = null) => {
             }
         }, { threshold: [0] })
 
-        const worker = new Worker(_simulatorBase + 'micropython.worker.js?v=3', { type: "module" })
+        const worker = new Worker(_simulatorBase + `micropython.worker.js?v=3&board=${board.id}`, { type: "module" })
         simulator.micropython = worker
 
         worker.onmessage = async ({ data: { stdout, ready, running, caselights, frame, stuck, fsChanged, fsOp } }) => {
@@ -299,12 +302,13 @@ const initBadgewareEmbed = async (figure) => {
     const codeURL = figure.getAttribute("code")
     if (!codeURL) return null
 
+    const board = activeBoard()
     const canvas = document.createElement("canvas")
-    canvas.width = 320
-    canvas.height = 240
+    canvas.width = board.screen.width
+    canvas.height = board.screen.height
     figure.prepend(canvas)
 
-    const simulator = await BadgewareSimulator(figure)
+    const simulator = await BadgewareSimulator(figure, board)
     simulator.onframe = badgewareCanvasPainter(canvas)
     attachBadgeKeys(simulator, canvas)   // click the canvas to focus, then arrows/space/escape
 

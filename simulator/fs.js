@@ -14,8 +14,9 @@
    Binary payloads are stored as native Uint8Array — IndexedDB structured-clones
    them directly, so there's no base64 round-trip on read or write. */
 import { idbOpen } from './util.js';
+import { activeBoard } from './boards.js';
 
-const USER_FS_DB    = 'badgeware.userfs';
+const USER_FS_DB    = activeBoard().userStore;
 const USER_FS_STORE = 'files';
 
 export const workspaceFS = (() => {
@@ -62,6 +63,7 @@ export const workspaceFS = (() => {
     // worker's {fsChanged} ping to pick those writes up. Flush our own pending
     // writes first so a concurrent local edit isn't clobbered by a stale re-read.
     reload: async () => { await ready; await writeChain; data = await loadAll(); },
+    flush: () => writeChain,
     get:   (p)    => data[p] ?? null,
     set:   (p, v) => { data[p] = v; write((store) => store.put(v, p)); },
     del:   (p)    => { delete data[p]; write((store) => store.delete(p)); },
@@ -101,7 +103,7 @@ export const userFS = {
   workerFiles: ()     => (backend.workerFiles ? backend.workerFiles() : []),
 };
 
-/* -- System file list — populated after fetch('/simulator/filesystem.json') via
+/* -- System file list — populated after fetch of the board's filesystem.json via
    setSystemPaths(). An accessor pair rather than a bare export, since ESM import
    bindings are read-only (the old code reassigned the shared `let` from app.js). */
 let _systemPaths = [];

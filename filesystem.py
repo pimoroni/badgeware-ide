@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import pathlib
 import json
+import pathlib
+import sys
 
-ROOT = pathlib.Path("simulator/filesystem")
+ROOT = pathlib.Path("simulator/boards") / (sys.argv[1] if len(sys.argv) > 1 else "tufty") / "filesystem"
 
 
 def walk_files(root):

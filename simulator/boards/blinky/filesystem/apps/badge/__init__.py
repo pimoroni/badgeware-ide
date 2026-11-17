@@ -1,0 +1,58 @@
+from badgeware import set_brightness, State
+
+
+TEXT = "Hello! I'm Blinky2350!"
+
+state = {
+    "font": "ignore",
+    "brightness": 0.1
+}
+
+State.load("badge", state)
+
+set_brightness(state["brightness"])
+font_list = dir(font)
+font_index = font_list.index(state["font"])
+
+scroll = text.scroll(TEXT, font_face=getattr(font, state["font"]))
+
+changed = False
+
+
+def update():
+    global state, scroll, changed, font_index
+
+    if badge.pressed(BUTTON_UP):
+        state["brightness"] += 0.1
+
+    if badge.pressed(BUTTON_DOWN):
+        state["brightness"] -= 0.1
+
+    state["brightness"] = clamp(state["brightness"], 0.1, 1.0)
+
+    if badge.pressed(BUTTON_C):
+        if font_index < len(font_list) - 1:
+            font_index += 1
+            changed = True
+
+    if badge.pressed(BUTTON_A):
+        if font_index > 0:
+            font_index -= 1
+            changed = True
+
+    if changed:
+        state["font"] = font_list[font_index]
+        scroll = text.scroll(TEXT, font_face=getattr(font, state["font"]))
+        State.save("badge", state)
+        changed = False
+
+    set_brightness(state["brightness"])
+
+    scroll()
+
+
+def on_exit():
+    State.save("badge", state)
+
+
+run(update)

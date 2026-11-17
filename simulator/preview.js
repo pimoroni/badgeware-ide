@@ -11,6 +11,7 @@
    a capture mid-flight just bails and re-queues. The worker is kept warm between
    runs (sim.run soft-resets in place), so only the very first run pays WASM spin-up. */
 import { BadgewareSimulator } from './badgeware.js';
+import { activeBoard } from './boards.js';
 
 const STILL_CACHE = 'badge-stills-v1';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -27,7 +28,8 @@ export function createPreviewEngine({ freshWorkerPerRun = false } = {}) {
   // into whichever card is hovered; when detached it still receives capture frames.
   const canvas = document.createElement('canvas');
   canvas.className = 'preview-canvas';
-  canvas.width = 320; canvas.height = 240;
+  const board = activeBoard();
+  canvas.width = board.screen.width; canvas.height = board.screen.height;
   const ctx = canvas.getContext('2d');
   const paint = ({ buffer, width, height }) => {
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
@@ -44,7 +46,7 @@ export function createPreviewEngine({ freshWorkerPerRun = false } = {}) {
 
   async function ensureSim() {
     if (sim) return sim;
-    sim = await BadgewareSimulator();          // headless: no target, no 3D view
+    sim = await BadgewareSimulator(null, board);
     sim.stdout = async () => {};
     sim.onframe = (f) => {
       paint(f);

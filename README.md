@@ -2,7 +2,7 @@
 
 Prototype in-browser IDE for Badgeware badges. Code runs on a real badge over USB by default, with the simulator as an option for anyone without one.
 
-Seeded from badgeware-web (f565ab7). Tufty 2350 only for now.
+Seeded from badgeware-web (f565ab7). Supports Tufty 2350, Badger 2350 and Blinky 2350.
 
 ## Running
 
@@ -12,14 +12,14 @@ Seeded from badgeware-web (f565ab7). Tufty 2350 only for now.
 
 Open http://localhost:8000 in Chrome or Edge (Web Serial). Other browsers fall back to the simulator.
 
-The badge needs the IDE firmware: `feature/ide-littlefs` of tufty2350, built against the `bw-1.29.0-ide` MicroPython branch.
+The badge needs the IDE firmware: `feature/ide-littlefs` of tufty2350, badger2350 or blinky2350, built against the `bw-1.29.0-ide` MicroPython branch.
 
 ## How it works
 
 The badge exposes two USB CDC interfaces:
 
-- **Tufty REPL**: raw REPL. The IDE soft resets into a clean VM, reads and writes files with `ide.get` / `ide.put`, and runs apps with `ide.execute()`. Tracebacks stream back and are mapped onto editor lines.
-- **Tufty Debug**: when idle, answers Ctrl-C with a JSON ident (`model`, `board`, `protocol`, `firmware`, `features`). The IDE uses this to tell the two ports apart and to reject incompatible badges, since VID/PID alone is shared with customised variants. During a debug session `ide_debug` claims the port and speaks newline-delimited JSON (breakpoints, step, stack, globals, eval) on top of `sys.settrace`.
+- **REPL**: raw REPL. The IDE soft resets into a clean VM, reads and writes files with `ide.get` / `ide.put`, and runs apps with `ide.execute()`. Tracebacks stream back and are mapped onto editor lines.
+- **Debug**: when idle, answers Ctrl-C with a JSON ident (`model`, `board`, `protocol`, `firmware`, `features`). The IDE uses this to tell the two ports apart and to reject incompatible badges, since VID/PID alone is shared with customised variants. During a debug session `ide_debug` claims the port and speaks newline-delimited JSON (breakpoints, step, stack, globals, eval) on top of `sys.settrace`.
 
 There is one workspace and one set of open tabs. The workspace lives in IndexedDB, or in a local folder opened from the Workspace header (File System Access API, Chromium only). A local folder is reread when the window gets focus; dotfiles, `node_modules` and `__pycache__` are skipped. The Badge / Simulator switch on the right of the toolbar picks where Run goes:
 
@@ -28,8 +28,27 @@ There is one workspace and one set of open tabs. The workspace lives in IndexedD
 
 The Files panel shows the workspace on top and the badge's own files below. Badge files open read-only; the context menus copy files and folders either way, and delete from the badge. **Config** edits `/secrets.py` on the badge (WiFi, region, GMT offset, custom keys) and needs the Badge target. Config and the badge tree's context menu also back up the badge to a .zip and restore one.
 
+## Boards
+
+`simulator/boards.js` describes each board: ident model, USB product id, screen size and kind, simulator build and bundle, workspace stores, firmware manifest key and flash layout, and the 3D model. The active board is stored in localStorage (`badgeware.board`, or `?board=badger` in the URL). With a badge connected it follows the badge's ident; otherwise the toolbar's board picker sets it. Changing board reloads the page.
+
+Each board keeps its own browser workspace and open tabs (IndexedDB `badgeware.userfs.<board>`, `badgeware.session.<board>`; Tufty keeps the original `badgeware.userfs` and `badgeware.session`). Completions are one shared set in `simulator/completions.js`; entries tagged `boards: [...]` apply to those boards only and `BOARD_OVERRIDES` replaces or adds per-board entries. Examples in `simulator/examples/manifest.json` take the same `boards` tag.
+
+Simulator builds and bundles live in `simulator/boards/<board>/`: `jspi/` and `asyncify/` (`micropython.{mjs,wasm}` from badgeware-wasm `build-<board>2350-{jspi,asyncify}`), `filesystem/`, `filesystem.json` and `fonts-manifest.json`. The Badger and Blinky bundles are generated from their firmware repos:
+
+```sh
+tools/bundle_board.py badger ../badger2350 feature/ide-littlefs
+tools/bundle_board.py blinky ../blinky2350 feature/ide-littlefs
+```
+
+This copies `firmware/{apps,fonts,assets}`, `modules/common/badgeware` and `romfs` into the flat layout, points the badgeware imports away from `.frozen/`, and adds the simulator stubs from the Tufty bundle plus a `cdcaux` stub. The Tufty bundle has hand-made simulator patches and contrib apps, so edit it in place and run `./generate_manifest.py tufty`.
+
+The 3D view uses `static/models/badgeware.glb` for Tufty (with button and case-light markers) and `static/models/badgeware-boards.glb` (badgeware-website's `badgeware-compressed.glb`) for Badger and Blinky, which have keyboard input only.
+
 | File | Role |
 |---|---|
+| `simulator/boards.js` | Board profiles and the active board |
+| `simulator/screens.js` | E-ink and LED screen rendering for the 3D view |
 | `simulator/device/serial-link.js` | Byte stream over a Web Serial shaped port |
 | `simulator/device/raw-repl.js` | Raw REPL client |
 | `simulator/device/badge.js` | Port identification, compatibility, sync, run, stop, debug sessions |
@@ -53,12 +72,12 @@ Keys: F5 run, F6 debug, F9 toggle breakpoint.
 
 Config > Manage firmware installs firmware over WebUSB (the RP2350 bootloader's PICOBOOT interface): update to the latest IDE pre-release (keeps files), a fresh install, switching back to stock, or a local .uf2. Connecting a badge on stock firmware opens it automatically.
 
-Firmware comes from `pimoroni/tufty2350` releases. GitHub's release downloads have no CORS headers, so `.github/workflows/pages.yml` runs `tools/mirror_firmware.py`, which copies the latest IDE pre-releases (tags ending `-ide.N`) and the latest stock release into `firmware/` with a `manifest.json`, and deploys that alongside the site. It runs on push, every six hours, on demand, and on a `firmware-released` repository_dispatch.
+Firmware comes from `pimoroni/tufty2350`, `pimoroni/badger2350` and `pimoroni/blinky2350` releases. GitHub's release downloads have no CORS headers, so `.github/workflows/pages.yml` runs `tools/mirror_firmware.py`, which copies each board's latest IDE pre-releases (tags ending `-ide.N`) and latest stock release into `firmware/` with a `manifest.json`, and deploys that alongside the site. It runs on push, every six hours, on demand, and on a `firmware-released` repository_dispatch.
 
 To publish a new IDE firmware:
 
 ```sh
-gh release create v4.0.0-ide.N -R pimoroni/tufty2350 --target feature/ide-littlefs --prerelease --title "Badgeware IDE preview N" --notes "..."
+gh release create v4.0.0-ide.N -R pimoroni/<board>2350 --target feature/ide-littlefs --prerelease --title "Badgeware IDE preview N" --notes "..."
 # once its CI has attached the .uf2 files:
 gh workflow run pages.yml -R pimoroni/badgeware-ide
 ```

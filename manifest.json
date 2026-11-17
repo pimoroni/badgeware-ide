@@ -1,7 +1,7 @@
 {
   "name": "Badgeware Simulator",
   "short_name": "Badgeware",
-  "description": "Browser simulator for the Pimoroni Tufty 2350 badge — write and run MicroPython badge apps.",
+  "description": "Browser IDE and simulator for Pimoroni Tufty, Badger and Blinky 2350 badges. Write and run MicroPython badge apps.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

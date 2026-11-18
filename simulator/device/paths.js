@@ -2,6 +2,12 @@ export const SCRATCH_PATH = '/.ide/scratch.py';
 
 const APP_PATTERN = /^\/(apps|contrib)\/([^/]+)(\/.*)?$/;
 
+export function librarySourcePath(file, systemPaths) {
+  if (!file || file.startsWith('/') || file.startsWith('<')) return null;
+  const path = '/' + file.replace(/^\.frozen\//, '');
+  return systemPaths.includes(path) ? path : null;
+}
+
 export function appSlug(path) {
   return path?.match(APP_PATTERN)?.[2] ?? null;
 }

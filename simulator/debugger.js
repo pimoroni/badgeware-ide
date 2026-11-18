@@ -1,4 +1,5 @@
-import { SCRATCH_PATH } from './device/paths.js';
+import { SCRATCH_PATH, librarySourcePath } from './device/paths.js';
+import { getSystemPaths } from './fs.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -64,6 +65,8 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     return null;
   };
 
+  const sourcePath = (frame) => (frame.user ? frame.file : librarySourcePath(frame.file, getSystemPaths()));
+
   function renderBreakpoints() {
     const target = activeTarget();
     const lines = target ? [...(breakpoints.get(target.key) ?? [])] : [];
@@ -81,7 +84,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   function renderCurrentLine() {
     const frame = stopped?.stack[selectedFrame];
     const target = activeTarget();
-    if (!frame || !target || frame.file !== target.file) {
+    if (!frame || !target || sourcePath(frame) !== target.file) {
       currentLineDecorations.clear();
       return;
     }
@@ -216,8 +219,9 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     selectedFrame = index;
     const frame = stop.stack[index];
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
-    if (frame.user && activeTarget()?.file !== frame.file) {
-      await tabs.openFile(frame.file);
+    const path = sourcePath(frame);
+    if (path && activeTarget()?.file !== path) {
+      await tabs.openFile(path, { system: !frame.user });
       if (stopped !== stop) return;
       editor.revealLineInCenterIfOutsideViewport(frame.line);
     }
@@ -238,7 +242,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   function onStopped({ detail }) {
     stopped = detail;
     document.body.classList.add('debug-paused');
-    const top = detail.stack.findIndex((frame) => frame.user);
+    const top = detail.stack.findIndex((frame) => sourcePath(frame));
     setStatus(`Paused (${detail.reason}) at ${detail.stack[0].file}:${detail.stack[0].line}`);
     els.stack.replaceChildren(...detail.stack.map((frame, index) => {
       const row = element('li', frame.user ? 'user' : 'system');

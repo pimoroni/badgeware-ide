@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runTargetFor, badgeRunTarget, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
+import { runTargetFor, badgeRunTarget, librarySourcePath, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
 
 test('apps run as a whole, other files on their own', () => {
   assert.deepEqual(runTargetFor('/apps/snake/game.py'), { kind: 'app', slug: 'snake', path: '/apps/snake' });
@@ -33,4 +33,13 @@ test('locked tabs run their app on the badge when it is there', () => {
   assert.deepEqual(badgeRunTarget({ lockedPath: '/system/boot.py', lockedSource: 'sys' }, onBadge), scratch);
   assert.deepEqual(badgeRunTarget({ path: null }, onBadge), scratch);
   assert.deepEqual(badgeRunTarget({ path: '/apps/mine/__init__.py' }, onBadge), { kind: 'app', slug: 'mine', path: '/apps/mine' });
+});
+
+test('library frames map to the bundled source', () => {
+  const bundle = ['/badgeware/text.py', '/badgeware/__init__.py'];
+  assert.equal(librarySourcePath('badgeware/text.py', bundle), '/badgeware/text.py');
+  assert.equal(librarySourcePath('.frozen/badgeware/__init__.py', bundle), '/badgeware/__init__.py');
+  assert.equal(librarySourcePath('ide_debug.py', bundle), null);
+  assert.equal(librarySourcePath('/apps/clock/__init__.py', bundle), null);
+  assert.equal(librarySourcePath('<stdin>', bundle), null);
 });

@@ -85,7 +85,30 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, boardBase).href).the
     const USER_FS_DB = worker.board.userStore
     const USER_FS_STORE = 'files'
     const EROFS = 69   // WASI errno used by this Emscripten build (see ERRNO_CODES)
-    const SYS_PREFIXES = ['/dev', '/proc', '/tmp', '/sys', '/home']
+    const SYS_PREFIXES = ['/dev', '/proc', '/tmp', '/sys', '/home', '/system']
+
+    // On the badge the factory files live on a read-only FAT32 mount at /system, so
+    // hardware code opens its fonts as "/system/assets/fonts/MonaSans-Medium.af".
+    // The simulator keeps the same trees at the FS root, except that it hoists the
+    // vector fonts to /fonts (the path the docs and examples use). Mirror each tree
+    // under /system with the layout the hardware actually has, so code copied from
+    // a badge resolves unchanged. Mirrors reuse the same lazy node URL, so nothing
+    // is duplicated on disk or downloaded twice.
+    const SYSTEM_ROOT = '/system'
+    const systemMirrors = (p) => {
+      const parts = p.split('/')
+      const rest = parts.slice(2).join('/')
+      switch (parts[1]) {
+        case 'apps':
+        case 'assets':
+        case 'contrib':
+          return [SYSTEM_ROOT + p]
+        case 'fonts':   // on the badge the .af fonts sit under assets/fonts
+          return [rest ? `${SYSTEM_ROOT}/assets/fonts/${rest}` : `${SYSTEM_ROOT}/assets/fonts`]
+        default:
+          return []
+      }
+    }
 
     let dbPromise = null
     const db = () => (dbPromise ??= idbOpen(USER_FS_DB, USER_FS_STORE))
@@ -303,17 +326,23 @@ import(new URL(`./${worker.async_backend}/micropython.mjs`, boardBase).href).the
         // building the system tree doesn't echo back into the user store.
         withSuppressed(() => {
           // Iterate through directories and create each node in turn
-          directories.forEach(mkdir_recursive);
+          directories.forEach((dir) => {
+            mkdir_recursive(dir)
+            systemMirrors(dir).forEach(mkdir_recursive)
+          })
 
           // Use the file list to create lazy-loading file entries in the FS
           // I am in awe that this works.
           paths.forEach((file) => {
-            createKnownLazyFile(`${file}`, new URL(`./filesystem${file}`, boardBase).href, file_sizes[file])
+            const url = new URL(`./filesystem${file}`, boardBase).href
+            createKnownLazyFile(`${file}`, url, file_sizes[file])
+            // Same bytes, also reachable through the hardware's /system prefix.
+            systemMirrors(file).forEach((mirror) => createKnownLazyFile(mirror, url, file_sizes[file]))
           })
         })
 
         // Remember the read-only set for a future "factory restore" affordance.
-        worker.firmwarePaths = new Set(paths)
+        worker.firmwarePaths = new Set(paths.concat(paths.flatMap(systemMirrors)))
       }
     })
 

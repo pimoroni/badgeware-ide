@@ -80,7 +80,7 @@ export const BadgewareSimulator = async (target = null, board = activeBoard()) =
             }
         }, { threshold: [0] })
 
-        const worker = new Worker(_simulatorBase + `micropython.worker.js?v=3&board=${board.id}`, { type: "module" })
+        const worker = new Worker(_simulatorBase + `micropython.worker.js?v=4&board=${board.id}`, { type: "module" })
         simulator.micropython = worker
 
         worker.onmessage = async ({ data: { stdout, ready, running, caselights, frame, stuck, fsChanged, fsOp } }) => {

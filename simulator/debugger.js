@@ -48,6 +48,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   const breakpointDecorations = editor.createDecorationsCollection();
   const currentLineDecorations = editor.createDecorationsCollection();
   let client = null;
+  let scratchKey = null;
   let stopped = null;
   let selectedFrame = 0;
   const watches = loadWatches();
@@ -60,7 +61,10 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   const activeTarget = () => {
     const info = tabs.activeInfo();
     if (!info || info.view !== 'editor') return null;
-    if (info.source === 'scratch') return { key: `scratch:${info.name}`, file: SCRATCH_PATH };
+    if (info.source === 'scratch') {
+      const key = `scratch:${info.name}`;
+      return { key, file: key === scratchKey ? SCRATCH_PATH : key };
+    }
     if (CODE_SOURCES.includes(info.source) && info.path?.endsWith('.py')) return { key: info.path, file: info.path };
     return null;
   };
@@ -120,8 +124,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   function initialBreakpoints() {
     const entries = [...breakpoints].filter(([key, lines]) => key.startsWith('/') && lines.size);
-    const target = activeTarget();
-    if (target?.file === SCRATCH_PATH) entries.push([SCRATCH_PATH, breakpoints.get(target.key) ?? new Set()]);
+    if (scratchKey) entries.push([SCRATCH_PATH, breakpoints.get(scratchKey) ?? new Set()]);
     return Object.fromEntries(entries.filter(([, lines]) => lines.size).map(([file, lines]) => [file, [...lines]]));
   }
 
@@ -214,6 +217,10 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   }
 
   async function showSource(path, user) {
+    if (path === SCRATCH_PATH) {
+      if (scratchKey) tabs.focusKey(scratchKey);
+      return;
+    }
     if (tabs.focusPath(path)) return;
     if (!user) await tabs.openFile(path, { system: true });
     else if (userFS.get(path)) await tabs.openFile(path);
@@ -318,20 +325,24 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   });
 
   return {
-    hooks: () => ({
-      init: () => ({
-        breakpoints: initialBreakpoints(),
-      }),
-      attach(debugClient) {
-        client = debugClient;
-        els.evalLog.replaceChildren();
-        document.body.classList.add('debugging');
-        client.addEventListener('stopped', onStopped);
-        client.addEventListener('continued', onContinued);
-        client.addEventListener('closed', onClosed);
-        renderWatches();
-        startWatching();
-      },
-    }),
+    hooks: () => {
+      const info = tabs.activeInfo();
+      scratchKey = info?.source === 'scratch' ? `scratch:${info.name}` : null;
+      return {
+        init: () => ({
+          breakpoints: initialBreakpoints(),
+        }),
+        attach(debugClient) {
+          client = debugClient;
+          els.evalLog.replaceChildren();
+          document.body.classList.add('debugging');
+          client.addEventListener('stopped', onStopped);
+          client.addEventListener('continued', onContinued);
+          client.addEventListener('closed', onClosed);
+          renderWatches();
+          startWatching();
+        },
+      };
+    },
   };
 }

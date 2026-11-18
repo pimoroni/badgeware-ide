@@ -1,0 +1,2471 @@
+{
+ "badgeware/__init__.py": [
+  {
+   "line": 17,
+   "locals": [
+    "value"
+   ],
+   "name": "set_brightness"
+  },
+  {
+   "line": 31,
+   "locals": [
+    "self"
+   ],
+   "name": "ticks"
+  },
+  {
+   "line": 35,
+   "locals": [
+    "self"
+   ],
+   "name": "progress"
+  },
+  {
+   "line": 38,
+   "locals": [
+    "self",
+    "duration",
+    "args"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 45,
+   "locals": [
+    "self",
+    "update",
+    "parent",
+    "result",
+    "e"
+   ],
+   "name": "__call__"
+  },
+  {
+   "line": 73,
+   "locals": [
+    "path",
+    "quit_to_launcher",
+    "quit_to_ide",
+    "modules_before_launch",
+    "e",
+    "key",
+    "do_exit"
+   ],
+   "name": "launch"
+  },
+  {
+   "line": 76,
+   "locals": [
+    "path",
+    "app",
+    "on_exit"
+   ],
+   "name": "do_exit"
+  },
+  {
+   "line": 83,
+   "locals": [
+    "do_exit",
+    "_pin"
+   ],
+   "name": "quit_to_launcher"
+  },
+  {
+   "line": 87,
+   "locals": [
+    "_pin"
+   ],
+   "name": "quit_to_ide"
+  },
+  {
+   "line": 120,
+   "locals": [
+    "e",
+    "s"
+   ],
+   "name": "get_exception"
+  },
+  {
+   "line": 129,
+   "locals": [
+    "title",
+    "msg",
+    "window",
+    "error_window",
+    "background",
+    "heading",
+    "tw",
+    "y",
+    "bounds"
+   ],
+   "name": "message"
+  },
+  {
+   "line": 174,
+   "locals": [
+    "_"
+   ],
+   "name": "_ide_stop"
+  },
+  {
+   "line": 178,
+   "locals": [
+    "title",
+    "error",
+    "contents"
+   ],
+   "name": "fatal_error"
+  }
+ ],
+ "badgeware/badge.py": [
+  {
+   "line": 47,
+   "locals": [
+    "adc",
+    "samples",
+    "val",
+    "_"
+   ],
+   "name": "sample_adc_u16"
+  },
+  {
+   "line": 55,
+   "locals": [
+    "self",
+    "led"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 89,
+   "locals": [
+    "self"
+   ],
+   "name": "ticks"
+  },
+  {
+   "line": 93,
+   "locals": [
+    "self"
+   ],
+   "name": "ticks_delta"
+  },
+  {
+   "line": 96,
+   "locals": [
+    "self"
+   ],
+   "name": "poll"
+  },
+  {
+   "line": 100,
+   "locals": [
+    "self"
+   ],
+   "name": "resolution"
+  },
+  {
+   "line": 103,
+   "locals": [
+    "self"
+   ],
+   "name": "clear"
+  },
+  {
+   "line": 111,
+   "locals": [
+    "self"
+   ],
+   "name": "update"
+  },
+  {
+   "line": 117,
+   "locals": [
+    "self",
+    "mode",
+    "prev_font",
+    "brush"
+   ],
+   "name": "mode"
+  },
+  {
+   "line": 144,
+   "locals": [
+    "self",
+    "voltage",
+    "vref"
+   ],
+   "name": "battery_voltage"
+  },
+  {
+   "line": 149,
+   "locals": [
+    "self"
+   ],
+   "name": "usb_connected"
+  },
+  {
+   "line": 153,
+   "locals": [
+    "self"
+   ],
+   "name": "battery_level"
+  },
+  {
+   "line": 157,
+   "locals": [
+    "self"
+   ],
+   "name": "is_charging"
+  },
+  {
+   "line": 165,
+   "locals": [
+    "self",
+    "mountpoint",
+    "f_bsize",
+    "f_frsize",
+    "f_blocks",
+    "f_bfree",
+    "f_total_size",
+    "f_total_free"
+   ],
+   "name": "disk_free"
+  },
+  {
+   "line": 174,
+   "locals": [
+    "self"
+   ],
+   "name": "light_level"
+  },
+  {
+   "line": 179,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "pressed"
+  },
+  {
+   "line": 184,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "held"
+  },
+  {
+   "line": 189,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "released"
+  },
+  {
+   "line": 194,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "changed"
+  },
+  {
+   "line": 199,
+   "locals": [
+    "self",
+    "args",
+    "idx",
+    "cl"
+   ],
+   "name": "caselights"
+  },
+  {
+   "line": 208,
+   "locals": [
+    "self",
+    "duration"
+   ],
+   "name": "sleep"
+  },
+  {
+   "line": 211,
+   "locals": [
+    "self"
+   ],
+   "name": "wake_reason"
+  },
+  {
+   "line": 214,
+   "locals": [
+    "self"
+   ],
+   "name": "woken_by_button"
+  },
+  {
+   "line": 223,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "pressed_to_wake"
+  },
+  {
+   "line": 226,
+   "locals": [
+    "self"
+   ],
+   "name": "woken_by_reset"
+  }
+ ],
+ "badgeware/filesystem.py": [
+  {
+   "line": 6,
+   "locals": [
+    "path"
+   ],
+   "name": "file_exists"
+  },
+  {
+   "line": 14,
+   "locals": [
+    "path",
+    "flags"
+   ],
+   "name": "is_dir"
+  }
+ ],
+ "badgeware/math.py": [
+  {
+   "line": 6,
+   "locals": [
+    "v",
+    "vmin",
+    "vmax"
+   ],
+   "name": "clamp"
+  },
+  {
+   "line": 10,
+   "locals": [
+    "v1",
+    "v2"
+   ],
+   "name": "rnd"
+  },
+  {
+   "line": 16,
+   "locals": [
+    "v1",
+    "v2"
+   ],
+   "name": "frnd"
+  }
+ ],
+ "badgeware/memory.py": [
+  {
+   "line": 12,
+   "locals": [
+    "message",
+    "f",
+    "delta",
+    "sign"
+   ],
+   "name": "free"
+  }
+ ],
+ "badgeware/rtc.py": [
+  {
+   "line": 13,
+   "locals": [
+    "self"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 22,
+   "locals": [
+    "self",
+    "dt",
+    "dtf"
+   ],
+   "name": "datetime"
+  },
+  {
+   "line": 26,
+   "locals": [
+    "self"
+   ],
+   "name": "localtime_to_rtc"
+  },
+  {
+   "line": 29,
+   "locals": [
+    "self",
+    "dt"
+   ],
+   "name": "rtc_to_localtime"
+  },
+  {
+   "line": 33,
+   "locals": [
+    "self",
+    "ntptime"
+   ],
+   "name": "time_from_ntp"
+  },
+  {
+   "line": 41,
+   "locals": [
+    "self",
+    "prefix"
+   ],
+   "name": "_get_running_app"
+  },
+  {
+   "line": 43,
+   "locals": [
+    "prefix",
+    "",
+    "v"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 48,
+   "locals": [
+    "self",
+    "ticks",
+    "enable_interrupt"
+   ],
+   "name": "set_timer"
+  },
+  {
+   "line": 52,
+   "locals": [
+    "self",
+    "result"
+   ],
+   "name": "timer_elapsed"
+  },
+  {
+   "line": 57,
+   "locals": [
+    "self",
+    "hours",
+    "minutes",
+    "seconds",
+    "year",
+    "month",
+    "day",
+    "hour",
+    "minute",
+    "second",
+    "_",
+    "dt"
+   ],
+   "name": "set_alarm"
+  },
+  {
+   "line": 72,
+   "locals": [
+    "self"
+   ],
+   "name": "clear_alarm"
+  },
+  {
+   "line": 78,
+   "locals": [
+    "self"
+   ],
+   "name": "alarm_status"
+  }
+ ],
+ "badgeware/state.py": [
+  {
+   "line": 8,
+   "locals": [
+    "app"
+   ],
+   "name": "delete"
+  },
+  {
+   "line": 15,
+   "locals": [
+    "app",
+    "data",
+    "f",
+    "os"
+   ],
+   "name": "save"
+  },
+  {
+   "line": 30,
+   "locals": [
+    "app",
+    "data",
+    "state"
+   ],
+   "name": "modify"
+  },
+  {
+   "line": 37,
+   "locals": [
+    "app",
+    "defaults",
+    "data"
+   ],
+   "name": "load"
+  }
+ ],
+ "badgeware/text.py": [
+  {
+   "line": 5,
+   "locals": [
+    "image",
+    "parameters",
+    "measure"
+   ],
+   "name": "pen_glyph_renderer"
+  },
+  {
+   "line": 7,
+   "locals": [
+    "",
+    "c"
+   ],
+   "name": "<genexpr>"
+  },
+  {
+   "line": 16,
+   "locals": [
+    "name",
+    "img"
+   ],
+   "name": "add_sprite"
+  },
+  {
+   "line": 20,
+   "locals": [
+    "image",
+    "parameters",
+    "measure",
+    "img"
+   ],
+   "name": "sprite_glyph_renderer"
+  },
+  {
+   "line": 39,
+   "locals": [
+    "text",
+    "font_face",
+    "font_size",
+    "target",
+    "speed",
+    "gap",
+    "align",
+    "is_vector_font",
+    "th",
+    "offset_y",
+    "update",
+    "tw",
+    "scroll_distance",
+    "t_start",
+    "offset"
+   ],
+   "name": "scroll"
+  },
+  {
+   "line": 74,
+   "locals": [
+    "text",
+    "font_face",
+    "font_size",
+    "target",
+    "speed",
+    "gap",
+    "tw",
+    "scroll_distance",
+    "t_start",
+    "offset",
+    "timedelta",
+    "progress"
+   ],
+   "name": "update"
+  }
+ ],
+ "board.py": [
+  {
+   "line": 5,
+   "locals": [
+    "",
+    "k",
+    "v"
+   ],
+   "name": "<genexpr>"
+  }
+ ],
+ "easing.py": [
+  {
+   "line": 12,
+   "locals": [
+    "x"
+   ],
+   "name": "linear"
+  },
+  {
+   "line": 16,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInQuad"
+  },
+  {
+   "line": 20,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutQuad"
+  },
+  {
+   "line": 24,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutQuad"
+  },
+  {
+   "line": 31,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInCubic"
+  },
+  {
+   "line": 35,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutCubic"
+  },
+  {
+   "line": 39,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutCubic"
+  },
+  {
+   "line": 43,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInQuart"
+  },
+  {
+   "line": 47,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutQuart"
+  },
+  {
+   "line": 51,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutQuart"
+  },
+  {
+   "line": 55,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInQuint"
+  },
+  {
+   "line": 59,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutQuint"
+  },
+  {
+   "line": 63,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutQuint"
+  },
+  {
+   "line": 70,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInSine"
+  },
+  {
+   "line": 74,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutSine"
+  },
+  {
+   "line": 78,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutSine"
+  },
+  {
+   "line": 82,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInExpo"
+  },
+  {
+   "line": 86,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutExpo"
+  },
+  {
+   "line": 90,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutExpo"
+  },
+  {
+   "line": 100,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInCirc"
+  },
+  {
+   "line": 104,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutCirc"
+  },
+  {
+   "line": 108,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutCirc"
+  },
+  {
+   "line": 115,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInBack"
+  },
+  {
+   "line": 119,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutBack"
+  },
+  {
+   "line": 123,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutBack"
+  },
+  {
+   "line": 130,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInElastic"
+  },
+  {
+   "line": 137,
+   "locals": [
+    "x"
+   ],
+   "name": "easeOutElastic"
+  },
+  {
+   "line": 144,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutElastic"
+  },
+  {
+   "line": 154,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInBounce"
+  },
+  {
+   "line": 158,
+   "locals": [
+    "x",
+    "n1",
+    "d1"
+   ],
+   "name": "easeOutBounce"
+  },
+  {
+   "line": 177,
+   "locals": [
+    "x"
+   ],
+   "name": "easeInOutBounce"
+  }
+ ],
+ "fetch.py": [
+  {
+   "line": 12,
+   "locals": [
+    "__class__",
+    "self",
+    "fetch"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 50,
+   "locals": [
+    "self",
+    "host",
+    "port",
+    "use_tls",
+    "debug",
+    "buffer_size",
+    "max_bytes",
+    "timeout",
+    "step_bytes",
+    "default_port"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 96,
+   "locals": [
+    "self",
+    "path",
+    "file",
+    "interval",
+    "headers",
+    "data",
+    "method",
+    "blocking"
+   ],
+   "name": "fetch"
+  },
+  {
+   "line": 141,
+   "locals": [
+    "self"
+   ],
+   "name": "reset"
+  },
+  {
+   "line": 146,
+   "locals": [
+    "self"
+   ],
+   "name": "_close_socket"
+  },
+  {
+   "line": 155,
+   "locals": [
+    "self"
+   ],
+   "name": "_extend_deadline"
+  },
+  {
+   "line": 159,
+   "locals": [
+    "self"
+   ],
+   "name": "_check_deadline"
+  },
+  {
+   "line": 166,
+   "locals": [
+    "self"
+   ],
+   "name": "_budget_reset"
+  },
+  {
+   "line": 170,
+   "locals": [
+    "self",
+    "count"
+   ],
+   "name": "_budget_spend"
+  },
+  {
+   "line": 177,
+   "locals": [
+    "self",
+    "length",
+    "size",
+    "new_size",
+    "buffer"
+   ],
+   "name": "_reserve"
+  },
+  {
+   "line": 202,
+   "locals": [
+    "headers",
+    "name",
+    "default",
+    "k"
+   ],
+   "name": "_header"
+  },
+  {
+   "line": 209,
+   "locals": [
+    "self",
+    "sock_family",
+    "sock_type",
+    "sock_proto",
+    "_",
+    "sock_addr",
+    "sock",
+    "e",
+    "context"
+   ],
+   "name": "_connect"
+  },
+  {
+   "line": 252,
+   "locals": [
+    "self",
+    "data",
+    "view",
+    "sent",
+    "written"
+   ],
+   "name": "_send_all"
+  },
+  {
+   "line": 274,
+   "locals": [
+    "self",
+    "line",
+    "part"
+   ],
+   "name": "_read_line"
+  },
+  {
+   "line": 297,
+   "locals": [
+    "self",
+    "request",
+    "k"
+   ],
+   "name": "_send_request"
+  },
+  {
+   "line": 315,
+   "locals": [
+    "self",
+    "status_code",
+    "headers",
+    "header_bytes",
+    "line",
+    "k",
+    "v"
+   ],
+   "name": "_read_headers"
+  },
+  {
+   "line": 349,
+   "locals": [
+    "self",
+    "reused_socket",
+    "attempt"
+   ],
+   "name": "_exchange_headers"
+  },
+  {
+   "line": 374,
+   "locals": [
+    "self",
+    "status_code",
+    "headers",
+    "content_length",
+    "chunked",
+    "keep_alive"
+   ],
+   "name": "_framing"
+  },
+  {
+   "line": 397,
+   "locals": [
+    "self",
+    "stream",
+    "want",
+    "length"
+   ],
+   "name": "_recv"
+  },
+  {
+   "line": 419,
+   "locals": [
+    "self",
+    "stream",
+    "remaining",
+    "want",
+    "length"
+   ],
+   "name": "_read_body"
+  },
+  {
+   "line": 451,
+   "locals": [
+    "self",
+    "stream",
+    "keep_alive",
+    "header",
+    "size"
+   ],
+   "name": "_read_chunked"
+  },
+  {
+   "line": 483,
+   "locals": [
+    "self",
+    "status_code",
+    "headers",
+    "chunked",
+    "content_length",
+    "read_to_close",
+    "keep_alive",
+    "stream"
+   ],
+   "name": "_run"
+  },
+  {
+   "line": 540,
+   "locals": [
+    "self",
+    "step_start",
+    "e",
+    "step_ms"
+   ],
+   "name": "update"
+  },
+  {
+   "line": 588,
+   "locals": [
+    "self"
+   ],
+   "name": "duration"
+  },
+  {
+   "line": 594,
+   "locals": [
+    "self"
+   ],
+   "name": "status"
+  },
+  {
+   "line": 598,
+   "locals": [
+    "self"
+   ],
+   "name": "done"
+  },
+  {
+   "line": 602,
+   "locals": [
+    "self"
+   ],
+   "name": "source"
+  },
+  {
+   "line": 606,
+   "locals": [
+    "self"
+   ],
+   "name": "destination"
+  },
+  {
+   "line": 610,
+   "locals": [
+    "self"
+   ],
+   "name": "http_status"
+  },
+  {
+   "line": 614,
+   "locals": [
+    "self"
+   ],
+   "name": "http_response_headers"
+  },
+  {
+   "line": 619,
+   "locals": [
+    "self"
+   ],
+   "name": "body"
+  },
+  {
+   "line": 630,
+   "locals": [
+    "self"
+   ],
+   "name": "stream"
+  },
+  {
+   "line": 640,
+   "locals": [
+    "self"
+   ],
+   "name": "to_json"
+  },
+  {
+   "line": 652,
+   "locals": [
+    "self",
+    "status"
+   ],
+   "name": "finish"
+  },
+  {
+   "line": 659,
+   "locals": [
+    "self",
+    "handler"
+   ],
+   "name": "on_complete"
+  },
+  {
+   "line": 662,
+   "locals": [
+    "self",
+    "handler"
+   ],
+   "name": "on_error"
+  },
+  {
+   "line": 668,
+   "locals": [
+    "url",
+    "use_tls",
+    "rest",
+    "host_port",
+    "_",
+    "path",
+    "host",
+    "port"
+   ],
+   "name": "_parse_url"
+  },
+  {
+   "line": 695,
+   "locals": [
+    "self",
+    "url",
+    "every",
+    "headers",
+    "debug",
+    "use_tls",
+    "host",
+    "port",
+    "path"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 711,
+   "locals": [
+    "self",
+    "local_file"
+   ],
+   "name": "to"
+  },
+  {
+   "line": 717,
+   "locals": [
+    "self",
+    "fetch"
+   ],
+   "name": "_handle_error"
+  },
+  {
+   "line": 723,
+   "locals": [
+    "self",
+    "e"
+   ],
+   "name": "done"
+  },
+  {
+   "line": 746,
+   "locals": [
+    "self"
+   ],
+   "name": "__bool__"
+  },
+  {
+   "line": 749,
+   "locals": [
+    "self"
+   ],
+   "name": "json"
+  },
+  {
+   "line": 754,
+   "locals": [
+    "self"
+   ],
+   "name": "data"
+  },
+  {
+   "line": 761,
+   "locals": [
+    "self"
+   ],
+   "name": "path"
+  },
+  {
+   "line": 766,
+   "locals": [
+    "self"
+   ],
+   "name": "state"
+  },
+  {
+   "line": 774,
+   "locals": [
+    "self"
+   ],
+   "name": "error"
+  }
+ ],
+ "hardware_test.py": [
+  {
+   "line": 69,
+   "locals": [
+    "self"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 100,
+   "locals": [
+    "self",
+    "data",
+    "results"
+   ],
+   "name": "test_wireless"
+  },
+  {
+   "line": 106,
+   "locals": [
+    "",
+    "b"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 121,
+   "locals": [
+    "self",
+    "error"
+   ],
+   "name": "display_error"
+  },
+  {
+   "line": 130,
+   "locals": [
+    "self",
+    "button"
+   ],
+   "name": "test_buttons"
+  },
+  {
+   "line": 141,
+   "locals": [
+    "self"
+   ],
+   "name": "test_charge_stat"
+  },
+  {
+   "line": 146,
+   "locals": [
+    "self",
+    "voltage"
+   ],
+   "name": "test_vbat"
+  },
+  {
+   "line": 152,
+   "locals": [
+    "self",
+    "reading"
+   ],
+   "name": "test_light"
+  },
+  {
+   "line": 157,
+   "locals": [
+    "self",
+    "ram_free"
+   ],
+   "name": "test_psram"
+  },
+  {
+   "line": 164,
+   "locals": [
+    "self",
+    "_t"
+   ],
+   "name": "cl_toggle"
+  },
+  {
+   "line": 169,
+   "locals": [
+    "self"
+   ],
+   "name": "clear_flag"
+  },
+  {
+   "line": 176,
+   "locals": [
+    "self",
+    "button_timeout",
+    "e"
+   ],
+   "name": "run"
+  },
+  {
+   "line": 256,
+   "locals": [
+    "self",
+    "_pin"
+   ],
+   "name": "btn_handler"
+  },
+  {
+   "line": 274,
+   "locals": [
+    "self",
+    "_t"
+   ],
+   "name": "test_rtc"
+  },
+  {
+   "line": 278,
+   "locals": [
+    "self",
+    "start_time"
+   ],
+   "name": "test_vbus"
+  },
+  {
+   "line": 302,
+   "locals": [
+    "self",
+    "button",
+    "pressed",
+    "x",
+    "y"
+   ],
+   "name": "draw"
+  }
+ ],
+ "ide.py": [
+  {
+   "line": 20,
+   "locals": [
+    "path"
+   ],
+   "name": "_is_dir"
+  },
+  {
+   "line": 27,
+   "locals": [
+    "path",
+    "current",
+    "part"
+   ],
+   "name": "_makedirs"
+  },
+  {
+   "line": 37,
+   "locals": [
+    "path",
+    "entries",
+    "name",
+    "kind",
+    "_",
+    "full"
+   ],
+   "name": "_walk"
+  },
+  {
+   "line": 47,
+   "locals": [
+    "total",
+    "used",
+    "free"
+   ],
+   "name": "info"
+  },
+  {
+   "line": 57,
+   "locals": [
+    "path",
+    "entries"
+   ],
+   "name": "ls"
+  },
+  {
+   "line": 64,
+   "locals": [
+    "paths",
+    "hashlib",
+    "result",
+    "buf",
+    "path",
+    "digest",
+    "f",
+    "count"
+   ],
+   "name": "hashes"
+  },
+  {
+   "line": 81,
+   "locals": [
+    "path",
+    "size",
+    "buf",
+    "stdin",
+    "f",
+    "remaining",
+    "view",
+    "received"
+   ],
+   "name": "put"
+  },
+  {
+   "line": 102,
+   "locals": [
+    "path",
+    "buf",
+    "f",
+    "count"
+   ],
+   "name": "get"
+  },
+  {
+   "line": 109,
+   "locals": [
+    "path",
+    "name",
+    "_"
+   ],
+   "name": "rm"
+  },
+  {
+   "line": 118,
+   "locals": [
+    "path"
+   ],
+   "name": "mkdir"
+  },
+  {
+   "line": 122,
+   "locals": [
+    "source",
+    "destination"
+   ],
+   "name": "rename"
+  },
+  {
+   "line": 135,
+   "locals": [
+    "value",
+    "width",
+    "out"
+   ],
+   "name": "_romfs_uint"
+  },
+  {
+   "line": 146,
+   "locals": [
+    "kind",
+    "payload"
+   ],
+   "name": "_romfs_record"
+  },
+  {
+   "line": 150,
+   "locals": [
+    "path",
+    "entries",
+    "name",
+    "kind",
+    "_",
+    "full",
+    "f"
+   ],
+   "name": "_romfs_read_tree"
+  },
+  {
+   "line": 162,
+   "locals": [
+    "entries",
+    "out",
+    "name",
+    "entry",
+    "encoded"
+   ],
+   "name": "_romfs_records"
+  },
+  {
+   "line": 173,
+   "locals": [
+    "entries",
+    "data"
+   ],
+   "name": "_romfs_image"
+  },
+  {
+   "line": 180,
+   "locals": [
+    "vfs"
+   ],
+   "name": "_romfs_device"
+  },
+  {
+   "line": 192,
+   "locals": [
+    "entries",
+    "vfs",
+    "image",
+    "device",
+    "block_size",
+    "current",
+    "blocks",
+    "buf",
+    "block",
+    "chunk",
+    "data"
+   ],
+   "name": "_romfs_write"
+  },
+  {
+   "line": 219,
+   "locals": [
+    "entries",
+    "path",
+    "data",
+    "parts",
+    "part",
+    "name",
+    "entry",
+    "sub",
+    "index",
+    "_"
+   ],
+   "name": "_romfs_place"
+  },
+  {
+   "line": 241,
+   "locals": [
+    "device",
+    "total",
+    "used"
+   ],
+   "name": "rom_info"
+  },
+  {
+   "line": 248,
+   "locals": [
+    "path",
+    "size",
+    "data",
+    "view",
+    "stdin",
+    "start",
+    "end",
+    "received",
+    "tree",
+    "used",
+    "written"
+   ],
+   "name": "rom_put"
+  },
+  {
+   "line": 269,
+   "locals": [
+    "path",
+    "tree",
+    "used",
+    "written"
+   ],
+   "name": "rom_remove"
+  },
+  {
+   "line": 276,
+   "locals": [
+    "path",
+    "f",
+    "code",
+    "scope",
+    "update",
+    "e"
+   ],
+   "name": "_run_file"
+  },
+  {
+   "line": 289,
+   "locals": [
+    "path",
+    "debug",
+    "ide_debug"
+   ],
+   "name": "execute"
+  },
+  {
+   "line": 325,
+   "locals": [
+    "request",
+    "path",
+    "debug",
+    "resume"
+   ],
+   "name": "serve"
+  }
+ ],
+ "ide_debug.py": [
+  {
+   "line": 24,
+   "locals": [
+    "message"
+   ],
+   "name": "_send"
+  },
+  {
+   "line": 28,
+   "locals": [
+    "filename"
+   ],
+   "name": "_is_user_file"
+  },
+  {
+   "line": 32,
+   "locals": [
+    "frame"
+   ],
+   "name": "_frame_file"
+  },
+  {
+   "line": 36,
+   "locals": [
+    "frame",
+    "frames"
+   ],
+   "name": "_stack"
+  },
+  {
+   "line": 44,
+   "locals": [
+    "value",
+    "text"
+   ],
+   "name": "_short_repr"
+  },
+  {
+   "line": 54,
+   "locals": [
+    "value"
+   ],
+   "name": "_has_children"
+  },
+  {
+   "line": 64,
+   "locals": [
+    "name",
+    "value",
+    "ref"
+   ],
+   "name": "_variable"
+  },
+  {
+   "line": 72,
+   "locals": [
+    "value",
+    "items"
+   ],
+   "name": "_children"
+  },
+  {
+   "line": 73,
+   "locals": [
+    "",
+    "key",
+    "item"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 75,
+   "locals": [
+    "",
+    "index",
+    "item"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 77,
+   "locals": [
+    "",
+    "index",
+    "item"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 80,
+   "locals": [
+    "",
+    "name",
+    "item"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 84,
+   "locals": [
+    "frame",
+    "items"
+   ],
+   "name": "_locals"
+  },
+  {
+   "line": 90,
+   "locals": [
+    "",
+    "name",
+    "value"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 94,
+   "locals": [
+    "frame",
+    "variables",
+    "name",
+    "value"
+   ],
+   "name": "_globals"
+  },
+  {
+   "line": 105,
+   "locals": [
+    "request_id",
+    "width",
+    "height",
+    "stride",
+    "raw",
+    "row_bytes",
+    "packed",
+    "y"
+   ],
+   "name": "_send_screen"
+  },
+  {
+   "line": 120,
+   "locals": [
+    "command",
+    "name",
+    "filename",
+    "lines",
+    "frame",
+    "ref",
+    "children",
+    "scope",
+    "local_scope",
+    "expression",
+    "result",
+    "e"
+   ],
+   "name": "_handle"
+  },
+  {
+   "line": 177,
+   "locals": [
+    "line",
+    "command",
+    "e"
+   ],
+   "name": "_poll"
+  },
+  {
+   "line": 193,
+   "locals": [
+    "frame",
+    "reason"
+   ],
+   "name": "_stop"
+  },
+  {
+   "line": 200,
+   "locals": [
+    "",
+    "f"
+   ],
+   "name": "<listcomp>"
+  },
+  {
+   "line": 213,
+   "locals": [
+    "frame",
+    "lines"
+   ],
+   "name": "_should_stop"
+  },
+  {
+   "line": 227,
+   "locals": [
+    "frame",
+    "event",
+    "_arg",
+    "reason"
+   ],
+   "name": "_trace_local"
+  },
+  {
+   "line": 241,
+   "locals": [
+    "frame",
+    "event",
+    "_arg"
+   ],
+   "name": "_trace"
+  },
+  {
+   "line": 250,
+   "locals": [
+    "deadline"
+   ],
+   "name": "start"
+  }
+ ],
+ "lsm6ds3.py": [
+  {
+   "line": 38,
+   "locals": [
+    "val",
+    "bits",
+    "mask"
+   ],
+   "name": "twos_comp"
+  },
+  {
+   "line": 49,
+   "locals": [
+    "self",
+    "i2c",
+    "address",
+    "mode"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 78,
+   "locals": [
+    "self",
+    "reg",
+    "size"
+   ],
+   "name": "_read_reg"
+  },
+  {
+   "line": 83,
+   "locals": [
+    "self",
+    "data",
+    "gx",
+    "gy",
+    "gz",
+    "ax",
+    "ay",
+    "az"
+   ],
+   "name": "get_readings"
+  },
+  {
+   "line": 107,
+   "locals": [
+    "self",
+    "data",
+    "steps"
+   ],
+   "name": "get_step_count"
+  },
+  {
+   "line": 113,
+   "locals": [
+    "self"
+   ],
+   "name": "reset_step_count"
+  },
+  {
+   "line": 119,
+   "locals": [
+    "self",
+    "tilt"
+   ],
+   "name": "tilt_detected"
+  },
+  {
+   "line": 124,
+   "locals": [
+    "self",
+    "sig"
+   ],
+   "name": "sig_motion_detected"
+  },
+  {
+   "line": 129,
+   "locals": [
+    "self",
+    "s"
+   ],
+   "name": "single_tap_detected"
+  },
+  {
+   "line": 134,
+   "locals": [
+    "self",
+    "d"
+   ],
+   "name": "double_tap_detected"
+  },
+  {
+   "line": 139,
+   "locals": [
+    "self",
+    "fall"
+   ],
+   "name": "freefall_detected"
+  }
+ ],
+ "pimoroni.py": [
+  {
+   "line": 11,
+   "locals": [
+    "self",
+    "pin",
+    "amplifier_gain",
+    "resistor",
+    "offset"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 17,
+   "locals": [
+    "self"
+   ],
+   "name": "read_voltage"
+  },
+  {
+   "line": 20,
+   "locals": [
+    "self"
+   ],
+   "name": "read_current"
+  },
+  {
+   "line": 27,
+   "locals": [
+    "self",
+    "addr0",
+    "addr1",
+    "addr2",
+    "en",
+    "muxed_pin"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 40,
+   "locals": [
+    "self",
+    "address"
+   ],
+   "name": "select"
+  },
+  {
+   "line": 62,
+   "locals": [
+    "self"
+   ],
+   "name": "disable"
+  },
+  {
+   "line": 68,
+   "locals": [
+    "self",
+    "address",
+    "pull"
+   ],
+   "name": "configure_pull"
+  },
+  {
+   "line": 75,
+   "locals": [
+    "self"
+   ],
+   "name": "read"
+  },
+  {
+   "line": 82,
+   "locals": [
+    "self",
+    "button",
+    "invert",
+    "repeat_time",
+    "hold_time"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 91,
+   "locals": [
+    "self",
+    "current_time",
+    "state",
+    "changed",
+    "repeat_rate"
+   ],
+   "name": "read"
+  },
+  {
+   "line": 120,
+   "locals": [
+    "self"
+   ],
+   "name": "raw"
+  },
+  {
+   "line": 126,
+   "locals": [
+    "self"
+   ],
+   "name": "is_pressed"
+  },
+  {
+   "line": 131,
+   "locals": [
+    "self",
+    "r",
+    "g",
+    "b",
+    "invert"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 140,
+   "locals": [
+    "self",
+    "r",
+    "g",
+    "b"
+   ],
+   "name": "set_rgb"
+  },
+  {
+   "line": 152,
+   "locals": [
+    "self",
+    "kp",
+    "ki",
+    "kd",
+    "sample_rate"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 161,
+   "locals": [
+    "self",
+    "value",
+    "value_change",
+    "error",
+    "rate_error"
+   ],
+   "name": "calculate"
+  },
+  {
+   "line": 174,
+   "locals": [
+    "self",
+    "pin"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 177,
+   "locals": [
+    "self",
+    "freq",
+    "duty"
+   ],
+   "name": "set_tone"
+  },
+  {
+   "line": 188,
+   "locals": [
+    "self",
+    "clk",
+    "lat",
+    "dat"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 193,
+   "locals": [
+    "self",
+    "_"
+   ],
+   "name": "__iter__"
+  },
+  {
+   "line": 201,
+   "locals": [
+    "self",
+    "k"
+   ],
+   "name": "__getitem__"
+  },
+  {
+   "line": 204,
+   "locals": [
+    "self",
+    "out",
+    "bit"
+   ],
+   "name": "read"
+  },
+  {
+   "line": 211,
+   "locals": [
+    "self",
+    "mask"
+   ],
+   "name": "is_set"
+  },
+  {
+   "line": 218,
+   "locals": [
+    "self",
+    "pin",
+    "invert"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 225,
+   "locals": [
+    "self",
+    "brightness"
+   ],
+   "name": "brightness"
+  },
+  {
+   "line": 232,
+   "locals": [
+    "self"
+   ],
+   "name": "on"
+  },
+  {
+   "line": 235,
+   "locals": [
+    "self"
+   ],
+   "name": "off"
+  },
+  {
+   "line": 238,
+   "locals": [
+    "self"
+   ],
+   "name": "toggle"
+  }
+ ],
+ "qwstpad.py": [
+  {
+   "line": 38,
+   "locals": [
+    "self",
+    "i2c",
+    "address",
+    "show_address",
+    "key",
+    "_"
+   ],
+   "name": "__init__"
+  },
+  {
+   "line": 58,
+   "locals": [
+    "self"
+   ],
+   "name": "address_code"
+  },
+  {
+   "line": 61,
+   "locals": [
+    "self",
+    "state",
+    "key",
+    "value"
+   ],
+   "name": "read_buttons"
+  },
+  {
+   "line": 67,
+   "locals": [
+    "self",
+    "states"
+   ],
+   "name": "set_leds"
+  },
+  {
+   "line": 71,
+   "locals": [
+    "self",
+    "led",
+    "state"
+   ],
+   "name": "set_led"
+  },
+  {
+   "line": 78,
+   "locals": [
+    "self"
+   ],
+   "name": "clear_leds"
+  },
+  {
+   "line": 82,
+   "locals": [
+    "self",
+    "output",
+    "i"
+   ],
+   "name": "__update_leds"
+  },
+  {
+   "line": 88,
+   "locals": [
+    "self",
+    "num",
+    "bit_pos"
+   ],
+   "name": "__get_bit"
+  },
+  {
+   "line": 91,
+   "locals": [
+    "self",
+    "num",
+    "bit_pos",
+    "state"
+   ],
+   "name": "__change_bit"
+  },
+  {
+   "line": 94,
+   "locals": [
+    "self",
+    "i2c",
+    "address",
+    "reg",
+    "value",
+    "buffer"
+   ],
+   "name": "__reg_write_uint16"
+  },
+  {
+   "line": 98,
+   "locals": [
+    "self",
+    "i2c",
+    "address",
+    "reg",
+    "buffer"
+   ],
+   "name": "__reg_read_uint16"
+  }
+ ],
+ "screenshot.py": [
+  {
+   "line": 20,
+   "locals": [
+    "data"
+   ],
+   "name": "_crc32"
+  },
+  {
+   "line": 32,
+   "locals": [
+    "data",
+    "n",
+    "c",
+    "_",
+    "crc",
+    "byte"
+   ],
+   "name": "_crc32_fallback"
+  },
+  {
+   "line": 46,
+   "locals": [
+    "file",
+    "tag",
+    "data"
+   ],
+   "name": "_png_chunk"
+  },
+  {
+   "line": 60,
+   "locals": [
+    "row_bytes",
+    "bits"
+   ],
+   "name": "_window_bits"
+  },
+  {
+   "line": 67,
+   "locals": [
+    "file",
+    "raw",
+    "width",
+    "height",
+    "stride",
+    "row_bytes",
+    "filtered",
+    "stream",
+    "y",
+    "start"
+   ],
+   "name": "_write_png"
+  },
+  {
+   "line": 86,
+   "locals": [
+    "file",
+    "raw",
+    "width",
+    "height",
+    "stride",
+    "row_bytes",
+    "padding",
+    "image_size",
+    "offset",
+    "pad",
+    "y",
+    "start",
+    "row",
+    "src",
+    "dst"
+   ],
+   "name": "_write_bmp"
+  },
+  {
+   "line": 114,
+   "locals": [
+    "existing",
+    "n"
+   ],
+   "name": "_next_auto_path"
+  },
+  {
+   "line": 131,
+   "locals": [
+    "path",
+    "source",
+    "lower",
+    "writer",
+    "raw",
+    "width",
+    "height",
+    "stride",
+    "file"
+   ],
+   "name": "save"
+  }
+ ],
+ "secrets.py": [
+  {
+   "line": 22,
+   "locals": [
+    "keys",
+    "required",
+    "secrets"
+   ],
+   "name": "require"
+  },
+  {
+   "line": 23,
+   "locals": [
+    "secrets",
+    "",
+    "key"
+   ],
+   "name": "<listcomp>"
+  }
+ ],
+ "wifi.py": [
+  {
+   "line": 27,
+   "locals": [
+    "index"
+   ],
+   "name": "get_status"
+  },
+  {
+   "line": 34,
+   "locals": [
+    "timed_out",
+    "error"
+   ],
+   "name": "_tick"
+  },
+  {
+   "line": 55,
+   "locals": [
+    "ssid",
+    "psk",
+    "timeout",
+    "retries"
+   ],
+   "name": "connect"
+  }
+ ]
+}

@@ -1,5 +1,7 @@
 import { SCRATCH_PATH, librarySourcePath } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
+import { activeBoard } from './boards.js';
+import { nameLocals } from './locals.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -49,6 +51,14 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   const currentLineDecorations = editor.createDecorationsCollection();
   let client = null;
   let scratchKey = null;
+  let localsTables = null;
+
+  const loadLocalsTables = () => {
+    localsTables ??= fetch(new URL(activeBoard().simulator + 'locals.json', import.meta.url))
+      .then((response) => (response.ok ? response.json() : {}))
+      .catch(() => ({}));
+    return localsTables;
+  };
   let stopped = null;
   let selectedFrame = 0;
   const watches = loadWatches();
@@ -246,6 +256,10 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       return null;
     });
     if (!scopes || stopped !== stop) return;
+    if (Array.isArray(scopes.locals) && !frame.user) {
+      scopes.locals = nameLocals(scopes.locals, await loadLocalsTables(), frame);
+      if (stopped !== stop) return;
+    }
     const hasLocals = Array.isArray(scopes.locals);
     els.localsTitle.hidden = !hasLocals;
     els.locals.hidden = !hasLocals;

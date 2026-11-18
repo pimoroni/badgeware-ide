@@ -254,7 +254,7 @@ async function initApp() {
       watchList: document.getElementById('debug-watch'),
       watchAdd:  document.getElementById('debug-watch-add'),
     },
-    { editor, tabs, setStatus },
+    { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile) },
   );
 
   if (badgeDevice) {

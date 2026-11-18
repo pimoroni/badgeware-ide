@@ -1,5 +1,5 @@
 import { SCRATCH_PATH, librarySourcePath } from './device/paths.js';
-import { getSystemPaths } from './fs.js';
+import { getSystemPaths, userFS } from './fs.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -43,7 +43,7 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function createDebugger(els, { editor, tabs, setStatus }) {
+export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null }) {
   const breakpoints = loadBreakpoints();
   const breakpointDecorations = editor.createDecorationsCollection();
   const currentLineDecorations = editor.createDecorationsCollection();
@@ -213,6 +213,13 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     els.screen.classList.add('ready');
   }
 
+  async function showSource(path, user) {
+    if (tabs.focusPath(path)) return;
+    if (!user) await tabs.openFile(path, { system: true });
+    else if (userFS.get(path)) await tabs.openFile(path);
+    else await openBadgeFile?.(path);
+  }
+
   async function revealFrame(index) {
     const stop = stopped;
     if (!stop) return;
@@ -221,10 +228,10 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
     const path = sourcePath(frame);
     if (path && activeTarget()?.file !== path) {
-      await tabs.openFile(path, { system: !frame.user });
+      await showSource(path, frame.user);
       if (stopped !== stop) return;
-      editor.revealLineInCenterIfOutsideViewport(frame.line);
     }
+    if (path && activeTarget()?.file === path) editor.revealLineInCenterIfOutsideViewport(frame.line);
     renderCurrentLine();
     els.globals.replaceChildren(element('p', 'debug-empty', 'Loading…'));
     const scopes = await client.request({ cmd: 'scopes', frame: index }, 'scopes').catch((error) => {

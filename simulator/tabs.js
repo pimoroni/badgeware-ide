@@ -53,6 +53,14 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
   // File-tree decoration sources (the file browser pulls these in syncRows). Only
   // file-backed tabs have a path; scratch buffers don't and aren't represented.
   const openPaths     = () => new Set([...openModels.values()].filter((t) => t.path).map((t) => t.path));
+  const SOURCE_PREFERENCE = ['user', 'badge', 'sys'];
+  function focusPath(path) {
+    const matches = [...openModels.entries()].filter(([, t]) => t.path === path && t.view === 'editor');
+    matches.sort(([, a], [, b]) => SOURCE_PREFERENCE.indexOf(a.source) - SOURCE_PREFERENCE.indexOf(b.source));
+    if (!matches.length) return false;
+    focusTab(matches[0][0]);
+    return true;
+  }
   const transientPath = () => (transientTabKey ? openModels.get(transientTabKey)?.path ?? null : null);
   // Read-only = system files and image previews; editable = user text files + scratch.
   const isReadOnly = (t) => t.source === 'sys' || t.source === 'badge' || t.view === 'image';
@@ -708,7 +716,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     // highlight composes with open/transient on whichever tree the file lives in.
     activePath: () => activeTab()?.path ?? null,
     activeInfo: () => { const t = activeTab(); return t ? { source: t.source, view: t.view, path: t.path ?? null, name: t.name ?? null } : null; },
-    openPaths, transientPath,
+    openPaths, transientPath, focusPath,
     isTextFile: (p) => FILE_HANDLERS[p.slice(p.lastIndexOf('.')).toLowerCase()]?.kind === 'text',
     openFile:   (path, { transient = false, system = false } = {}) => (system ? openSysFile(path, transient) : openUserFile(path, transient)),
     openBadgeFile: (path, load, { transient = false } = {}) => openSysFile(path, transient, 'badge', load),

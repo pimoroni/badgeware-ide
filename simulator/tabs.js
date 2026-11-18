@@ -707,7 +707,7 @@ export function createTabs(panes, { editor, setStatus, flashStatus, notifyRunTar
     // The active file's path (any source/view), or null for scratch — so the
     // highlight composes with open/transient on whichever tree the file lives in.
     activePath: () => activeTab()?.path ?? null,
-    activeInfo: () => { const t = activeTab(); return t ? { source: t.source, view: t.view, path: t.path ?? null } : null; },
+    activeInfo: () => { const t = activeTab(); return t ? { source: t.source, view: t.view, path: t.path ?? null, name: t.name ?? null } : null; },
     openPaths, transientPath,
     isTextFile: (p) => FILE_HANDLERS[p.slice(p.lastIndexOf('.')).toLowerCase()]?.kind === 'text',
     openFile:   (path, { transient = false, system = false } = {}) => (system ? openSysFile(path, transient) : openUserFile(path, transient)),

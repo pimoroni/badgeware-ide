@@ -1,3 +1,5 @@
+import { SCRATCH_PATH } from './device/paths.js';
+
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
 const WATCH_INTERVAL_MS = 1000;
@@ -52,14 +54,19 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   let watchBusy = false;
   let screenRequest = 0;
 
-  const activeUserPath = () => {
+  const CODE_SOURCES = ['user', 'badge', 'sys'];
+
+  const activeTarget = () => {
     const info = tabs.activeInfo();
-    return info?.source === 'user' && info.view === 'editor' ? info.path : null;
+    if (!info || info.view !== 'editor') return null;
+    if (info.source === 'scratch') return { key: `scratch:${info.name}`, file: SCRATCH_PATH };
+    if (CODE_SOURCES.includes(info.source) && info.path?.endsWith('.py')) return { key: info.path, file: info.path };
+    return null;
   };
 
   function renderBreakpoints() {
-    const path = activeUserPath();
-    const lines = path ? [...(breakpoints.get(path) ?? [])] : [];
+    const target = activeTarget();
+    const lines = target ? [...(breakpoints.get(target.key) ?? [])] : [];
     breakpointDecorations.set(lines.map((line) => ({
       range: new monaco.Range(line, 1, line, 1),
       options: {
@@ -73,8 +80,8 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
 
   function renderCurrentLine() {
     const frame = stopped?.stack[selectedFrame];
-    const path = activeUserPath();
-    if (!frame || !path || frame.file !== path) {
+    const target = activeTarget();
+    if (!frame || !target || frame.file !== target.file) {
       currentLineDecorations.clear();
       return;
     }
@@ -85,27 +92,34 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   }
 
   function syncLinesFromDecorations() {
-    const path = activeUserPath();
-    if (!path || !breakpoints.has(path)) return;
+    const target = activeTarget();
+    if (!target || !breakpoints.has(target.key)) return;
     const lines = new Set(breakpointDecorations.getRanges().map((range) => range.startLineNumber));
-    breakpoints.set(path, lines);
+    breakpoints.set(target.key, lines);
     saveBreakpoints(breakpoints);
   }
 
-  function sendBreakpoints(path) {
-    client?.send({ cmd: 'setBreakpoints', file: path, lines: [...(breakpoints.get(path) ?? [])] });
+  function sendBreakpoints(target) {
+    client?.send({ cmd: 'setBreakpoints', file: target.file, lines: [...(breakpoints.get(target.key) ?? [])] });
   }
 
   function toggleBreakpoint(line) {
-    const path = activeUserPath();
-    if (!path || !path.endsWith('.py')) return;
-    const lines = breakpoints.get(path) ?? new Set();
+    const target = activeTarget();
+    if (!target) return;
+    const lines = breakpoints.get(target.key) ?? new Set();
     if (lines.has(line)) lines.delete(line);
     else lines.add(line);
-    breakpoints.set(path, lines);
+    breakpoints.set(target.key, lines);
     saveBreakpoints(breakpoints);
     renderBreakpoints();
-    sendBreakpoints(path);
+    sendBreakpoints(target);
+  }
+
+  function initialBreakpoints() {
+    const entries = [...breakpoints].filter(([key, lines]) => key.startsWith('/') && lines.size);
+    const target = activeTarget();
+    if (target?.file === SCRATCH_PATH) entries.push([SCRATCH_PATH, breakpoints.get(target.key) ?? new Set()]);
+    return Object.fromEntries(entries.filter(([, lines]) => lines.size).map(([file, lines]) => [file, [...lines]]));
   }
 
   editor.updateOptions({ glyphMargin: true });
@@ -202,7 +216,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
     selectedFrame = index;
     const frame = stop.stack[index];
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
-    if (frame.user) {
+    if (frame.user && activeTarget()?.file !== frame.file) {
       await tabs.openFile(frame.file);
       if (stopped !== stop) return;
       editor.revealLineInCenterIfOutsideViewport(frame.line);
@@ -295,7 +309,7 @@ export function createDebugger(els, { editor, tabs, setStatus }) {
   return {
     hooks: () => ({
       init: () => ({
-        breakpoints: Object.fromEntries([...breakpoints].filter(([, lines]) => lines.size).map(([path, lines]) => [path, [...lines]])),
+        breakpoints: initialBreakpoints(),
       }),
       attach(debugClient) {
         client = debugClient;

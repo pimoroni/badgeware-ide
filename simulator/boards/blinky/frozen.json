@@ -1,0 +1,27 @@
+{
+ "files": [
+  "hardware_test.py",
+  "_boot.py",
+  "badgeware/__init__.py",
+  "badgeware/badge.py",
+  "badgeware/filesystem.py",
+  "badgeware/math.py",
+  "badgeware/memory.py",
+  "badgeware/rtc.py",
+  "badgeware/state.py",
+  "badgeware/text.py",
+  "board.py",
+  "boot.py",
+  "easing.py",
+  "fetch.py",
+  "ide.py",
+  "ide_debug.py",
+  "lsm6ds3.py",
+  "main.py",
+  "pimoroni.py",
+  "qwstpad.py",
+  "screenshot.py",
+  "secrets.py",
+  "wifi.py"
+ ]
+}

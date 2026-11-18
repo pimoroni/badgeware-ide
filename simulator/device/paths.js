@@ -2,6 +2,12 @@ export const SCRATCH_PATH = '/.ide/scratch.py';
 
 const APP_PATTERN = /^\/(apps|contrib)\/([^/]+)(\/.*)?$/;
 
+export const FROZEN_PREFIX = '/.frozen/';
+
+export function frozenSourcePath(file, frozenFiles) {
+  return frozenFiles.has(file) ? FROZEN_PREFIX + file : null;
+}
+
 export function librarySourcePath(file, systemPaths) {
   if (!file || file.startsWith('/') || file.startsWith('<')) return null;
   const path = '/' + file.replace(/^\.frozen\//, '');

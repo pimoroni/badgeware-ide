@@ -124,10 +124,27 @@ def write_locals(source, mpy_cross, output):
 
 
 def copy_frozen(source, output):
+    files = []
     for path, frozen in frozen_sources(source):
         target = output / "frozen" / frozen
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
+        files.append(frozen)
+    (output / "frozen.json").write_text(json.dumps({"files": files}, indent=1) + "\n")
+
+
+def git_output(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def write_provenance(repo, ref, board, output):
+    provenance = {
+        "board": board,
+        "commit": git_output(repo, "rev-parse", ref),
+        "version": git_output(repo, "describe", "--tags", "--always", ref),
+    }
+    (output / "bundle.json").write_text(json.dumps(provenance, indent=1) + "\n")
+    return provenance
 
 
 def add_stubs(output):
@@ -170,8 +187,8 @@ def main():
             shutil.rmtree(board_dir / "frozen", ignore_errors=True)
             copy_frozen(source, board_dir)
         tables = write_locals(source, args.mpy_cross, board_dir) if args.mpy_cross else 0
-    commit = subprocess.run(["git", "-C", str(args.repo), "rev-parse", "--short", args.ref], check=True, capture_output=True, text=True).stdout.strip()
-    print(f"{args.board}: bundled {args.repo} {args.ref} ({commit}) into {board_dir}, {tables} locals tables")
+    provenance = write_provenance(args.repo, args.ref, args.board, board_dir)
+    print(f"{args.board}: bundled {args.repo} {args.ref} ({provenance['version']}) into {board_dir}, {tables} locals tables")
 
 
 if __name__ == "__main__":

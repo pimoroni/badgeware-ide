@@ -1,4 +1,4 @@
-import { SCRATCH_PATH, librarySourcePath } from './device/paths.js';
+import { FROZEN_PREFIX, SCRATCH_PATH, frozenSourcePath, librarySourcePath } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
 import { activeBoard } from './boards.js';
 import { nameLocals } from './locals.js';
@@ -52,9 +52,23 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   let client = null;
   let scratchKey = null;
   let localsTables = null;
+  let frozenFiles = new Set();
+
+  const boardFile = (name) => new URL(activeBoard().simulator + name, import.meta.url);
+
+  fetch(boardFile('frozen.json'))
+    .then((response) => (response.ok ? response.json() : { files: [] }))
+    .then(({ files }) => { frozenFiles = new Set(files); })
+    .catch(() => {});
+
+  const loadFrozenFile = (path, as) => fetch(boardFile('frozen/' + path.slice(FROZEN_PREFIX.length)))
+    .then((response) => {
+      if (!response.ok) return null;
+      return as === 'text' ? response.text() : response.arrayBuffer();
+    });
 
   const loadLocalsTables = () => {
-    localsTables ??= fetch(new URL(activeBoard().simulator + 'locals.json', import.meta.url))
+    localsTables ??= fetch(boardFile('locals.json'))
       .then((response) => (response.ok ? response.json() : {}))
       .catch(() => ({}));
     return localsTables;
@@ -79,7 +93,10 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     return null;
   };
 
-  const sourcePath = (frame) => (frame.user ? frame.file : librarySourcePath(frame.file, getSystemPaths()));
+  const sourcePath = (frame) => {
+    if (frame.user) return frame.file;
+    return frozenSourcePath(frame.file, frozenFiles) ?? librarySourcePath(frame.file, getSystemPaths());
+  };
 
   function renderBreakpoints() {
     const target = activeTarget();
@@ -232,7 +249,8 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       return;
     }
     if (tabs.focusPath(path)) return;
-    if (!user) await tabs.openFile(path, { system: true });
+    if (path.startsWith(FROZEN_PREFIX)) await tabs.openBadgeFile(path, loadFrozenFile);
+    else if (!user) await tabs.openFile(path, { system: true });
     else if (userFS.get(path)) await tabs.openFile(path);
     else await openBadgeFile?.(path);
   }

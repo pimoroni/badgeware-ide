@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runTargetFor, badgeRunTarget, librarySourcePath, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
+import { runTargetFor, badgeRunTarget, frozenSourcePath, librarySourcePath, appSlug, slugify, SCRATCH_PATH } from '../simulator/device/paths.js';
 
 test('apps run as a whole, other files on their own', () => {
   assert.deepEqual(runTargetFor('/apps/snake/game.py'), { kind: 'app', slug: 'snake', path: '/apps/snake' });
@@ -42,4 +42,11 @@ test('library frames map to the bundled source', () => {
   assert.equal(librarySourcePath('ide_debug.py', bundle), null);
   assert.equal(librarySourcePath('/apps/clock/__init__.py', bundle), null);
   assert.equal(librarySourcePath('<stdin>', bundle), null);
+});
+
+test('frozen frames map to the firmware sources when bundled', () => {
+  const frozen = new Set(['badgeware/text.py', 'ide.py']);
+  assert.equal(frozenSourcePath('badgeware/text.py', frozen), '/.frozen/badgeware/text.py');
+  assert.equal(frozenSourcePath('ide.py', frozen), '/.frozen/ide.py');
+  assert.equal(frozenSourcePath('wifi.py', frozen), null);
 });

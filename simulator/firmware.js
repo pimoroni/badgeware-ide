@@ -4,6 +4,7 @@ import { romfsPaths, imageFromSectors } from './device/romfs.js';
 import { activeBoard, boardForModel, boardForProductId } from './boards.js';
 
 const MANIFEST_URL = 'firmware/manifest.json';
+const BOOTSEL_WAIT_MS = 6000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const webUsbSupported = () => typeof navigator !== 'undefined' && 'usb' in navigator;
@@ -76,6 +77,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
   const closeButton = dialog.querySelector('[data-firmware="close"]');
   const fileInput = dialog.querySelector('input[type="file"]');
   let plan = null;
+  let pendingFonts = [];
   let busy = false;
   let board = activeBoard();
 
@@ -143,7 +145,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
     confirm.hidden = !destructive;
     body.querySelector('.firmware-backup').hidden = !destructive || !onBackup || !device.connected;
     flashButton.disabled = busy || !key || (destructive && !confirm.querySelector('input').checked);
-    const ready = flashButton.dataset.ready === 'yes';
+    const ready = flashButton.dataset.ready === 'yes' || flashButton.dataset.ready === 'pick';
     flashButton.textContent = ready ? 'Install' : key === 'file' ? 'Choose file…' : 'Download';
   }
 
@@ -178,11 +180,41 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
     return fonts;
   }
 
-  async function bootselDevice() {
-    const known = await findBootsel();
-    if (known) return known;
-    const chosen = navigator.usb.requestDevice({ filters: BOOTSEL_FILTERS });
-    return chosen;
+  async function waitForBootsel() {
+    for (let waited = 0; waited < BOOTSEL_WAIT_MS; waited += 200) {
+      const found = await findBootsel();
+      if (found) return found;
+      await sleep(200);
+    }
+    return null;
+  }
+
+  async function flash(usbDevice, fonts) {
+    const picoboot = new Picoboot(usbDevice);
+    await picoboot.open();
+    const result = await picoboot.flash(plan.sectors, ({ phase, done, total }) => {
+      setStatus(phase === 'check' ? 'Checking what needs writing…' : 'Writing firmware…', total ? done / total : null);
+    });
+    setStatus('Restarting your badge…', null);
+    await picoboot.reboot();
+    await picoboot.close();
+    let connected = false;
+    for (let attempt = 0; attempt < 20 && !connected; attempt++) {
+      await sleep(1000);
+      connected = await connect({ prompt: false });
+    }
+    for (const [index, font] of fonts.entries()) {
+      setStatus(`Putting back ${font.path} (${index + 1}/${fonts.length})…`);
+      await device.romInstall(font.path, font.bytes);
+    }
+    const summary = `Installed ${plan.label}. Wrote ${result.written} of ${result.checked} sectors.`;
+    if (connected) {
+      setStatus('');
+      dialog.close();
+    } else {
+      setStatus(`${summary} Click Connect badge to reconnect.`);
+    }
+    onFinished?.(summary);
   }
 
   async function install() {
@@ -191,6 +223,12 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
     sync();
     closeButton.disabled = true;
     try {
+      if (flashButton.dataset.ready === 'pick') {
+        const usbDevice = await navigator.usb.requestDevice({ filters: BOOTSEL_FILTERS });
+        delete flashButton.dataset.ready;
+        await flash(usbDevice, pendingFonts);
+        return;
+      }
       if (key === 'file') {
         plan = await prepare(key);
         if (!plan) return;
@@ -205,41 +243,16 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
         return;
       }
       delete flashButton.dataset.ready;
-      const fonts = plan.keepsFiles ? await savedRomFonts(plan.sectors) : [];
-      setStatus('Restarting your badge in update mode. Pick "RP2350 Boot" if your browser asks.');
-      const reboot = device.enterBootloader();
-      let usbDevice = await bootselDevice();
-      await reboot;
-      for (let attempt = 0; attempt < 50 && !usbDevice; attempt++) {
-        await sleep(200);
-        usbDevice = await findBootsel();
+      pendingFonts = plan.keepsFiles ? await savedRomFonts(plan.sectors) : [];
+      setStatus('Restarting your badge in update mode…');
+      await device.enterBootloader();
+      const usbDevice = await waitForBootsel();
+      if (!usbDevice) {
+        flashButton.dataset.ready = 'pick';
+        setStatus('Your badge is in update mode. Click Install, then pick "RP2350 Boot".');
+        return;
       }
-      if (!usbDevice) throw new Error('Your badge did not appear in update mode.');
-      const picoboot = new Picoboot(usbDevice);
-      await picoboot.open();
-      const result = await picoboot.flash(plan.sectors, ({ phase, done, total }) => {
-        setStatus(phase === 'check' ? 'Checking what needs writing…' : 'Writing firmware…', total ? done / total : null);
-      });
-      setStatus('Restarting your badge…', null);
-      await picoboot.reboot();
-      await picoboot.close();
-      let connected = false;
-      for (let attempt = 0; attempt < 20 && !connected; attempt++) {
-        await sleep(1000);
-        connected = await connect({ prompt: false });
-      }
-      for (const [index, font] of fonts.entries()) {
-        setStatus(`Putting back ${font.path} (${index + 1}/${fonts.length})…`);
-        await device.romInstall(font.path, font.bytes);
-      }
-      const summary = `Installed ${plan.label}. Wrote ${result.written} of ${result.checked} sectors.`;
-      if (connected) {
-        setStatus('');
-        dialog.close();
-      } else {
-        setStatus(`${summary} Click Connect badge to reconnect.`);
-      }
-      onFinished?.(summary);
+      await flash(usbDevice, pendingFonts);
     } catch (error) {
       setStatus('✕ ' + (error.name === 'NotFoundError' ? 'No badge was chosen. Click Install to try again.' : error.message));
     } finally {

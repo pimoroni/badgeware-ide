@@ -769,7 +769,7 @@ export function initBadge3D(simulator, appendOut, wrap, board = activeBoard()) {
         root.updateWorldMatrix(true, true);
 
         // LED world positions: baked sim_led_* markers, else RM051_4 bbox-relative.
-        const markers = ['sim_led_0', 'sim_led_1', 'sim_led_2', 'sim_led_3'].map(n => root.getObjectByName(n));
+        const markers = ['sim_led_3', 'sim_led_1', 'sim_led_0', 'sim_led_2'].map(n => root.getObjectByName(n));
         const haveMarkers = markers.every(Boolean);
         const rm4 = root.getObjectByName('RM051_4');
         const FALLBACK = [

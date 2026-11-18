@@ -31,21 +31,22 @@ def assets(release):
     names = [asset["name"] for asset in release["assets"]]
     full = next((name for name in names if name.endswith("-with-filesystem.uf2")), None)
     firmware = next((name for name in names if name.endswith(".uf2") and not name.endswith("-with-filesystem.uf2")), None)
-    return firmware, full
+    simulator = next((name for name in names if name.endswith("-simulator.zip")), None)
+    return firmware, full, simulator
 
 
 def mirror(repo, board, release):
-    firmware, full = assets(release)
+    firmware, full, simulator = assets(release)
     if not firmware or not full:
         return None
     tag = release["tag_name"]
     target = OUT / board / tag
     target.mkdir(parents=True, exist_ok=True)
-    for name in (firmware, full):
-        if not (target / name).exists():
+    for name in (firmware, full, simulator):
+        if name and not (target / name).exists():
             gh("release", "download", tag, "-R", repo, "-p", name, "-D", str(target))
     base = f"firmware/{board}/{tag}/"
-    return {
+    entry = {
         "tag": tag,
         "name": release["name"] or tag,
         "published": release["published_at"],
@@ -53,6 +54,9 @@ def mirror(repo, board, release):
         "firmware": base + firmware,
         "full": base + full,
     }
+    if simulator:
+        entry["simulator"] = base + simulator
+    return entry
 
 
 def board_releases(repo, board, keep):

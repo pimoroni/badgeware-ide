@@ -28,6 +28,10 @@ def collect(directory: Path, ext: str) -> list[str]:
     return sorted(p.name for p in directory.iterdir() if p.suffix.lower() == ext)
 
 
+def display(path: Path) -> Path:
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
+
+
 def write_manifests(board_dir: Path) -> None:
     filesystem = board_dir / "filesystem"
     sources = {
@@ -38,7 +42,7 @@ def write_manifests(board_dir: Path) -> None:
     fonts_out = board_dir / "fonts-manifest.json"
     fonts_out.write_text(json.dumps(manifest, indent=2) + "\n")
     counts = ", ".join(f"{len(v)} {k}" for k, v in manifest.items())
-    print(f"Wrote {fonts_out.relative_to(ROOT)} ({counts})")
+    print(f"Wrote {display(fonts_out)} ({counts})")
 
     files = {
         "/" + path.relative_to(filesystem).as_posix(): path.stat().st_size
@@ -47,7 +51,7 @@ def write_manifests(board_dir: Path) -> None:
     }
     filesystem_out = board_dir / "filesystem.json"
     filesystem_out.write_text(json.dumps({"files": dict(sorted(files.items()))}, indent=4) + "\n")
-    print(f"Wrote {filesystem_out.relative_to(ROOT)} ({len(files)} files)")
+    print(f"Wrote {display(filesystem_out)} ({len(files)} files)")
 
 
 def main() -> int:

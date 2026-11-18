@@ -5,14 +5,21 @@ Writes simulator/boards/<board>/filesystem/ and filesystem.json (and fonts-manif
 from a git ref of the board's firmware repo, in the badge's flat LittleFS layout, plus
 the simulator stubs shared with the Tufty bundle.
 
-Usage: tools/bundle_board.py <board> <repo> [ref]
+Usage: tools/bundle_board.py <board> <repo> [ref] [--output DIR] [--mpy-cross PATH] [--frozen] [--locals-only]
 
     tools/bundle_board.py badger ../badger2350
     tools/bundle_board.py blinky ../blinky2350 feature/ide-littlefs
+    tools/bundle_board.py tufty ../tufty2350 HEAD --locals-only --mpy-cross ../micropython/mpy-cross/build/mpy-cross
+
+With --mpy-cross (an mpy-cross that supports --locals) it also writes locals.json, the local
+variable names of every function in the board's frozen modules, keyed by frozen path. With
+--frozen it copies those frozen sources into frozen/, so a release asset carries the exact
+source the firmware was built from.
 """
 
 import argparse
 import io
+import json
 import pathlib
 import shutil
 import subprocess
@@ -54,6 +61,8 @@ REWRITES = [
     (".frozen/badgeware/", "badgeware/"),
 ]
 
+FROZEN_ROOTS = ["modules/python", "modules/common"]
+
 
 def source_paths():
     return sorted({source.split("/")[0] for source, _ in LAYOUT})
@@ -93,6 +102,34 @@ def assemble(source, output):
             shutil.copyfile(path, target)
 
 
+def frozen_sources(source):
+    for root in FROZEN_ROOTS:
+        base = source / root
+        for path in sorted(base.rglob("*.py")):
+            yield path, path.relative_to(base).as_posix()
+
+
+def write_locals(source, mpy_cross, output):
+    tables = {}
+    with tempfile.TemporaryDirectory() as temp:
+        compiled = pathlib.Path(temp) / "module.mpy"
+        names = pathlib.Path(temp) / "locals.json"
+        for path, frozen in frozen_sources(source):
+            subprocess.run([mpy_cross, "-s", frozen, "-o", str(compiled), "--locals", str(names), str(path)], check=True)
+            functions = json.loads(names.read_text())["functions"]
+            if functions:
+                tables[frozen] = functions
+    (output / "locals.json").write_text(json.dumps(tables, indent=1, sort_keys=True) + "\n")
+    return len(tables)
+
+
+def copy_frozen(source, output):
+    for path, frozen in frozen_sources(source):
+        target = output / "frozen" / frozen
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+
+
 def add_stubs(output):
     for name in SIMULATOR_FILES:
         target = output / name
@@ -107,22 +144,34 @@ def main():
     parser.add_argument("board", help="board id, eg: badger")
     parser.add_argument("repo", help="firmware git repository, eg: ../badger2350")
     parser.add_argument("ref", nargs="?", default="feature/ide-littlefs", help="git ref to bundle")
+    parser.add_argument("--output", type=pathlib.Path, help="directory to write instead of simulator/boards/<board>")
+    parser.add_argument("--mpy-cross", help="mpy-cross with --locals support, to write locals.json")
+    parser.add_argument("--frozen", action="store_true", help="also copy the frozen module sources into frozen/")
+    parser.add_argument("--locals-only", action="store_true", help="only write locals.json")
     args = parser.parse_args()
 
-    if args.board == "tufty":
+    board_dir = args.output or BOARDS / args.board
+    if args.locals_only and not args.mpy_cross:
+        parser.error("--locals-only needs --mpy-cross")
+    if args.board == "tufty" and args.output is None and not args.locals_only:
         parser.error("the Tufty bundle carries hand-made simulator patches and contrib apps; edit it in place")
 
-    board_dir = BOARDS / args.board
-    output = board_dir / "filesystem"
-    shutil.rmtree(output, ignore_errors=True)
+    board_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as temp:
         source = pathlib.Path(temp)
         extract(args.repo, args.ref, source)
-        assemble(source, output)
-    add_stubs(output)
-    write_manifests(board_dir)
+        if not args.locals_only:
+            output = board_dir / "filesystem"
+            shutil.rmtree(output, ignore_errors=True)
+            assemble(source, output)
+            add_stubs(output)
+            write_manifests(board_dir)
+        if args.frozen:
+            shutil.rmtree(board_dir / "frozen", ignore_errors=True)
+            copy_frozen(source, board_dir)
+        tables = write_locals(source, args.mpy_cross, board_dir) if args.mpy_cross else 0
     commit = subprocess.run(["git", "-C", str(args.repo), "rev-parse", "--short", args.ref], check=True, capture_output=True, text=True).stdout.strip()
-    print(f"{args.board}: bundled {args.repo} {args.ref} ({commit})")
+    print(f"{args.board}: bundled {args.repo} {args.ref} ({commit}) into {board_dir}, {tables} locals tables")
 
 
 if __name__ == "__main__":

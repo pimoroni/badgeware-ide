@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { activeBoardId, appliesTo, boardForModel, boardForProductId, getBoard, setActiveBoard } from '../simulator/boards.js';
 import { BADGE_FILTERS, SUPPORTED_MODELS } from '../simulator/device/badge.js';
 import { completionsFor } from '../simulator/completions.js';
@@ -107,15 +110,34 @@ test('firmware releases and flash layout come from the board', () => {
   assert.equal(getBoard('badger').firmware.filesystemBase, 0x10300000);
 });
 
-test('the bundle tool maps firmware paths to the flat layout', () => {
-  const script = [
-    'import json, sys',
-    'sys.path.insert(0, "tools")',
-    'from bundle_board import destination, rewrite',
-    'paths = ["firmware/apps/menu/__init__.py", "firmware/fonts/a.af", "firmware/assets/x.png", "modules/common/badgeware/badge.py", "romfs/fonts/sins.ppf", "board/pins.csv"]',
-    'print(json.dumps({"paths": [destination(path) for path in paths], "rewrite": rewrite("__import__(\\".frozen/badgeware/badge\\")")}))',
-  ].join('\n');
-  const result = JSON.parse(execFileSync('python3', ['-c', script], { cwd: new URL('..', import.meta.url) }).toString());
-  assert.deepEqual(result.paths, ['apps/menu/__init__.py', 'fonts/a.af', 'assets/x.png', 'badgeware/badge.py', 'rom/fonts/sins.ppf', null]);
-  assert.equal(result.rewrite, '__import__("badgeware/badge")');
+test('the import tool applies the overlay over a firmware bundle', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'import-bundle-'));
+  const write = (path, text) => {
+    mkdirSync(dirname(join(temp, path)), { recursive: true });
+    writeFileSync(join(temp, path), text);
+  };
+  try {
+    write('bundle/filesystem/apps/menu/__init__.py', 'menu');
+    write('bundle/filesystem/badgeware/rtc.py', 'firmware');
+    write('bundle/filesystem/rom/fonts/sins.ppf', 'ppf');
+    write('bundle/frozen/ide.py', 'ide');
+    write('bundle/frozen.json', '{"files": ["ide.py"]}');
+    write('bundle/locals.json', '{}');
+    write('bundle/bundle.json', '{"board": "badger"}');
+    write('overlay/common/badgeware/rtc.py', 'common');
+    write('overlay/common/powman.py', 'powman');
+    write('overlay/badger2350/apps/menu/__init__.py', 'patched');
+    write('overlay/tufty2350/contrib/x/__init__.py', 'tufty');
+    write('board/filesystem/stale.py', 'stale');
+    execFileSync('python3', ['tools/import_bundle.py', 'badger', join(temp, 'bundle'), join(temp, 'overlay'), '--output', join(temp, 'board')], { cwd: new URL('..', import.meta.url), stdio: 'pipe' });
+    const read = (path) => readFileSync(join(temp, 'board', path), 'utf8');
+    assert.equal(read('filesystem/apps/menu/__init__.py'), 'patched');
+    assert.equal(read('filesystem/badgeware/rtc.py'), 'common');
+    assert.equal(read('frozen/ide.py'), 'ide');
+    assert.equal(read('bundle.json'), '{"board": "badger"}');
+    assert.deepEqual(Object.keys(JSON.parse(read('filesystem.json')).files), ['/apps/menu/__init__.py', '/badgeware/rtc.py', '/powman.py', '/rom/fonts/sins.ppf']);
+    assert.deepEqual(JSON.parse(read('fonts-manifest.json')), { vector: [], pixel: ['sins.ppf'] });
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
 });

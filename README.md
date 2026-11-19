@@ -34,14 +34,14 @@ The Files panel shows the workspace on top and the badge's own files below. Badg
 
 Each board keeps its own browser workspace and open tabs (IndexedDB `badgeware.userfs.<board>`, `badgeware.session.<board>`; Tufty keeps the original `badgeware.userfs` and `badgeware.session`). Completions are one shared set in `simulator/completions.js`; entries tagged `boards: [...]` apply to those boards only and `BOARD_OVERRIDES` replaces or adds per-board entries. Examples in `simulator/examples/manifest.json` take the same `boards` tag.
 
-Simulator builds and bundles live in `simulator/boards/<board>/`: `jspi/` and `asyncify/` (`micropython.{mjs,wasm}` from badgeware-wasm `build-<board>2350-{jspi,asyncify}`), `filesystem/`, `filesystem.json` and `fonts-manifest.json`. The Badger and Blinky bundles are generated from their firmware repos:
+Simulator builds and bundles live in `simulator/boards/<board>/`: `jspi/` and `asyncify/` (`micropython.{mjs,wasm}` from badgeware-wasm `build-<board>2350-{jspi,asyncify}`), `filesystem/`, `filesystem.json`, `fonts-manifest.json`, and the debug tables `frozen/`, `frozen.json`, `locals.json` and `bundle.json`. Each is a firmware debug bundle (badgeware-debug's `tools/bundle.py`, published with each firmware release as `<board>-<version>-micropython-simulator.zip`) with badgeware-wasm's simulator overlay on top:
 
 ```sh
-tools/bundle_board.py badger ../badger2350 feature/ide-littlefs
-tools/bundle_board.py blinky ../blinky2350 feature/ide-littlefs
+tools/import_bundle.py badger ../badger2350-bundle ../web/badgeware-wasm/simulator/overlay
+tools/import_bundle.py tufty tufty-v3.2.0-micropython-simulator.zip ../web/badgeware-wasm/simulator/overlay
 ```
 
-This copies `firmware/{apps,fonts,assets}`, `modules/common/badgeware` and `romfs` into the flat layout, points the badgeware imports away from `.frozen/`, and adds the simulator stubs from the Tufty bundle plus a `cdcaux` stub. The Tufty bundle has hand-made simulator patches and contrib apps, so edit it in place and run `./generate_manifest.py tufty`.
+This replaces `filesystem/` and the debug tables, copies `overlay/common/` and then `overlay/<board>2350/` over the filesystem (simulator stand-ins such as `powman` and `rtc`, a `cdcaux` stub, and Tufty's patched and contrib apps), and regenerates the manifests. Change the overlay in badgeware-wasm rather than editing a bundle in place.
 
 The 3D view uses `static/models/badgeware.glb` for Tufty (with button and case-light markers) and `static/models/badgeware-boards.glb` (badgeware-website's `badgeware-compressed.glb`) for Badger and Blinky, which have keyboard input only.
 

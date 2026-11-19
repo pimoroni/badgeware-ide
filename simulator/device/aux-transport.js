@@ -59,12 +59,17 @@ export class AuxTransport extends Transport {
     this.client = client;
     this.console = null;
     this.interrupted = false;
+    this.runEnded = Promise.resolve();
     client.addEventListener('fs.changed', () => this.emit('fs-changed'));
     client.addEventListener('fs.state', ({ detail }) => this.emit('app-state', detail));
   }
 
   get holdsDebugPort() {
     return true;
+  }
+
+  async idle() {
+    await Promise.all([super.idle(), this.runEnded]);
   }
 
   async open() {
@@ -180,6 +185,8 @@ export class AuxTransport extends Transport {
 
   async run(path, { debug = null, onOutput = null } = {}) {
     if (this.running) throw new BadgeBusyError();
+    let finishRun;
+    this.runEnded = new Promise((resolve) => { finishRun = resolve; });
     const session = debug ? new DebugSession(this.client) : null;
     if (session) debug.attach?.(session);
     this.running = true;
@@ -211,6 +218,7 @@ export class AuxTransport extends Transport {
       this.running = false;
       session?.close();
       this.emit('stopped', { path });
+      finishRun();
     }
   }
 

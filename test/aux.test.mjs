@@ -237,6 +237,26 @@ test('stop ends a run with app.stop and fs.unlock', async () => {
   assert.deepEqual(firmware.commands, ['app.run', 'app.stop', 'fs.unlock']);
 });
 
+test('a run can start straight after stop and idle', async () => {
+  const client = new AuxClient({});
+  const firmware = new FakeFirmware(client, { app: '/apps/menu' });
+  const device = connectedDevice(firmware);
+  firmware.onAppRun = ({ path }) => {
+    firmware.app = path;
+    firmware.emitState();
+  };
+  const first = device.run('/apps/a');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await device.stop();
+  await device.idle();
+  assert.equal(device.running, false);
+  const second = device.run('/apps/b');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await device.stop();
+  assert.equal((await first).interrupted, true);
+  assert.equal((await second).interrupted, true);
+});
+
 test('debug runs share the aux link through a session', async () => {
   const client = new AuxClient({});
   const firmware = new FakeFirmware(client, { app: '/apps/menu' });

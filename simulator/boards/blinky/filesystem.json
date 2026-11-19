@@ -50,7 +50,7 @@
         "/apps/zoooom/icon.png": 923,
         "/assets/icons.png": 1844,
         "/assets/skull.png": 469,
-        "/badgeware/__init__.py": 5396,
+        "/badgeware/__init__.py": 5350,
         "/badgeware/badge.py": 6856,
         "/badgeware/filesystem.py": 362,
         "/badgeware/math.py": 367,

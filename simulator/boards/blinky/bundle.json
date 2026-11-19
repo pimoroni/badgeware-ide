@@ -1,5 +1,9 @@
 {
  "board": "blinky",
- "commit": "0575cba1561e319d6619c31fc12a6c48f3e223de",
- "version": "v3.1.1-19-g0575cba"
+ "commit": "9276b8d9c873ad14c2d940ae0361bf7c3b3ac8b4",
+ "version": "v3.1.1-22-g9276b8d",
+ "debug": {
+  "commit": "e9aa5530ca4f36083c357e3fa3696f5f19ce5614",
+  "version": "e9aa553"
+ }
 }

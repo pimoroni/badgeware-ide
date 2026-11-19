@@ -134,7 +134,7 @@
         "/assets/mona-sprites/mona-love.png": 726,
         "/assets/mona-sprites/mona-notify.png": 541,
         "/assets/skull.png": 469,
-        "/badgeware/__init__.py": 7540,
+        "/badgeware/__init__.py": 7480,
         "/badgeware/badge.py": 7172,
         "/badgeware/filesystem.py": 362,
         "/badgeware/math.py": 367,

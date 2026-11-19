@@ -1,5 +1,9 @@
 {
  "board": "badger",
- "commit": "3bd7b631bc705a0fdcb8a42ccc450f5b1a720c02",
- "version": "v3.1.1-18-g3bd7b63"
+ "commit": "b8dce7d57e661bac8ebfb7c70241f8d9bdfc5d32",
+ "version": "v3.1.1-21-gb8dce7d",
+ "debug": {
+  "commit": "e9aa5530ca4f36083c357e3fa3696f5f19ce5614",
+  "version": "e9aa553"
+ }
 }

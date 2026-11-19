@@ -99,13 +99,14 @@
   {
    "line": 110,
    "locals": [
-    "_pin"
+    "_pin",
+    "ide_session"
    ],
-   "n_state": 5,
+   "n_state": 6,
    "name": "quit_to_ide"
   },
   {
-   "line": 143,
+   "line": 144,
    "locals": [
     "e",
     "s"
@@ -114,7 +115,7 @@
    "name": "get_exception"
   },
   {
-   "line": 152,
+   "line": 153,
    "locals": [
     "title",
     "msg",
@@ -131,20 +132,13 @@
    "name": "message"
   },
   {
-   "line": 216,
-   "locals": [
-    "_"
-   ],
-   "n_state": 2,
-   "name": "_ide_stop"
-  },
-  {
-   "line": 220,
+   "line": 213,
    "locals": [
     "title",
-    "error"
+    "error",
+    "ide_session"
    ],
-   "n_state": 6,
+   "n_state": 7,
    "name": "fatal_error"
   }
  ],
@@ -1557,296 +1551,6 @@
    "name": "draw"
   }
  ],
- "ide.py": [
-  {
-   "line": 20,
-   "locals": [
-    "path"
-   ],
-   "n_state": 7,
-   "name": "_is_dir"
-  },
-  {
-   "line": 27,
-   "locals": [
-    "path",
-    "current",
-    "part"
-   ],
-   "n_state": 10,
-   "name": "_makedirs"
-  },
-  {
-   "line": 37,
-   "locals": [
-    "path",
-    "entries",
-    "name",
-    "kind",
-    "_",
-    "full"
-   ],
-   "n_state": 16,
-   "name": "_walk"
-  },
-  {
-   "line": 47,
-   "locals": [
-    "total",
-    "used",
-    "free"
-   ],
-   "n_state": 10,
-   "name": "info"
-  },
-  {
-   "line": 57,
-   "locals": [
-    "path",
-    "entries"
-   ],
-   "n_state": 6,
-   "name": "ls"
-  },
-  {
-   "line": 64,
-   "locals": [
-    "paths",
-    "hashlib",
-    "result",
-    "buf",
-    "path",
-    "digest",
-    "f",
-    "count"
-   ],
-   "n_state": 19,
-   "name": "hashes"
-  },
-  {
-   "line": 81,
-   "locals": [
-    "path",
-    "size",
-    "buf",
-    "stdin",
-    "f",
-    "remaining",
-    "view",
-    "received"
-   ],
-   "n_state": 19,
-   "name": "put"
-  },
-  {
-   "line": 102,
-   "locals": [
-    "path",
-    "buf",
-    "f",
-    "count"
-   ],
-   "n_state": 13,
-   "name": "get"
-  },
-  {
-   "line": 109,
-   "locals": [
-    "path",
-    "name",
-    "_"
-   ],
-   "n_state": 11,
-   "name": "rm"
-  },
-  {
-   "line": 118,
-   "locals": [
-    "path"
-   ],
-   "n_state": 3,
-   "name": "mkdir"
-  },
-  {
-   "line": 122,
-   "locals": [
-    "source",
-    "destination"
-   ],
-   "n_state": 7,
-   "name": "rename"
-  },
-  {
-   "line": 135,
-   "locals": [
-    "value",
-    "width",
-    "out"
-   ],
-   "n_state": 9,
-   "name": "_romfs_uint"
-  },
-  {
-   "line": 146,
-   "locals": [
-    "kind",
-    "payload"
-   ],
-   "n_state": 6,
-   "name": "_romfs_record"
-  },
-  {
-   "line": 150,
-   "locals": [
-    "path",
-    "entries",
-    "name",
-    "kind",
-    "_",
-    "full",
-    "f"
-   ],
-   "n_state": 18,
-   "name": "_romfs_read_tree"
-  },
-  {
-   "line": 162,
-   "locals": [
-    "entries",
-    "out",
-    "name",
-    "entry",
-    "encoded"
-   ],
-   "n_state": 16,
-   "name": "_romfs_records"
-  },
-  {
-   "line": 173,
-   "locals": [
-    "entries",
-    "data"
-   ],
-   "n_state": 6,
-   "name": "_romfs_image"
-  },
-  {
-   "line": 180,
-   "locals": [
-    "vfs"
-   ],
-   "n_state": 5,
-   "name": "_romfs_device"
-  },
-  {
-   "line": 192,
-   "locals": [
-    "entries",
-    "vfs",
-    "image",
-    "device",
-    "block_size",
-    "current",
-    "blocks",
-    "buf",
-    "block",
-    "chunk",
-    "data"
-   ],
-   "n_state": 19,
-   "name": "_romfs_write"
-  },
-  {
-   "line": 219,
-   "locals": [
-    "entries",
-    "path",
-    "data",
-    "parts",
-    "part",
-    "name",
-    "entry",
-    "sub",
-    "index",
-    "_"
-   ],
-   "n_state": 21,
-   "name": "_romfs_place"
-  },
-  {
-   "line": 241,
-   "locals": [
-    "device",
-    "total",
-    "used"
-   ],
-   "n_state": 9,
-   "name": "rom_info"
-  },
-  {
-   "line": 248,
-   "locals": [
-    "path",
-    "size",
-    "data",
-    "view",
-    "stdin",
-    "start",
-    "end",
-    "received",
-    "tree",
-    "used",
-    "written"
-   ],
-   "n_state": 24,
-   "name": "rom_put"
-  },
-  {
-   "line": 269,
-   "locals": [
-    "path",
-    "tree",
-    "used",
-    "written"
-   ],
-   "n_state": 10,
-   "name": "rom_remove"
-  },
-  {
-   "line": 276,
-   "locals": [
-    "path",
-    "f",
-    "code",
-    "scope",
-    "update",
-    "e"
-   ],
-   "n_state": 12,
-   "name": "_run_file"
-  },
-  {
-   "line": 289,
-   "locals": [
-    "path",
-    "debug",
-    "ide_debug"
-   ],
-   "n_state": 9,
-   "name": "execute"
-  },
-  {
-   "line": 322,
-   "locals": [
-    "request",
-    "path",
-    "debug",
-    "resume"
-   ],
-   "n_state": 7,
-   "name": "serve"
-  }
- ],
  "ide_debug.py": [
   {
    "line": 24,
@@ -2086,6 +1790,344 @@
    ],
    "n_state": 6,
    "name": "start"
+  }
+ ],
+ "ide_display.py": [
+  {
+   "line": 17,
+   "locals": [
+    "_title",
+    "_message"
+   ],
+   "n_state": 5,
+   "name": "error"
+  }
+ ],
+ "ide_files.py": [
+  {
+   "line": 13,
+   "locals": [
+    "path"
+   ],
+   "n_state": 7,
+   "name": "is_directory"
+  },
+  {
+   "line": 20,
+   "locals": [
+    "path",
+    "current",
+    "part"
+   ],
+   "n_state": 10,
+   "name": "_makedirs"
+  },
+  {
+   "line": 28,
+   "locals": [
+    "path",
+    "entries",
+    "name",
+    "kind",
+    "_",
+    "full"
+   ],
+   "n_state": 16,
+   "name": "_walk"
+  },
+  {
+   "line": 38,
+   "locals": [
+    "total",
+    "used",
+    "free"
+   ],
+   "n_state": 10,
+   "name": "info"
+  },
+  {
+   "line": 48,
+   "locals": [
+    "path",
+    "entries"
+   ],
+   "n_state": 6,
+   "name": "ls"
+  },
+  {
+   "line": 55,
+   "locals": [
+    "paths",
+    "hashlib",
+    "result",
+    "buf",
+    "path",
+    "digest",
+    "f",
+    "count"
+   ],
+   "n_state": 19,
+   "name": "hashes"
+  },
+  {
+   "line": 72,
+   "locals": [
+    "path",
+    "size",
+    "buf",
+    "stdin",
+    "f",
+    "remaining",
+    "view",
+    "received"
+   ],
+   "n_state": 19,
+   "name": "put"
+  },
+  {
+   "line": 93,
+   "locals": [
+    "path",
+    "buf",
+    "f",
+    "count"
+   ],
+   "n_state": 13,
+   "name": "get"
+  },
+  {
+   "line": 100,
+   "locals": [
+    "path",
+    "name",
+    "_"
+   ],
+   "n_state": 11,
+   "name": "rm"
+  },
+  {
+   "line": 109,
+   "locals": [
+    "path"
+   ],
+   "n_state": 3,
+   "name": "mkdir"
+  },
+  {
+   "line": 113,
+   "locals": [
+    "source",
+    "destination"
+   ],
+   "n_state": 7,
+   "name": "rename"
+  }
+ ],
+ "ide_rom.py": [
+  {
+   "line": 17,
+   "locals": [
+    "value",
+    "width",
+    "out"
+   ],
+   "n_state": 9,
+   "name": "_romfs_uint"
+  },
+  {
+   "line": 28,
+   "locals": [
+    "kind",
+    "payload"
+   ],
+   "n_state": 6,
+   "name": "_romfs_record"
+  },
+  {
+   "line": 32,
+   "locals": [
+    "path",
+    "entries",
+    "name",
+    "kind",
+    "_",
+    "full",
+    "f"
+   ],
+   "n_state": 18,
+   "name": "_romfs_read_tree"
+  },
+  {
+   "line": 44,
+   "locals": [
+    "entries",
+    "out",
+    "name",
+    "entry",
+    "encoded"
+   ],
+   "n_state": 16,
+   "name": "_romfs_records"
+  },
+  {
+   "line": 55,
+   "locals": [
+    "entries",
+    "data"
+   ],
+   "n_state": 6,
+   "name": "_romfs_image"
+  },
+  {
+   "line": 62,
+   "locals": [
+    "vfs"
+   ],
+   "n_state": 5,
+   "name": "_romfs_device"
+  },
+  {
+   "line": 74,
+   "locals": [
+    "entries",
+    "vfs",
+    "image",
+    "device",
+    "block_size",
+    "current",
+    "blocks",
+    "buf",
+    "block",
+    "chunk",
+    "data"
+   ],
+   "n_state": 19,
+   "name": "_romfs_write"
+  },
+  {
+   "line": 101,
+   "locals": [
+    "entries",
+    "path",
+    "data",
+    "parts",
+    "part",
+    "name",
+    "entry",
+    "sub",
+    "index",
+    "_"
+   ],
+   "n_state": 21,
+   "name": "_romfs_place"
+  },
+  {
+   "line": 123,
+   "locals": [
+    "device",
+    "total",
+    "used"
+   ],
+   "n_state": 9,
+   "name": "rom_info"
+  },
+  {
+   "line": 130,
+   "locals": [
+    "path",
+    "size",
+    "data",
+    "view",
+    "stdin",
+    "start",
+    "end",
+    "received",
+    "tree",
+    "used",
+    "written"
+   ],
+   "n_state": 24,
+   "name": "rom_put"
+  },
+  {
+   "line": 151,
+   "locals": [
+    "path",
+    "tree",
+    "used",
+    "written"
+   ],
+   "n_state": 10,
+   "name": "rom_remove"
+  }
+ ],
+ "ide_session.py": [
+  {
+   "line": 16,
+   "locals": [
+    "_"
+   ],
+   "n_state": 2,
+   "name": "stop"
+  },
+  {
+   "line": 20,
+   "locals": [
+    "title",
+    "message"
+   ],
+   "n_state": 6,
+   "name": "error"
+  },
+  {
+   "line": 25,
+   "locals": [
+    "path",
+    "f",
+    "code",
+    "scope",
+    "update",
+    "e"
+   ],
+   "n_state": 12,
+   "name": "_run_file"
+  },
+  {
+   "line": 38,
+   "locals": [
+    "path",
+    "debug",
+    "ide_debug"
+   ],
+   "n_state": 9,
+   "name": "execute"
+  },
+  {
+   "line": 58,
+   "locals": [
+    "draw"
+   ],
+   "n_state": 4,
+   "name": "_hold"
+  },
+  {
+   "line": 72,
+   "locals": [
+    "request",
+    "path",
+    "debug",
+    "resume"
+   ],
+   "n_state": 7,
+   "name": "serve"
+  },
+  {
+   "line": 86,
+   "locals": [
+    "draw"
+   ],
+   "n_state": 4,
+   "name": "safe_mode"
   }
  ],
  "lsm6ds3.py": [

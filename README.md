@@ -65,6 +65,7 @@ The 3D view uses `static/models/badgeware.glb` for Tufty (with button and case-l
 | `simulator/target.js` | Badge connect and pairing, run and debug on the badge, copying |
 | `simulator/config-pane.js`, `simulator/secrets-file.js` | Config pane and the secrets.py reader/writer |
 | `simulator/debugger.js` | Breakpoints (F9), debug panel |
+| `simulator/debug-sources.js` | Stack frame to source mapping, opening sources, frozen and locals tables from the board bundle |
 | `simulator/icon-editor.js` | 24 x 24 icon editor |
 | `simulator/app-scaffold.js` | New app template |
 | `simulator/png.js` | Merge IDAT chunks (PNGdec on the badge fails on split IDATs) |

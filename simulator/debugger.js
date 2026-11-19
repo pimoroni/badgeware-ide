@@ -1,7 +1,6 @@
-import { FROZEN_PREFIX, SCRATCH_PATH, frozenSourcePath, librarySourcePath } from './device/paths.js';
+import { SCRATCH_PATH } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
-import { activeBoard } from './boards.js';
-import { nameLocals } from './locals.js';
+import { boardSourceProvider, createDebugSources } from './debug-sources.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -45,34 +44,19 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null }) {
+export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null, sourceProvider = boardSourceProvider() }) {
   const breakpoints = loadBreakpoints();
   const breakpointDecorations = editor.createDecorationsCollection();
   const currentLineDecorations = editor.createDecorationsCollection();
+  const sources = createDebugSources({
+    tabs,
+    provider: sourceProvider,
+    systemPaths: getSystemPaths,
+    inWorkspace: (path) => !!userFS.get(path),
+    openBadgeFile,
+  });
+  const { sourcePath } = sources;
   let client = null;
-  let scratchKey = null;
-  let localsTables = null;
-  let frozenFiles = new Set();
-
-  const boardFile = (name) => new URL(activeBoard().simulator + name, import.meta.url);
-
-  fetch(boardFile('frozen.json'))
-    .then((response) => (response.ok ? response.json() : { files: [] }))
-    .then(({ files }) => { frozenFiles = new Set(files); })
-    .catch(() => {});
-
-  const loadFrozenFile = (path, as) => fetch(boardFile('frozen/' + path.slice(FROZEN_PREFIX.length)))
-    .then((response) => {
-      if (!response.ok) return null;
-      return as === 'text' ? response.text() : response.arrayBuffer();
-    });
-
-  const loadLocalsTables = () => {
-    localsTables ??= fetch(boardFile('locals.json'))
-      .then((response) => (response.ok ? response.json() : {}))
-      .catch(() => ({}));
-    return localsTables;
-  };
   let stopped = null;
   let selectedFrame = 0;
   const watches = loadWatches();
@@ -80,23 +64,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   let watchBusy = false;
   let screenRequest = 0;
 
-  const CODE_SOURCES = ['user', 'badge', 'sys'];
-
-  const activeTarget = () => {
-    const info = tabs.activeInfo();
-    if (!info || info.view !== 'editor') return null;
-    if (info.source === 'scratch') {
-      const key = `scratch:${info.name}`;
-      return { key, file: key === scratchKey ? SCRATCH_PATH : key };
-    }
-    if (CODE_SOURCES.includes(info.source) && info.path?.endsWith('.py')) return { key: info.path, file: info.path };
-    return null;
-  };
-
-  const sourcePath = (frame) => {
-    if (frame.user) return frame.file;
-    return frozenSourcePath(frame.file, frozenFiles) ?? librarySourcePath(frame.file, getSystemPaths());
-  };
+  const activeTarget = () => sources.target(tabs.activeInfo());
 
   function renderBreakpoints() {
     const target = activeTarget();
@@ -151,7 +119,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   function initialBreakpoints() {
     const entries = [...breakpoints].filter(([key, lines]) => key.startsWith('/') && lines.size);
-    if (scratchKey) entries.push([SCRATCH_PATH, breakpoints.get(scratchKey) ?? new Set()]);
+    if (sources.scratchKey) entries.push([SCRATCH_PATH, breakpoints.get(sources.scratchKey) ?? new Set()]);
     return Object.fromEntries(entries.filter(([, lines]) => lines.size).map(([file, lines]) => [file, [...lines]]));
   }
 
@@ -243,18 +211,6 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     els.screen.classList.add('ready');
   }
 
-  async function showSource(path, user) {
-    if (path === SCRATCH_PATH) {
-      if (scratchKey) tabs.focusKey(scratchKey);
-      return;
-    }
-    if (tabs.focusPath(path)) return;
-    if (path.startsWith(FROZEN_PREFIX)) await tabs.openBadgeFile(path, loadFrozenFile);
-    else if (!user) await tabs.openFile(path, { system: true });
-    else if (userFS.get(path)) await tabs.openFile(path);
-    else await openBadgeFile?.(path);
-  }
-
   async function revealFrame(index) {
     const stop = stopped;
     if (!stop) return;
@@ -263,7 +219,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     els.stack.querySelectorAll('li').forEach((row, i) => row.classList.toggle('selected', i === index));
     const path = sourcePath(frame);
     if (path && activeTarget()?.file !== path) {
-      await showSource(path, frame.user);
+      await sources.showSource(path, frame.user);
       if (stopped !== stop) return;
     }
     if (path && activeTarget()?.file === path) editor.revealLineInCenterIfOutsideViewport(frame.line);
@@ -275,7 +231,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     });
     if (!scopes || stopped !== stop) return;
     if (Array.isArray(scopes.locals) && !frame.user) {
-      scopes.locals = nameLocals(scopes.locals, await loadLocalsTables(), frame);
+      scopes.locals = await sources.libraryLocals(scopes.locals, frame);
       if (stopped !== stop) return;
     }
     const hasLocals = Array.isArray(scopes.locals);
@@ -358,8 +314,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   return {
     hooks: () => {
-      const info = tabs.activeInfo();
-      scratchKey = info?.source === 'scratch' ? `scratch:${info.name}` : null;
+      sources.captureScratch(tabs.activeInfo());
       return {
         init: () => ({
           breakpoints: initialBreakpoints(),

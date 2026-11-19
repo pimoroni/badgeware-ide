@@ -18,7 +18,9 @@ test('recovers from a screen payload that stops short', async () => {
 
 test('badge commands fail fast while an app is running', async () => {
   const { BadgeDevice, BadgeBusyError } = await import('../simulator/device/badge.js');
+  const { ReplTransport } = await import('../simulator/device/repl-transport.js');
   const badge = new BadgeDevice({ serial: {} });
-  badge.running = true;
+  badge.transport = new ReplTransport({ device: badge, repl: {} });
+  badge.transport.running = true;
   await assert.rejects(badge.read('/apps/tennis/__init__.py'), BadgeBusyError);
 });

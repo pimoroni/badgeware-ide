@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { AuxClient, supportsAux } from '../simulator/device/aux.js';
 import { BadgeDevice, consoleFilter } from '../simulator/device/badge.js';
+import { AuxTransport } from '../simulator/device/aux-transport.js';
 
 const encoder = new TextEncoder();
 const encode = (text) => encoder.encode(text);
@@ -128,10 +129,8 @@ class FakeFirmware {
 
 function connectedDevice(firmware) {
   const device = new BadgeDevice({ serial: {} });
-  device.aux = firmware.client;
-  device.repl = {};
   device.replLink = { onData: null };
-  firmware.client.addEventListener('fs.state', ({ detail }) => device.emit('app-state', detail));
+  device.transport = new AuxTransport({ device, repl: { link: device.replLink }, client: firmware.client });
   return device;
 }
 
@@ -206,14 +205,14 @@ test('run streams console output and finishes when the app exits', async () => {
     device.replLink.onData(encode('MPY: soft reboot\r\n'));
     firmware.app = path;
     firmware.emitState();
-    device.console(encode('hello\r\nwor'));
-    device.console(encode('ld\r\nMPY: soft reboot\r\n'));
+    device.transport.console(encode('hello\r\nwor'));
+    device.transport.console(encode('ld\r\nMPY: soft reboot\r\n'));
     firmware.app = null;
     firmware.emitState();
     firmware.app = '/apps/menu';
     firmware.emitState();
   };
-  device.replLink.onData = (bytes) => device.console?.(bytes);
+  device.transport.attachConsole();
   const seen = [];
   const result = await device.run('/apps/a', { onOutput: (text) => seen.push(text) });
   assert.equal(result.stdout, 'hello\r\nworld\r\n');
@@ -272,6 +271,25 @@ test('debug runs share the aux link through a session', async () => {
   await device.run('/apps/a', { debug: controller });
   assert.deepEqual(sent.map((message) => message.breakpoints), [{ '/apps/a/__init__.py': [3] }]);
   assert.deepEqual(events, ['stopped', 'closed']);
+});
+
+test('returning to the launcher unlocks and keeps the connection', async () => {
+  const client = new AuxClient({});
+  const firmware = new FakeFirmware(client);
+  const device = connectedDevice(firmware);
+  assert.equal(await device.returnToLauncher(), true);
+  assert.equal(device.connected, true);
+  assert.deepEqual(firmware.commands, ['fs.unlock']);
+});
+
+test('a disconnected device rejects commands and ignores lock', async () => {
+  const device = new BadgeDevice({ serial: {} });
+  await assert.rejects(device.read('/a.txt'), { name: 'LinkClosedError' });
+  await assert.rejects(device.sync([]), { name: 'LinkClosedError' });
+  await device.lock();
+  await device.unlock();
+  await device.stop();
+  assert.equal(device.running, false);
 });
 
 test('console filter drops soft reboot lines across chunk boundaries', () => {

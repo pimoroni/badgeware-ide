@@ -51,7 +51,10 @@ The 3D view uses `static/models/badgeware.glb` for Tufty (with button and case-l
 | `simulator/screens.js` | E-ink and LED screen rendering for the 3D view |
 | `simulator/device/serial-link.js` | Byte stream over a Web Serial shaped port |
 | `simulator/device/raw-repl.js` | Raw REPL client |
-| `simulator/device/badge.js` | Port identification, compatibility, sync, run, stop, debug sessions |
+| `simulator/device/badge.js` | Port identification, compatibility, connection lifecycle |
+| `simulator/device/transport.js` | Shared transport queue and raw REPL file and ROM commands |
+| `simulator/device/repl-transport.js` | Files, runs and debug sessions over the raw REPL (older firmware) |
+| `simulator/device/aux-transport.js` | Files, runs and debug sessions over the aux link |
 | `simulator/device/debug.js` | Debug channel client |
 | `simulator/device/paths.js` | Editor path to badge path mapping |
 | `simulator/device/badge-fs.js` | The badge's file listing, lazy reads and writes |

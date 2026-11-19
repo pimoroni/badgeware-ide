@@ -71,7 +71,7 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
     if (!(await connect())) return;
     if (device.running) {
       await device.stop();
-      await device.queue;
+      await device.idle();
     }
     const runTarget = badgeRunTarget(request, (path) => !!badgeFS.get(path));
     const mapFile = (file) => (file === SCRATCH_PATH ? '<stdin>' : file);
@@ -105,13 +105,10 @@ export function createBadgeTarget(els, { device, badgeFS, output, setStatus, fla
 
   async function restartLauncher() {
     if (!device.connected) return;
-    if (device.aux) {
-      await device.returnToLauncher();
+    if (await device.returnToLauncher()) {
       output.appendOut('Badge returned to its launcher.', 'out-dim');
       return;
     }
-    if (device.running) await device.stop();
-    await device.disconnect();
     output.appendOut('Badge returned to its launcher. Connect again to keep coding.', 'out-dim');
     render();
   }

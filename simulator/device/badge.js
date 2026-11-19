@@ -1,8 +1,12 @@
 import { SerialLink, LinkClosedError } from './serial-link.js';
 import { RawRepl } from './raw-repl.js';
-import { DebugClient, DebugSession } from './debug.js';
-import { AuxClient, RESET_TIMEOUT_MS, supportsAux } from './aux.js';
+import { AuxClient, supportsAux } from './aux.js';
+import { ReplTransport } from './repl-transport.js';
+import { AuxTransport } from './aux-transport.js';
 import { BOARD_LIST } from '../boards.js';
+
+export { BadgeBusyError } from './transport.js';
+export { consoleFilter } from './aux-transport.js';
 
 export const BADGE_FILTERS = BOARD_LIST
   .map((board) => ({ usbVendorId: 0x2e8a, usbProductId: board.usbProductId }))
@@ -27,28 +31,12 @@ export class IncompatibleBadgeError extends Error {
   }
 }
 
-const ACK = 0x06;
-const CHUNK_SIZE = 4096;
-const CONSOLE_SETTLE_MS = 150;
-const SOFT_REBOOT_LINE = /^(MPY: )?soft reboot$/;
-
 export const webSerialSupported = () => typeof navigator !== 'undefined' && 'serial' in navigator;
-
-const py = (value) => JSON.stringify(value);
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const isRomPath = (path) => path === '/rom' || path.startsWith('/rom/');
 
 const isBadgePort = (port) => {
   const { usbVendorId, usbProductId } = port.getInfo();
   return BADGE_FILTERS.some((filter) => filter.usbVendorId === usbVendorId && filter.usbProductId === usbProductId);
 };
-
-async function sha256Hex(bytes) {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 async function probe(link) {
   link.discard();
@@ -66,25 +54,6 @@ async function probe(link) {
   }
 }
 
-export function consoleFilter(emit) {
-  let pending = '';
-  return {
-    push(text) {
-      pending += text;
-      let newline;
-      while ((newline = pending.indexOf('\n')) >= 0) {
-        const line = pending.slice(0, newline + 1);
-        pending = pending.slice(newline + 1);
-        if (!SOFT_REBOOT_LINE.test(line.trim())) emit(line);
-      }
-    },
-    flush() {
-      if (pending && !SOFT_REBOOT_LINE.test(pending.trim())) emit(pending);
-      pending = '';
-    },
-  };
-}
-
 export function checkCompatible(ident) {
   if (!ident) {
     throw new IncompatibleBadgeError('This badge is not running Badgeware IDE firmware. Update its firmware, or use the simulator.');
@@ -97,39 +66,31 @@ export function checkCompatible(ident) {
   }
 }
 
-export class BadgeBusyError extends Error {
-  constructor() {
-    super('Your badge is busy running an app. Stop it first.');
-    this.name = 'BadgeBusyError';
-  }
-}
 
 export class BadgeDevice extends EventTarget {
   constructor({ serial = globalThis.navigator?.serial } = {}) {
     super();
     this.serial = serial;
     this.replLink = null;
-    this.repl = null;
     this.debugPort = null;
-    this.aux = null;
+    this.transport = null;
     this.ident = null;
     this.productId = null;
-    this.queue = Promise.resolve();
-    this.auxQueue = Promise.resolve();
-    this.running = false;
-    this.interrupted = false;
-    this.console = null;
     this.onDisconnect = (event) => {
-      if (event.target === this.replLink?.port || (this.aux && event.target === this.debugPort)) this.handleLost();
+      if (event.target === this.replLink?.port || (this.transport?.holdsDebugPort && event.target === this.debugPort)) this.handleLost();
     };
   }
 
   get connected() {
-    return !!this.repl;
+    return !!this.transport;
   }
 
   get canDebug() {
     return !!this.debugPort;
+  }
+
+  get running() {
+    return this.transport?.running ?? false;
   }
 
   async knownPorts() {
@@ -178,63 +139,53 @@ export class BadgeDevice extends EventTarget {
       this.debugPort = null;
       throw error;
     }
-    const repl = new RawRepl(replLink);
+    const transport = this.createTransport(new RawRepl(replLink));
     try {
-      if (supportsAux(this.ident)) await this.openAux(replLink, repl);
-      else await repl.enter({ softReset: true });
+      await transport.open();
     } catch (error) {
-      await this.aux?.close().catch(() => {});
-      this.aux = null;
+      await transport.close();
       await replLink.close();
       this.debugPort = null;
       throw error;
     }
     this.replLink = replLink;
-    this.repl = repl;
+    this.transport = transport;
     this.serial.addEventListener?.('disconnect', this.onDisconnect);
     this.emit('connected', this.ident);
   }
 
-  async openAux(replLink, repl) {
-    const aux = new AuxClient(this.debugPort);
-    this.aux = aux;
-    await aux.open();
-    aux.addEventListener('fs.changed', () => this.emit('fs-changed'));
-    aux.addEventListener('fs.state', ({ detail }) => this.emit('app-state', detail));
-    await aux.watch(true);
-    replLink.onData = (bytes) => this.console?.(bytes);
-    await repl.restartFirmware();
+  createTransport(repl) {
+    if (supportsAux(this.ident)) return new AuxTransport({ device: this, repl, client: new AuxClient(this.debugPort) });
+    return new ReplTransport({ device: this, repl, debugPort: this.debugPort });
   }
 
   async disconnect({ restart = true } = {}) {
     if (!this.connected) return;
+    const transport = this.transport;
     try {
       if (this.running) await this.stop();
-      await this.queue.catch(() => {});
-      await this.auxQueue.catch(() => {});
-      if (restart && !this.aux) await this.repl.restartFirmware();
+      await transport.idle();
+      if (restart) await transport.resumeFirmware();
     } catch (_) {}
-    await this.aux?.close().catch(() => {});
+    await transport.close();
     await this.replLink.close();
     this.reset();
   }
 
   handleLost() {
     if (!this.connected) return;
-    this.aux?.close().catch(() => {});
+    this.transport.close();
     this.replLink.close();
     this.reset();
   }
 
   reset() {
     this.serial.removeEventListener?.('disconnect', this.onDisconnect);
+    this.transport?.detach();
     this.replLink = null;
-    this.repl = null;
     this.debugPort = null;
-    this.aux = null;
-    this.console = null;
+    this.transport = null;
     this.ident = null;
-    this.running = false;
     this.emit('disconnected');
   }
 
@@ -242,277 +193,87 @@ export class BadgeDevice extends EventTarget {
     this.dispatchEvent(new CustomEvent(type, { detail }));
   }
 
-  task(fn) {
-    if (this.aux) return this.rawTask(fn);
-    if (this.running) return Promise.reject(new BadgeBusyError());
-    const result = this.queue.then(() => {
-      if (!this.connected) throw new LinkClosedError();
-      return fn();
-    });
-    this.queue = result.catch(() => {});
-    return result;
+  withTransport(fn) {
+    if (!this.transport) return Promise.reject(new LinkClosedError());
+    return fn(this.transport);
   }
 
-  auxTask(fn) {
-    const result = this.auxQueue.then(() => {
-      if (!this.aux) throw new LinkClosedError();
-      return fn(this.aux);
-    });
-    this.auxQueue = result.catch(() => {});
-    return result;
+  idle() {
+    return this.transport?.idle() ?? Promise.resolve();
   }
 
-  rawTask(fn) {
-    if (this.running) return Promise.reject(new BadgeBusyError());
-    return this.auxTask(async () => {
-      const link = this.replLink;
-      link.onData = null;
-      link.discard();
-      try {
-        await this.repl.enter({ softReset: true });
-        return await fn();
-      } finally {
-        await this.repl.restartFirmware().catch(() => {});
-        link.onData = (bytes) => this.console?.(bytes);
-      }
-    });
+  resumeFirmware() {
+    return this.withTransport((transport) => transport.resumeFirmware());
   }
 
   info() {
-    if (this.aux) return this.auxTask((aux) => aux.info());
-    return this.task(() => this.repl.execJson('import ide; ide.info()'));
+    return this.withTransport((transport) => transport.info());
   }
 
   list(path = '/') {
-    if (this.aux) return this.auxTask((aux) => aux.walk(path));
-    return this.task(() => this.repl.execJson(`import ide; ide.ls(${py(path)})`));
+    return this.withTransport((transport) => transport.list(path));
   }
 
   hashes(paths) {
-    if (this.aux) return this.auxTask((aux) => this.remoteHashes(aux, paths));
-    return this.task(() => this.repl.execJson(`import ide; ide.hashes(${py(paths)})`, { timeout: 30000 }));
+    return this.withTransport((transport) => transport.hashes(paths));
   }
 
   remove(path) {
-    if (this.aux) return this.auxTask((aux) => aux.remove(path));
-    return this.task(() => this.repl.exec(`import ide; ide.rm(${py(path)})`));
+    return this.withTransport((transport) => transport.remove(path));
   }
 
   rename(source, destination) {
-    if (this.aux) return this.auxTask((aux) => aux.rename(source, destination));
-    return this.task(() => this.repl.exec(`import ide; ide.rename(${py(source)}, ${py(destination)})`));
+    return this.withTransport((transport) => transport.rename(source, destination));
   }
 
   makeDirectory(path) {
-    if (this.aux) return this.auxTask((aux) => aux.mkdir(path));
-    return this.task(() => this.repl.exec(`import ide; ide.mkdir(${py(path)})`));
+    return this.withTransport((transport) => transport.makeDirectory(path));
   }
 
   read(path) {
-    if (this.aux && !isRomPath(path)) return this.auxTask((aux) => aux.read(path));
-    return this.task(async () => {
-      const text = await this.repl.exec(`import ide; ide.get(${py(path)})`, { timeout: 30000 });
-      const binary = atob(text.replace(/\s+/g, ''));
-      return Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    });
+    return this.withTransport((transport) => transport.read(path));
   }
 
   write(path, bytes, onProgress = null) {
-    if (this.aux) return this.auxTask((aux) => this.writeFiles(aux, [{ path, bytes }], (sent, total) => onProgress?.(sent, total)));
-    return this.task(() => this.writeNow(path, bytes, onProgress));
+    return this.withTransport((transport) => transport.write(path, bytes, onProgress));
   }
 
   romFonts() {
-    return this.task(async () => (await this.repl.execJson('import ide; ide.ls("/rom/fonts")')).map(([path]) => path.split('/').pop()));
+    return this.withTransport((transport) => transport.romFonts());
   }
 
   romInfo() {
-    return this.task(() => this.repl.execJson('import ide; ide.rom_info()'));
+    return this.withTransport((transport) => transport.romInfo());
   }
 
   romInstall(path, bytes, onProgress = null) {
-    return this.task(() => this.writeNow(path, bytes, onProgress, { command: 'rom_put', timeout: 120000 }));
+    return this.withTransport((transport) => transport.romInstall(path, bytes, onProgress));
   }
 
   romRemove(path) {
-    return this.task(() => this.repl.execJson(`import ide; ide.rom_remove(${py(path)})`, { timeout: 120000 }));
-  }
-
-  async writeNow(path, bytes, onProgress, { command = 'put', timeout = 10000 } = {}) {
-    const link = this.replLink;
-    await this.repl.start(`import ide; ide.${command}(${py(path)}, ${bytes.length})`);
-    await this.expectAck(link);
-    for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
-      await link.write(bytes.subarray(offset, offset + CHUNK_SIZE));
-      await this.expectAck(link);
-      onProgress?.(Math.min(offset + CHUNK_SIZE, bytes.length), bytes.length);
-    }
-    const { stdout, stderr } = await this.repl.follow({ timeout });
-    if (stderr) throw new Error(stderr.trim().split('\n').pop());
-    return stdout;
-  }
-
-  async expectAck(link) {
-    const [byte] = await link.readExactly(1, { timeout: 5000 });
-    if (byte !== ACK) throw new Error(`Unexpected reply while writing a file: 0x${byte.toString(16)}`);
-  }
-
-  async remoteHashes(aux, paths) {
-    const hashes = await Promise.all(paths.map((path) => aux.hash(path)));
-    return Object.fromEntries(paths.map((path, index) => [path, hashes[index]]));
-  }
-
-  async writeFiles(aux, files, onProgress, { hold = false } = {}) {
-    const total = files.reduce((sum, file) => sum + file.bytes.length, 0);
-    let done = 0;
-    let locked = false;
-    for (const file of files) {
-      const progress = (sent) => onProgress?.(done + sent, total, file.path);
-      try {
-        await aux.write(file.path, file.bytes, progress);
-      } catch (error) {
-        if (error.errno !== 'EBUSY' || locked) throw error;
-        await aux.lock();
-        locked = true;
-        await aux.write(file.path, file.bytes, progress);
-      }
-      done += file.bytes.length;
-    }
-    if (locked && !hold) await aux.unlock();
+    return this.withTransport((transport) => transport.romRemove(path));
   }
 
   sync(files, onProgress = null, { hold = false } = {}) {
-    if (this.aux) {
-      return this.auxTask(async (aux) => {
-        const remote = await this.remoteHashes(aux, files.map((file) => file.path));
-        const changed = [];
-        for (const file of files) {
-          if (remote[file.path] !== await sha256Hex(file.bytes)) changed.push(file);
-        }
-        await this.writeFiles(aux, changed, onProgress, { hold });
-        return changed.map((file) => file.path);
-      });
-    }
-    return this.task(async () => {
-      const paths = files.map((file) => file.path);
-      const remote = paths.length ? await this.repl.execJson(`import ide; ide.hashes(${py(paths)})`, { timeout: 30000 }) : {};
-      const changed = [];
-      for (const file of files) {
-        if (remote[file.path] !== await sha256Hex(file.bytes)) changed.push(file);
-      }
-      const total = changed.reduce((sum, file) => sum + file.bytes.length, 0);
-      let done = 0;
-      for (const file of changed) {
-        await this.writeNow(file.path, file.bytes, (sent) => onProgress?.(done + sent, total, file.path));
-        done += file.bytes.length;
-      }
-      return changed.map((file) => file.path);
-    });
+    return this.withTransport((transport) => transport.sync(files, onProgress, { hold }));
   }
 
   run(path, { debug = null, onOutput = null } = {}) {
-    if (this.aux) return this.runAux(path, { debug, onOutput });
-    return this.task(async () => {
-      let client = null;
-      if (debug) {
-        if (!this.debugPort) throw new Error('The debug port is not available.');
-        client = new DebugClient(this.debugPort);
-        await client.open();
-        debug.attach?.(client);
-      }
-      this.running = true;
-      this.emit('running', { path, debug: !!client });
-      try {
-        await this.repl.start(`import ide; ide.execute(${py(path)}, debug=${client ? 'True' : 'False'})`);
-        if (client) {
-          await client.waitFor('ready', 5000);
-          client.send({ cmd: 'init', ...debug.init() });
-        }
-        return await this.repl.follow({ timeout: Infinity, onStdout: onOutput });
-      } finally {
-        this.running = false;
-        if (client) await client.close();
-        this.emit('stopped', { path });
-      }
-    });
-  }
-
-  waitForAppEnd(path) {
-    let cancel = () => {};
-    const promise = new Promise((resolve, reject) => {
-      let started = false;
-      const onState = ({ detail }) => {
-        if (detail.state === 'running' && detail.app === path) {
-          started = true;
-        } else if (started || (this.interrupted && detail.state !== 'running')) {
-          cancel();
-          resolve();
-        }
-      };
-      const onLost = () => {
-        cancel();
-        reject(new LinkClosedError());
-      };
-      this.addEventListener('app-state', onState);
-      this.addEventListener('disconnected', onLost);
-      cancel = () => {
-        this.removeEventListener('app-state', onState);
-        this.removeEventListener('disconnected', onLost);
-      };
-    });
-    return { promise, cancel };
-  }
-
-  async runAux(path, { debug = null, onOutput = null } = {}) {
-    if (this.running) throw new BadgeBusyError();
-    const aux = this.aux;
-    const session = debug ? new DebugSession(aux) : null;
-    if (session) debug.attach?.(session);
-    this.running = true;
-    this.interrupted = false;
-    this.emit('running', { path, debug: !!session });
-    const decoder = new TextDecoder();
-    let stdout = '';
-    const output = consoleFilter((text) => {
-      stdout += text;
-      onOutput?.(text);
-    });
-    this.console = (bytes) => output.push(decoder.decode(bytes, { stream: true }));
-    const ended = this.waitForAppEnd(path);
-    try {
-      const ready = session ? aux.waitFor('ready', RESET_TIMEOUT_MS) : null;
-      ready?.catch(() => {});
-      await this.auxTask((client) => client.runApp(path, !!session));
-      if (session) {
-        await ready;
-        await aux.send({ cmd: 'init', ...debug.init() });
-      }
-      await ended.promise;
-      await sleep(CONSOLE_SETTLE_MS);
-      output.flush();
-      return { stdout, stderr: '', interrupted: this.interrupted };
-    } finally {
-      ended.cancel();
-      this.console = null;
-      this.running = false;
-      session?.close();
-      this.emit('stopped', { path });
-    }
+    return this.withTransport((transport) => transport.run(path, { debug, onOutput }));
   }
 
   lock() {
-    if (!this.aux) return Promise.resolve();
-    return this.auxTask((aux) => aux.lock());
+    return this.transport?.lock() ?? Promise.resolve();
   }
 
   unlock() {
-    if (!this.aux) return Promise.resolve();
-    return this.auxTask((aux) => aux.unlock());
+    return this.transport?.unlock() ?? Promise.resolve();
   }
 
-  returnToLauncher() {
-    if (this.running) return this.stop();
-    return this.auxTask((aux) => aux.unlock());
+  async returnToLauncher() {
+    if (await this.withTransport((transport) => transport.returnToLauncher())) return true;
+    await this.disconnect();
+    return false;
   }
 
   async enterBootloader() {
@@ -520,13 +281,13 @@ export class BadgeDevice extends EventTarget {
     if (this.connected) {
       await this.stop();
       const link = this.replLink;
-      const aux = this.aux;
+      const transport = this.transport;
       this.reset();
       try {
         await link.write(command);
       } catch (_) {}
       await link.close();
-      await aux?.close().catch(() => {});
+      await transport.close();
       return;
     }
     for (const port of await this.knownPorts()) {
@@ -541,14 +302,6 @@ export class BadgeDevice extends EventTarget {
 
   async stop() {
     if (!this.running) return;
-    if (this.aux) {
-      this.interrupted = true;
-      await this.auxTask(async (aux) => {
-        await aux.stopApp();
-        await aux.unlock();
-      });
-      return;
-    }
-    await this.replLink.write('\x03');
+    await this.transport.stop();
   }
 }

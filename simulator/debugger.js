@@ -1,3 +1,4 @@
+import { screenPixels } from './device/debug.js';
 import { SCRATCH_PATH } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
 import { boardSourceProvider, createDebugSources } from './debug-sources.js';
@@ -207,7 +208,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     if (!shot || !stopped || id !== `screen-${screenRequest}`) return;
     els.screen.width = shot.width;
     els.screen.height = shot.height;
-    els.screen.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(shot.payload.buffer, shot.payload.byteOffset, shot.payload.length), shot.width, shot.height), 0, 0);
+    els.screen.getContext('2d').putImageData(new ImageData(screenPixels(shot), shot.width, shot.height), 0, 0);
     els.screen.classList.add('ready');
   }
 

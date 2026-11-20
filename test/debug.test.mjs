@@ -24,3 +24,12 @@ test('badge commands fail fast while an app is running', async () => {
   badge.transport.running = true;
   await assert.rejects(badge.read('/apps/tennis/__init__.py'), BadgeBusyError);
 });
+
+test('screen pixels pass RGBA through and expand RGB565', async () => {
+  const { screenPixels } = await import('../simulator/device/debug.js');
+  const rgba = new Uint8Array([1, 2, 3, 255, 4, 5, 6, 255]);
+  assert.deepEqual([...screenPixels({ width: 2, height: 1, payload: rgba })], [...rgba]);
+  assert.deepEqual([...screenPixels({ width: 2, height: 1, format: 'RGBA8888', payload: rgba })], [...rgba]);
+  const rgb565 = new Uint8Array([0x00, 0xf8, 0xe0, 0x07]);
+  assert.deepEqual([...screenPixels({ width: 2, height: 1, format: 'RGB565', payload: rgb565 })], [255, 0, 0, 255, 0, 255, 0, 255]);
+});

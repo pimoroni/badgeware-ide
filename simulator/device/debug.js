@@ -17,6 +17,23 @@ function dispatchPayload(client, message, chunks) {
   client.dispatch({ ...message, payload: concatChunks(chunks) });
 }
 
+export function screenPixels({ width, height, format, payload }) {
+  if (format !== 'RGB565') return new Uint8ClampedArray(payload.buffer, payload.byteOffset, width * height * 4);
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  const words = new DataView(payload.buffer, payload.byteOffset, width * height * 2);
+  for (let i = 0; i < width * height; i++) {
+    const word = words.getUint16(i * 2, true);
+    const red = (word >> 11) & 0x1f;
+    const green = (word >> 5) & 0x3f;
+    const blue = word & 0x1f;
+    pixels[i * 4] = (red << 3) | (red >> 2);
+    pixels[i * 4 + 1] = (green << 2) | (green >> 4);
+    pixels[i * 4 + 2] = (blue << 3) | (blue >> 2);
+    pixels[i * 4 + 3] = 255;
+  }
+  return pixels;
+}
+
 export class DebugClient extends EventTarget {
   constructor(port) {
     super();

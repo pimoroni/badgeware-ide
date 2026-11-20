@@ -222,7 +222,8 @@ def test_pause_plain_loop(transport, debug_port):
     size = min(len(channel.buffer), header["bytes"])
     channel.buffer = channel.buffer[header["bytes"]:]
     print(f"     screen {header['width']}x{header['height']} in {time.monotonic() - started:.2f}s")
-    check("screen capture", size == header["width"] * header["height"] * 4, size)
+    pixel_bytes = 2 if header.get("format") == "RGB565" else 4
+    check("screen capture", size == header["width"] * header["height"] * pixel_bytes, size)
     transport.serial.write(b"\x03")
     channel.receive("terminated")
     transport.follow(5)

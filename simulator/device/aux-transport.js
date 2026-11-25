@@ -5,6 +5,7 @@ import { BadgeBusyError, Transport, changedFiles } from './transport.js';
 
 const CONSOLE_SETTLE_MS = 150;
 const SOFT_REBOOT_LINE = /^(MPY: )?soft reboot$/;
+const STDOUT_KEEP = 64 * 1024;   // a run's stdout kept for its result: the tail, where a traceback is
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -13,13 +14,12 @@ const isRomPath = (path) => path === '/rom' || path.startsWith('/rom/');
 export function consoleFilter(emit) {
   let pending = '';
   return {
+    // One split per chunk: an app printing every frame sends many lines at once.
     push(text) {
-      pending += text;
-      let newline;
-      while ((newline = pending.indexOf('\n')) >= 0) {
-        const line = pending.slice(0, newline + 1);
-        pending = pending.slice(newline + 1);
-        if (!SOFT_REBOOT_LINE.test(line.trim())) emit(line);
+      const lines = (pending + text).split('\n');
+      pending = lines.pop();
+      for (const line of lines) {
+        if (!SOFT_REBOOT_LINE.test(line.trim())) emit(line + '\n');
       }
     },
     flush() {
@@ -196,6 +196,7 @@ export class AuxTransport extends Transport {
     let stdout = '';
     const output = consoleFilter((text) => {
       stdout += text;
+      if (stdout.length > STDOUT_KEEP * 2) stdout = stdout.slice(-STDOUT_KEEP);
       onOutput?.(text);
     });
     this.console = (bytes) => output.push(decoder.decode(bytes, { stream: true }));

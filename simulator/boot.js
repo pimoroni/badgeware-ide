@@ -59,12 +59,32 @@ export function bootSimulator() {
       showStatus(text, Math.max(0, Math.min(1, fraction)));
     };
 
-    const appendOut = (text, cls) => {
-      const span = document.createElement('span');
-      span.textContent = text + '\n';
-      if (cls) span.className = cls;
-      stdoutEl.appendChild(span);
+    // Lines are added once per animation frame, and only the latest
+    // OUTPUT_LINES kept, so an app printing every frame can't swamp the page
+    // with a layout per line and an ever-growing pane.
+    const OUTPUT_LINES = 2000;
+    let outQueue = [];
+    const flushOut = () => {
+      const queued = outQueue.slice(-OUTPUT_LINES);
+      outQueue = [];
+      const fragment = document.createDocumentFragment();
+      for (const [text, cls] of queued) {
+        const span = document.createElement('span');
+        span.textContent = text + '\n';
+        if (cls) span.className = cls;
+        fragment.appendChild(span);
+      }
+      stdoutEl.appendChild(fragment);
+      for (let excess = stdoutEl.childElementCount - OUTPUT_LINES; excess > 0; excess--) stdoutEl.firstElementChild.remove();
       stdoutEl.scrollTop = stdoutEl.scrollHeight;
+    };
+    const appendOut = (text, cls) => {
+      if (!outQueue.length) requestAnimationFrame(flushOut);
+      outQueue.push([text, cls]);
+    };
+    const clearOut = () => {
+      outQueue = [];
+      stdoutEl.innerHTML = '';
     };
 
     const target = currentTarget();
@@ -173,7 +193,7 @@ export function bootSimulator() {
       trace.lastRunKey = tabKey;
       trace.mapFile = mapFile;
       runningKey = tabKey;
-      stdoutEl.innerHTML = '';
+      clearOut();
       appendOut('▶ ' + label, 'out-dim');
       setStatus(label);
       setRunning(true);
@@ -246,7 +266,7 @@ export function bootSimulator() {
       'run-os':    runOS,
       'spin-prev': () => view.rotateView(-1),
       'spin-next': () => view.rotateView(+1),
-      clear:       () => { stdoutEl.innerHTML = ''; },
+      clear:       clearOut,
     };
     delegate(document, actions);   // shared dispatcher — see simulator/util.js
 
@@ -324,7 +344,7 @@ export function bootSimulator() {
       runOS,
       setRunInterceptor: (fn) => { runInterceptor = fn; },
       setStopInterceptor: (fn) => { stopInterceptor = fn; },
-      output: { beginRun, endRun, outputLine, appendOut, clear: () => { stdoutEl.innerHTML = ''; } },
+      output: { beginRun, endRun, outputLine, appendOut, clear: clearOut },
       target,
       simulatorView: {
         start: runOS,

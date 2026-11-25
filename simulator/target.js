@@ -7,12 +7,9 @@ function lineSplitter(onLine) {
   let pending = '';
   return {
     push(text) {
-      pending += text.replace(/\r/g, '');
-      let newline;
-      while ((newline = pending.indexOf('\n')) >= 0) {
-        onLine(pending.slice(0, newline));
-        pending = pending.slice(newline + 1);
-      }
+      const lines = (pending + text.replace(/\r/g, '')).split('\n');
+      pending = lines.pop();
+      lines.forEach(onLine);
     },
     flush() {
       if (pending) onLine(pending);

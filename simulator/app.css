@@ -1578,6 +1578,8 @@
     .debug-var.expandable.open > .debug-var-label::before { content: '▾'; }
     .debug-var:not(.open) > .debug-vars { display: none; }
     .debug-var-label:hover { background: var(--hover); }
+    .debug-var-source { padding: 0 4px; font: inherit; color: var(--dim); background: none; border: none; cursor: pointer; }
+    .debug-var-source:hover { color: var(--orange); }
     .debug-var-name { color: var(--blue); }
     .debug-var-value { color: var(--white); overflow: hidden; text-overflow: ellipsis; }
     .debug-empty { color: var(--dim); }

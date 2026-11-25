@@ -188,6 +188,7 @@ await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').cl
 check('stopped at breakpoint', /\/apps\/e2e_debug\/__init__\.py:9/.test(await waitFor(`document.querySelector('#debug-stack li') && document.getElementById('debug-stack').textContent`, 30000) ?? ''), await stdout());
 check('current line highlighted', await waitFor(`!!document.querySelector('.debug-current-line')`, 5000));
 check('globals show score = 0', /score0/.test(await waitFor(`document.querySelector('#debug-globals .debug-vars') && document.getElementById('debug-globals').textContent`, 5000) ?? ''));
+check('a function shows its signature and where it is defined', await waitFor(`document.getElementById('debug-globals').textContent.includes('label_fordef label_for(value)') && !!document.querySelector('#debug-globals .debug-var-source')`, 5000), await evaluate(`document.getElementById('debug-globals').textContent`));
 check('watch shows score * 2', await waitFor(`document.getElementById('debug-watch').textContent.includes('score * 20')`, 10000), await evaluate(`document.getElementById('debug-watch').textContent`));
 check('screen shown on pause', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
 await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);

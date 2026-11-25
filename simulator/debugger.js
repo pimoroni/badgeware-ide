@@ -256,6 +256,15 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     const label = element('div', 'debug-var-label');
     label.append(element('span', 'debug-var-name', variable.name), element('span', 'debug-var-value', variable.value));
     label.title = variable.type;
+    if (variable.source) {
+      const link = element('button', 'debug-var-source', '↗');
+      link.title = `Open ${variable.source.file}:${variable.source.line}`;
+      link.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openSource(variable.source);
+      });
+      label.append(link);
+    }
     row.append(label);
     if (variable.ref) {
       label.addEventListener('click', async () => {
@@ -266,6 +275,16 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       });
     }
     return row;
+  }
+
+  // Opens where a function was defined, the way stepping into it would.
+  async function openSource({ file, line, user }) {
+    const path = sourcePath({ file, user });
+    if (!path) return setStatus(`${file} isn't in the IDE's copy of the firmware`);
+    await sources.showSource(path, user);
+    editor.revealLineInCenter(line);
+    editor.setPosition({ lineNumber: line, column: 1 });
+    editor.focus();
   }
 
   function variableList(variables) {

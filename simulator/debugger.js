@@ -458,7 +458,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     if (!client) return;
     const form = els.memoryForm;
     const text = form.elements.address.value.trim();
-    const length = Math.min(4096, Math.max(1, Number(form.elements.length.value) || 128));
+    const length = Math.min(4096, Math.max(1, Number(form.elements.size.value) || 128));
     try {
       let address = /^(0x[0-9a-f]+|\d+)$/i.test(text) ? Number(text) : null;
       if (address === null) {

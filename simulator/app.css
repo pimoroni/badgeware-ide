@@ -1561,7 +1561,7 @@
       border-radius: 4px;
     }
     #debug-memory-read input[name="address"] { flex: 1; }
-    #debug-memory-read input[name="length"] { width: 64px; }
+    #debug-memory-read input[name="size"] { width: 64px; }
     #debug-memory-dump { max-height: 160px; overflow: auto; font: 11px Consolas, Monaco, monospace; color: var(--faint); white-space: pre; }
     #debug-watch { list-style: none; }
     .debug-watch-row { display: flex; gap: 8px; align-items: center; padding: 1px 6px; }

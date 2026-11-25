@@ -1,8 +1,16 @@
 {
   "vector": [
-    "DynaPuff-Medium.af",
-    "IndieFlower-Regular.af",
-    "MonaSans-Medium.af"
+    "badge_symbols.af",
+    "cherry_bomb.af",
+    "dseg7.af",
+    "dynapuff.af",
+    "indie_flower.af",
+    "lexend.af",
+    "material_symbols.af",
+    "mona_sans.af",
+    "permanent_marker.af",
+    "phosphor.af",
+    "tilt_neon.af"
   ],
   "pixel": [
     "absolute.ppf",

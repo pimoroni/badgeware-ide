@@ -104,14 +104,16 @@ def _globals(frame):
 def _send_screen(request_id):
     width, height, stride = screen.width, screen.height, screen.stride
     raw = memoryview(screen.raw)
-    row_bytes = width * 4
+    pixel_bytes = (len(raw) - (height - 1) * stride) // width
+    row_bytes = width * pixel_bytes
     if stride != row_bytes:
         packed = bytearray(row_bytes * height)
         for y in range(height):
             packed[y * row_bytes:(y + 1) * row_bytes] = raw[y * stride:y * stride + row_bytes]
         raw = memoryview(packed)
     raw = raw[:row_bytes * height]
-    _send({"event": "screen", "id": request_id, "width": width, "height": height, "bytes": len(raw)})
+    pixel_format = "RGB565" if pixel_bytes == 2 else "RGBA8888"
+    _send({"event": "screen", "id": request_id, "width": width, "height": height, "format": pixel_format, "bytes": len(raw)})
     cdcaux.write(raw)
 
 

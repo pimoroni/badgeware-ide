@@ -14,7 +14,7 @@ import { afParse, afRender } from './af.js';
 import { ppfParse, ppfRender } from './ppf.js';
 import { initTargetSwitch, webSerialSupported, currentTarget } from './mode.js';
 import { activeBoard } from './boards.js';
-import { highlightPython } from './font-snippet.js';
+import { fontRamCost, highlightPython, pythonChar } from './font-snippet.js';
 import { badgeDevice } from './device/session.js';
 import { createConnector } from './device/connect.js';
 
@@ -318,8 +318,9 @@ function openModal(entry) {
 
   const dl = $('#modal-download');
   dl.onclick = () => downloadFont(entry);
-  renderGlyphs(entry);
   modalEntry = entry;
+  renderGlyphs(entry);
+  showLicence(entry);
   syncInstallButtons();
 
   backdrop.classList.add('open');
@@ -343,9 +344,27 @@ function modalDims(entry) {
   if (entry.kind !== 'vector') {
     rows.splice(2, 0, ['Cell size', `${f.cellWidth}×${f.glyphHeight} px`]);
   }
-  const kb = (entry.buffer.byteLength / 1024).toFixed(1);
-  rows.push(['Size', `${kb} kB`]);
-  return rows.map(([k, v]) => `<span><b>${k}:</b> ${escapeHtml(String(v))}</span>`).join('');
+  const kb = (bytes) => `${(bytes / 1024).toFixed(1)} kB`;
+  rows.push(['Size', kb(entry.buffer.byteLength)]);
+  if (entry.kind !== 'icon') {
+    const cost = fontRamCost(entry.kind, f);
+    rows.push(['RAM', `${kb(cost.rom)} loaded from ROM (${kb(cost.copied)} if copied)`]);
+  }
+  return rows.map(([k, v]) => `<span><b>${k}:</b> ${escapeHtml(String(v))}</span>`).join('')
+    + '<span id="modal-licence" hidden><b>Licence:</b> <a target="_blank" rel="noopener"></a></span>';
+}
+
+// ROM fonts that need one ship a licence in rom/fonts/licences/<name>.txt.
+async function showLicence(entry) {
+  if (entry.kind === 'icon') return;
+  const url = PIXEL_DIR + 'licences/' + entry.file.replace(/\.(af|ppf)$/i, '.txt');
+  const response = await fetch(url, { method: 'HEAD' }).catch(() => null);
+  const span = $('#modal-licence');
+  if (!response?.ok || !span || modalEntry !== entry) return;
+  const link = span.querySelector('a');
+  link.href = url;
+  link.textContent = 'licences/' + entry.file.replace(/\.(af|ppf)$/i, '.txt');
+  span.hidden = false;
 }
 
 function closeModal() {
@@ -383,14 +402,10 @@ function snippetFor(entry) {
     ? `, ${Math.round(VECTOR_BASE_PX * state.scale)}`
     : `, ${Math.max(1, Math.round(state.scale))}`;
   const sizeCmt = entry.kind === 'vector' ? '  # size in px' : '  # pixel scale';
-  // Pixel fonts are the built-in ROM set: `font.<name>` loads /rom/fonts/<name>.ppf
-  // directly. Vector fonts are assets, loaded by name via font.load(). (A pixel
-  // name that isn't a valid identifier falls back to font.load.)
-  const isPixel  = entry.kind === 'pixel';
-  const useAttr  = isPixel && /^[A-Za-z_]\w*$/.test(name);
-  const comment  = isPixel
-    ? `# ${name} is a built-in ROM pixel font:`
-    : `# Copy the font to /fonts on your badge, then:`;
+  // Both kinds are the built-in ROM set: `font.<name>` loads /rom/fonts/<name>
+  // directly. (A name that isn't a valid identifier falls back to font.load.)
+  const useAttr  = /^[A-Za-z_]\w*$/.test(name);
+  const comment  = `# ${name} is a built-in ROM ${entry.kind} font:`;
   const loadLine = useAttr ? `my_font = font.${name}` : `my_font = font.load("${name}")`;
   return [
     comment,
@@ -433,11 +448,42 @@ const connector = badgeDevice
   })
   : null;
 
+// Every glyph of a vector font, so icon fonts can be browsed by codepoint.
+// Clicking one copies it as a Python string, escaped where it isn't plain ASCII.
+function renderVectorGlyphs(entry, grid) {
+  for (const glyph of entry.font.glyphs) {
+    const tile = document.createElement('button');
+    const code = glyph.codepoint.toString(16).toUpperCase().padStart(4, '0');
+    const literal = pythonChar(glyph.codepoint);
+    tile.className = 'glyph-tile';
+    tile.title = `U+${code}  ${literal}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    afRender(entry.font, canvas.getContext('2d'), String.fromCodePoint(glyph.codepoint), 4, 2, 22, FG);
+    const label = document.createElement('span');
+    label.textContent = `U+${code}`;
+    tile.append(canvas, label);
+    tile.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(literal);
+        installStatus.textContent = `Copied ${literal} (U+${code})`;
+      } catch (_) {}
+    });
+    grid.append(tile);
+  }
+}
+
 function renderGlyphs(entry) {
   const section = $('#modal-glyphs-section');
   const grid = $('#modal-glyphs');
-  section.hidden = entry.kind !== 'icon';
+  section.hidden = entry.kind === 'pixel';
   grid.replaceChildren();
+  section.querySelector('small').textContent = entry.kind === 'vector' ? 'click one to copy it as a Python string' : 'click one to copy its character';
+  if (entry.kind === 'vector') {
+    renderVectorGlyphs(entry, grid);
+    return;
+  }
   if (entry.kind !== 'icon') return;
   for (const glyph of entry.glyphs) {
     const tile = document.createElement('button');

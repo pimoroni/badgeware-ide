@@ -2,30 +2,30 @@
  *
  * AF binary layout (all multi-byte fields big-endian):
  *   4B  magic "af!?"
- *   2B  flags  (bit 0: path point counts are u16 rather than u8)
+ *   2B  flags  (bit 0: path point counts are u16 rather than u8;
+ *               bit 1: wide, with 16-bit metrics and points)
  *   2B  glyph_count
- *   2B  total path_count  (informational; not needed after parsing)
- *   2B  total point_count (informational; not needed after parsing)
+ *   2B  total path_count
+ *   2B  total point_count
+ *   2B  units per em (wide fonts only; a narrow font's em is 128)
  *
- *   glyph_count × glyph record:
+ *   glyph_count × glyph record (metric fields u8/i8, or u16/i16 when wide):
  *     2B  codepoint (u16)
- *     1B  x offset  (i8, bounding box)
- *     1B  y offset  (i8, bounding box; negative = above baseline)
- *     1B  width     (u8)
- *     1B  height    (u8)
- *     1B  advance   (u8, in font units; scale by size/128 for pixels)
+ *         x offset  (signed, bounding box)
+ *         y offset  (signed, bounding box; negative = above baseline)
+ *         width, height, advance (unsigned, in font units)
  *     1B  nPaths    (u8, number of contour paths)
  *
  *   then path-point-count table (nPaths entries per glyph):
  *     u8 or u16 per path depending on flags bit 0
  *
  *   then point data (all paths of all glyphs in order):
- *     i8 x, i8 y  per point (font-unit coordinates, 0..128 range)
+ *     x, y per point, i8 or i16 when wide, in font units
  *
  * Coordinate system:
  *   y=0 is the baseline; negative y is above the baseline.
  *   To draw at screen (x, y) at pixel size `size`:
- *     ctx.translate(x, y + size); ctx.scale(size/128, size/128);
+ *     ctx.translate(x, y + size); ctx.scale(size/em, size/em);
  *   Paths are closed straight-line polygons; use even-odd fill for holes.
  */
 
@@ -44,17 +44,26 @@ export function afParse(arrayBuffer) {
 
   const flags      = dv.getUint16(off); off += 2;
   const glyphCount = dv.getUint16(off); off += 2;
-  off += 4; // skip total path_count and point_count
+  const pathCount  = dv.getUint16(off); off += 2;
+  const pointCount = dv.getUint16(off); off += 2;
+
+  // A wide font has 16-bit metrics and points, and its own units per em; a
+  // narrow one bytes and an em of 128.
+  const wide = !!(flags & 0b10);
+  let unitsPerEm = 128;
+  if (wide) { unitsPerEm = dv.getUint16(off); off += 2; }
+  const signed   = () => { const v = wide ? dv.getInt16(off) : dv.getInt8(off); off += wide ? 2 : 1; return v; };
+  const unsigned = () => { const v = wide ? dv.getUint16(off) : dv.getUint8(off); off += wide ? 2 : 1; return v; };
 
   /* glyph dictionary */
   const glyphs = [];
   for (let i = 0; i < glyphCount; i++) {
     const codepoint = dv.getUint16(off); off += 2;
-    const x         = dv.getInt8(off);   off += 1;
-    const y         = dv.getInt8(off);   off += 1;
-    const w         = dv.getUint8(off);  off += 1;
-    const h         = dv.getUint8(off);  off += 1;
-    const advance   = dv.getUint8(off);  off += 1;
+    const x         = signed();
+    const y         = signed();
+    const w         = unsigned();
+    const h         = unsigned();
+    const advance   = unsigned();
     const nPaths    = dv.getUint8(off);  off += 1;
     glyphs.push({ codepoint, x, y, w, h, advance, nPaths, paths: [] });
   }
@@ -65,30 +74,28 @@ export function afParse(arrayBuffer) {
     for (let j = 0; j < g.nPaths; j++) {
       const pc = useU16 ? dv.getUint16(off) : dv.getUint8(off);
       off += useU16 ? 2 : 1;
-      g.paths.push({ pc, points: new Int8Array(pc * 2) });
+      g.paths.push({ pc, points: wide ? new Int16Array(pc * 2) : new Int8Array(pc * 2) });
     }
   }
 
-  /* point data — stored as raw bytes interpreted as int8 */
+  /* point data: x, y pairs, int8 or int16 */
   for (const g of glyphs) {
     for (const p of g.paths) {
-      for (let k = 0; k < p.pc * 2; k++) {
-        p.points[k] = dv.getInt8(off++);
-      }
+      for (let k = 0; k < p.pc * 2; k++) p.points[k] = signed();
     }
   }
 
   const cpMap = new Map();
   glyphs.forEach((g, i) => cpMap.set(g.codepoint, i));
 
-  return { glyphCount, glyphs, cpMap };
+  return { glyphCount, glyphs, cpMap, unitsPerEm, wide, pathCount, pointCount };
 }
 
 /**
  * Measure the pixel width of a string at the given size.
  */
 export function afMeasure(font, text, size) {
-  const scale = size / 128;
+  const scale = size / (font.unitsPerEm ?? 128);
   let w = 0;
   for (const ch of text) {
     const idx = font.cpMap.get(ch.codePointAt(0));
@@ -106,7 +113,7 @@ export function afMeasure(font, text, size) {
  * or passes `color` to override it per-call.
  */
 export function afRender(font, ctx, text, x, y, size, color = '#ffffff') {
-  const scale = size / 128;
+  const scale = size / (font.unitsPerEm ?? 128);
   let cx = x;
   ctx.fillStyle = color;
   for (const ch of text) {

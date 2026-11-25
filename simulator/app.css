@@ -738,6 +738,7 @@
       margin-bottom: 20px;
     }
     #modal .dims-row b { color: var(--white); font-weight: 500; }
+    #modal .dims-row a { color: var(--orange); }
     .modal-section-title {
       color: var(--orange);
       font-size: var(--text-xs);

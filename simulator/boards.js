@@ -1,9 +1,9 @@
 const BOARD_KEY = 'badgeware.board';
 
 const FLASH = {
-  romfsBase: 0x10200000,
+  romfsBase: 0x10300000,
   romfsSize: 0x100000,
-  filesystemBase: 0x10300000,
+  filesystemBase: 0x10400000,
 };
 
 export const BOARDS = {

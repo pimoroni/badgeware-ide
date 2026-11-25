@@ -8,7 +8,7 @@ import { activeBoardId, appliesTo, boardForModel, boardForProductId, getBoard, s
 import { BADGE_FILTERS, SUPPORTED_MODELS } from '../simulator/device/badge.js';
 import { completionsFor } from '../simulator/completions.js';
 import { einkPixels, ledLevels, EINK_PALETTE } from '../simulator/screens.js';
-import { boardForIdent, releasesFor } from '../simulator/firmware.js';
+import { boardForIdent, releasesFor, sameFlashLayout } from '../simulator/firmware.js';
 
 const labels = (entries) => entries.map((entry) => entry.label);
 
@@ -107,7 +107,15 @@ test('firmware releases and flash layout come from the board', () => {
   assert.equal(boardForIdent({ model: 'blinky2350' }).id, 'blinky');
   assert.equal(boardForIdent(null, 0x1100).id, 'badger');
   assert.equal(boardForIdent(null).id, 'tufty');
-  assert.equal(getBoard('badger').firmware.filesystemBase, 0x10300000);
+  assert.equal(getBoard('badger').firmware.filesystemBase, 0x10400000);
+});
+
+test('only a badge reporting the same filesystem address keeps its files on update', () => {
+  const board = getBoard('blinky');
+  assert.equal(sameFlashLayout({ flash: { romfs: 0x10300000, filesystem: 0x10400000 } }, board), true);
+  assert.equal(sameFlashLayout({ flash: { romfs: 0x10200000, filesystem: 0x10300000 } }, board), false);
+  assert.equal(sameFlashLayout({ model: 'blinky2350', version: 'v4.0.0-ide.2' }, board), false);
+  assert.equal(sameFlashLayout(null, board), false);
 });
 
 test('the import tool applies the overlay over a firmware bundle', () => {

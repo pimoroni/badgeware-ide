@@ -26,6 +26,10 @@ export async function latestRelease(board = activeBoard()) {
 
 export const boardForIdent = (ident, productId = null) => boardForModel(ident?.model) ?? boardForProductId(productId) ?? activeBoard();
 
+// Whether the badge's filesystem is where this IDE's firmware puts it. Firmware
+// that predates the flash layout in the ident uses an older layout.
+export const sameFlashLayout = (ident, board) => ident?.flash?.filesystem === board.firmware.filesystemBase;
+
 export function updateAvailable(ident, releases) {
   const latest = releases.ide[0];
   if (!latest || !ident?.version) return null;
@@ -80,6 +84,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
   let pendingFonts = [];
   let busy = false;
   let board = activeBoard();
+  let sameLayout = false;
 
   const setStatus = (text, progress = null) => {
     status.textContent = text;
@@ -106,7 +111,10 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
         option({
           key: 'update',
           title: latest ? `Update to ${latest.tag}` : 'Update',
-          detail: update ? 'A newer IDE firmware is available. Keeps your files.' : 'Installs the latest IDE firmware. Keeps your files.',
+          detail: !ident || sameLayout
+            ? (update ? 'A newer IDE firmware is available. Keeps your files.' : 'Installs the latest IDE firmware. Keeps your files.')
+            : 'Installs the latest IDE firmware, which lays out flash differently. Replaces every file on your badge.',
+          destructive: Boolean(ident) && !sameLayout,
           disabled: !latest || !ident,
         }),
         option({
@@ -140,7 +148,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
 
   function sync() {
     const key = selected();
-    const destructive = key === 'full' || key === 'stock';
+    const destructive = key === 'full' || key === 'stock' || (key === 'update' && !sameLayout);
     const confirm = body.querySelector('.firmware-confirm');
     confirm.hidden = !destructive;
     body.querySelector('.firmware-backup').hidden = !destructive || !onBackup || !device.connected;
@@ -161,12 +169,13 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
       });
       if (!file) return null;
       const { sectors } = parseUf2(new Uint8Array(await file.arrayBuffer()));
-      return { label: file.name, sectors, keepsFiles: ![...sectors.keys()].some((address) => address >= board.firmware.filesystemBase) };
+      const writesFilesystem = [...sectors.keys()].some((address) => address >= board.firmware.filesystemBase);
+      return { label: file.name, sectors, keepsFiles: sameLayout && !writesFilesystem };
     }
     const release = key === 'stock' ? releases.stock : releases.ide[0];
     const url = key === 'update' ? release.firmware : release.full;
     const bytes = await download(url, (fraction) => setStatus(`Downloading ${release.tag}…`, fraction));
-    return { label: release.tag, sectors: parseUf2(bytes).sectors, keepsFiles: key === 'update' };
+    return { label: release.tag, sectors: parseUf2(bytes).sectors, keepsFiles: key === 'update' && sameLayout };
   }
 
   async function savedRomFonts(sectors) {
@@ -283,6 +292,7 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
       delete flashButton.dataset.ready;
       setStatus('');
       board = boardForIdent(ident, device.productId);
+      sameLayout = sameFlashLayout(ident, board);
       await render(ident);
       dialog.showModal();
     },

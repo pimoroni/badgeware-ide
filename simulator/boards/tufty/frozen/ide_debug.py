@@ -9,7 +9,11 @@ MAX_REPR = 120
 MAX_CHILDREN = 100
 INIT_TIMEOUT_MS = 2000
 
-_breakpoints = {}
+_breakpoints = {}  # file -> {line: None, or a dict of condition, hitCount, logMessage, hits}
+_break_on_exception = False
+_run_to = None  # (file, line) of a one-off breakpoint
+_exception = None  # the exception being unwound, and snapshots of the frames it left
+_unwound = []
 _mode = "run"
 _step_frame = None
 _rx = b""
@@ -38,6 +42,44 @@ def _stack(frame):
         frames.append(frame)
         frame = frame.f_back
     return frames
+
+
+# A stopped frame is a live frame, or a dict snapshot of one an exception has
+# already unwound, holding what its locals were as the exception passed.
+def _snapshot(frame):
+    module = frame.f_code.co_name == "<module>"
+    return {
+        "file": _frame_file(frame),
+        "line": frame.f_lineno,
+        "first": frame.f_code.co_firstlineno,
+        "name": frame.f_code.co_name,
+        "globals": frame.f_globals,
+        "locals": None if module else dict(frame.f_locals),
+    }
+
+
+def _frame_info(frame):
+    if isinstance(frame, dict):
+        info = {key: frame[key] for key in ("file", "line", "first", "name")}
+        info["unwound"] = True
+    else:
+        info = {"file": _frame_file(frame), "line": frame.f_lineno, "first": frame.f_code.co_firstlineno, "name": frame.f_code.co_name}
+    info["user"] = _is_user_file(info["file"])
+    return info
+
+
+def _frame_scopes(frame):
+    # (globals, locals) to evaluate in, locals None at module level.
+    if isinstance(frame, dict):
+        return frame["globals"], frame["locals"]
+    if frame.f_code.co_name == "<module>":
+        return frame.f_globals, None
+    return frame.f_globals, frame.f_locals
+
+
+def _evaluate(frame, expression):
+    scope, local_scope = _frame_scopes(frame)
+    return eval(expression, scope, scope if local_scope is None else local_scope)
 
 
 def _short_repr(value):
@@ -81,18 +123,18 @@ def _children(value):
 
 
 def _locals(frame):
-    if frame.f_code.co_name == "<module>":
-        return None
     try:
-        items = frame.f_locals.items()
+        local_scope = _frame_scopes(frame)[1]
     except AttributeError:
         return None
-    return [_variable(name, value) for name, value in sorted(items)]
+    if local_scope is None:
+        return None
+    return [_variable(name, value) for name, value in sorted(local_scope.items())]
 
 
 def _globals(frame):
     variables = []
-    for name, value in sorted(frame.f_globals.items()):
+    for name, value in sorted(_frame_scopes(frame)[0].items()):
         if name.startswith("__"):
             continue
         if type(value).__name__ == "module":
@@ -118,23 +160,34 @@ def _send_screen(request_id):
 
 
 def _handle(command):
-    global _mode, _step_frame, _resume, _initialised
+    global _mode, _step_frame, _resume, _initialised, _run_to
     name = command.get("cmd")
 
     if name == "init":
         _initialised = True
         _breakpoints.clear()
         for filename, lines in command.get("breakpoints", {}).items():
-            _breakpoints[filename] = set(lines)
+            _breakpoints[filename] = _parse_breakpoints(lines)
+        _set_exception_break(command.get("breakOnException", False))
         if command.get("stopOnEntry"):
             _mode = "step_in"
 
     elif name == "setBreakpoints":
         lines = command.get("lines", [])
         if lines:
-            _breakpoints[command["file"]] = set(lines)
+            _breakpoints[command["file"]] = _parse_breakpoints(lines)
         else:
             _breakpoints.pop(command["file"], None)
+
+    elif name == "setExceptionBreak":
+        _set_exception_break(command.get("enabled", False))
+
+    elif name == "runTo":
+        if not _stopped_frames:
+            return
+        _run_to = (command["file"], command["line"])
+        _mode = "run"
+        _resume = True
 
     elif name == "pause":
         _mode = "pause"
@@ -160,8 +213,8 @@ def _handle(command):
 
     elif name == "eval":
         frame = _stopped_frames[command.get("frame", 0)] if _stopped_frames else _current_frame
-        scope = frame.f_globals if frame else {}
-        local_scope = frame.f_locals if frame and frame.f_code.co_name != "<module>" else scope
+        scope, local_scope = _frame_scopes(frame) if frame else ({}, None)
+        local_scope = scope if local_scope is None else local_scope
         expression = command.get("expr", "")
         try:
             try:
@@ -190,20 +243,20 @@ def _poll():
                 _send({"event": "error", "id": command.get("id"), "message": type(e).__name__ + ": " + str(e)})
 
 
-def _stop(frame, reason):
-    global _resume, _stopped_frames
-    _stopped_frames = _stack(frame)
+def _stop(frame, reason, unwound=(), exception=None):
+    global _resume, _stopped_frames, _run_to
+    _stopped_frames = list(unwound) + _stack(frame)
     _refs.clear()
     _resume = False
-    _send({
-        "event": "stopped",
-        "reason": reason,
-        "stack": [
-            {"file": _frame_file(f), "line": f.f_lineno, "first": f.f_code.co_firstlineno, "name": f.f_code.co_name, "user": _is_user_file(_frame_file(f))}
-            for f in _stopped_frames
-        ],
-    })
+    _run_to = None
+    event = {"event": "stopped", "reason": reason, "stack": [_frame_info(f) for f in _stopped_frames]}
+    if exception is not None:
+        event["exception"] = type(exception).__name__ + ": " + str(exception)
+    _send(event)
     while not _resume:
+        if not cdcaux.connected():
+            _detach()
+            break
         _poll()
         time.sleep_ms(5)
     _stopped_frames = []
@@ -211,9 +264,119 @@ def _stop(frame, reason):
     _send({"event": "continued"})
 
 
+def _detach():
+    # The IDE went away while the app was paused: stop debugging and let the app
+    # run on, so neither it nor the REPL is left waiting on a debugger.
+    global _mode, _resume
+    _breakpoints.clear()
+    _mode = "run"
+    _resume = True
+    sys.settrace(None)
+    cdcaux.claim(False)
+
+
+def _parse_breakpoints(entries):
+    # A plain line number, or {"line", "condition", "hitCount", "logMessage"}.
+    lines = {}
+    for entry in entries:
+        if isinstance(entry, int):
+            lines[entry] = None
+        else:
+            spec = {key: entry.get(key) for key in ("condition", "hitCount", "logMessage")}
+            spec["hits"] = 0
+            lines[entry["line"]] = spec
+    return lines
+
+
+def _hit_matches(hits, hit_count):
+    # hitCount N or "==N" stops on the Nth hit, ">=N" on every hit from the Nth,
+    # "%N" on every Nth hit.
+    text = str(hit_count).strip()
+    if text.startswith("%"):
+        every = int(text[1:])
+        return every > 0 and hits % every == 0
+    if text.startswith(">="):
+        return hits >= int(text[2:])
+    return hits == int(text.lstrip("="))
+
+
+def _log_text(frame, message):
+    # A logpoint message with each {expression} replaced by its value.
+    out = []
+    while "{" in message and "}" in message[message.index("{"):]:
+        start = message.index("{")
+        end = message.index("}", start)
+        out.append(message[:start])
+        try:
+            out.append(str(_evaluate(frame, message[start + 1:end])))
+        except Exception as e:  # noqa: BLE001
+            out.append("<" + type(e).__name__ + ": " + str(e) + ">")
+        message = message[end + 1:]
+    out.append(message)
+    return "".join(out)
+
+
+def _breakpoint_stops(frame, spec):
+    if spec is None:
+        return True
+    if spec["condition"]:
+        try:
+            if not _evaluate(frame, spec["condition"]):
+                return False
+        except Exception as e:  # noqa: BLE001
+            # Not a stop: MicroPython reports a loop body's line before the loop
+            # variable is set, so a condition on it can fail once harmlessly.
+            # Reported once, so a real mistake still shows.
+            if not spec.get("reported"):
+                spec["reported"] = True
+                _send({"event": "output", "text": "Breakpoint condition " + spec["condition"] + ": " + type(e).__name__ + ": " + str(e)})
+            return False
+    spec["hits"] += 1
+    if spec["hitCount"] and not _hit_matches(spec["hits"], spec["hitCount"]):
+        return False
+    if spec["logMessage"] is not None:
+        _send({"event": "output", "text": _log_text(frame, spec["logMessage"])})
+        return False
+    return True
+
+
+def _set_exception_break(enabled):
+    global _break_on_exception, _exception
+    _break_on_exception = bool(enabled)
+    _exception = None
+    _unwound.clear()
+
+
+def _exception_unwinding(frame, info):
+    # Stop where an exception leaves the outermost user frame unhandled. The
+    # frames it already unwound are kept as snapshots, so their locals can still
+    # be inspected. Without a debugger the badge shows its traceback as before.
+    global _exception
+    if not isinstance(info, tuple) or len(info) < 3 or info[2] is not False:
+        return
+    file = _frame_file(frame)
+    if not _is_user_file(file):
+        return
+    if info[1] is not _exception:
+        _exception = info[1]
+        _unwound.clear()
+    caller = frame.f_back
+    if caller is not None and _is_user_file(_frame_file(caller)):
+        if len(_unwound) < MAX_STACK:
+            _unwound.append(_snapshot(frame))
+        return
+    unwound = list(_unwound)
+    _exception = None
+    _unwound.clear()
+    _stop(frame, "exception", unwound, info[1])
+
+
 def _should_stop(frame):
-    lines = _breakpoints.get(_frame_file(frame))
-    if lines and frame.f_lineno in lines:
+    file = _frame_file(frame)
+    lines = _breakpoints.get(file)
+    if lines and frame.f_lineno in lines and _breakpoint_stops(frame, lines[frame.f_lineno]):
+        return "breakpoint"
+    if _run_to is not None and _run_to == (file, frame.f_lineno):
         return "breakpoint"
     if _mode == "pause":
         return "pause"
@@ -236,6 +399,8 @@ def _trace_local(frame, event, _arg):
     elif event == "return":
         if frame is _step_frame and _mode in ("step_over", "step_out"):
             _mode = "step_in"
+    elif event == "exception" and _break_on_exception:
+        _exception_unwinding(frame, _arg)
     return _trace_local
 
 

@@ -121,4 +121,10 @@ export class AuxClient extends DebugClient {
   stopApp() {
     return this.call('app.stop', {}, { timeout: RESET_TIMEOUT_MS });
   }
+
+  // Handled in C, so it works whatever the badge's Python is doing. The badge
+  // drops off USB straight after replying, so a lost reply is not an error.
+  bootloader() {
+    return this.call('app.bootloader', {}, { timeout: 2000 }).catch(() => null);
+  }
 }

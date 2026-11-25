@@ -278,6 +278,15 @@ export class BadgeDevice extends EventTarget {
 
   async enterBootloader() {
     const command = '\r\x03\x03\r\x02import machine; machine.bootloader()\r';
+    if (this.connected && this.ident?.features?.includes('bootloader') && this.transport?.client) {
+      const link = this.replLink;
+      const transport = this.transport;
+      this.reset();
+      await transport.client.bootloader();
+      await link.close();
+      await transport.close();
+      return;
+    }
     if (this.connected) {
       await this.stop();
       const link = this.replLink;

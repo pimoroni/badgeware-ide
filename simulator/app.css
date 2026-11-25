@@ -1076,8 +1076,7 @@
     #stdout[data-tab="memory"] > [data-out-pane="screen"],
     #stdout:not([data-tab="output"]) h2 [data-action="clear"] { display: none; }
     .out-idle { color: var(--dim); font-family: Lexend, sans-serif; line-height: 1.6; }
-    body.debugging [data-out-pane="screen"] > .out-idle,
-    body:not(.debugging) [data-out-pane="screen"] > :not(.out-idle),
+    body:not(.debugging) [data-out-pane="screen"] > *,
     body.badge-connected [data-out-pane="memory"] > .out-idle,
     body:not(.badge-connected) [data-out-pane="memory"] > :not(.out-idle) { display: none; }
     #stdout [hidden] { display: none; }

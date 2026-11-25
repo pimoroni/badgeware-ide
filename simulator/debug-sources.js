@@ -20,6 +20,19 @@ export function frameSourcePath(frame, frozenFiles, systemPaths) {
   return frozenSourcePath(frame.file, frozenFiles) ?? librarySourcePath(frame.file, systemPaths);
 }
 
+// Whether the badge runs the firmware the board bundle's frozen sources came
+// from: true, false, or null when either side can't say. The badge reports `git
+// describe` of its board repo, the bundle its commit and its own describe.
+export function bundleMatches(ident, bundle) {
+  const version = ident?.version?.replace(/-dirty$/, '');
+  if (!version || version === 'unknown' || !bundle?.commit) return null;
+  const commit = version.match(/(?:^|-g)([0-9a-f]{7,40})$/)?.[1];
+  return commit ? bundle.commit.startsWith(commit) : version === bundle.version;
+}
+
+export const loadBundleInfo = (boardFile = (name) => new URL(activeBoard().simulator + name, import.meta.url)) =>
+  fetch(boardFile('bundle.json')).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+
 export function boardSourceProvider(boardFile = (name) => new URL(activeBoard().simulator + name, import.meta.url)) {
   let frozenFiles = new Set();
 

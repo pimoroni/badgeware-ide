@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createDebugSources, frameSourcePath, scratchKeyFor, tabTarget } from '../simulator/debug-sources.js';
+import { bundleMatches, createDebugSources, frameSourcePath, scratchKeyFor, tabTarget } from '../simulator/debug-sources.js';
 
 const frozenFiles = new Set(['badgeware/text.py']);
 const systemPaths = ['/badgeware/text.py', '/badgeware/shapes.py'];
@@ -100,4 +100,15 @@ test('maps a frozen library frame to its frozen source', () => {
   const sources = sourcesWith(fakeTabs());
   const frame = { user: false, file: 'badgeware/text.py', name: 'update', first: 1 };
   assert.equal(sources.sourcePath(frame), '/.frozen/badgeware/text.py');
+});
+
+test('matches a badge to the bundle its frozen sources came from', () => {
+  const bundle = { commit: '78379376a9f7063324548ddf2ef882eb9ae94336', version: 'v4.0.0-ide.3' };
+  assert.equal(bundleMatches({ version: 'v4.0.0-ide.2-3-g7837937' }, bundle), true);
+  assert.equal(bundleMatches({ version: '7837937-dirty' }, bundle), true);
+  assert.equal(bundleMatches({ version: 'v4.0.0-ide.2-2-g4e00566' }, bundle), false);
+  assert.equal(bundleMatches({ version: 'v4.0.0-ide.3' }, bundle), true);
+  assert.equal(bundleMatches({ version: 'v4.0.0-ide.2' }, bundle), false);
+  assert.equal(bundleMatches({ version: 'unknown' }, bundle), null);
+  assert.equal(bundleMatches({ version: 'v4.0.0-ide.3' }, null), null);
 });

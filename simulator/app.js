@@ -24,6 +24,7 @@ import { badgeDevice, badgeFS, badgeEvents } from './device/session.js';
 import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange, setBeforeBoardSwitch, switchBoard } from './mode.js';
 import { activeBoard, boardForModel } from './boards.js';
+import { bundleMatches, loadBundleInfo } from './debug-sources.js';
 import { delegate } from './util.js';
 
 const BOARD = activeBoard();
@@ -322,6 +323,15 @@ async function initApp() {
   }
   badgeDevice?.addEventListener('connected', followBadge);
   badgeDevice?.addEventListener('disconnected', followBadge);
+  // Built-in (frozen) code is shown from the IDE's copy of its sources, which
+  // only lines up with the badge when both come from the same firmware build.
+  badgeDevice?.addEventListener('connected', async () => {
+    if (boardForModel(badgeDevice.ident?.model)?.id !== BOARD.id) return;   // switching boards reloads
+    const bundle = await loadBundleInfo();
+    if (bundleMatches(badgeDevice.ident, bundle) === false) {
+      flashStatus(`Badge firmware ${badgeDevice.ident.version} differs from the IDE's copy (${bundle.version}), so stepping into built-in code may show the wrong lines`, 8000);
+    }
+  });
   const configPane = createConfigPane(document.getElementById('config'), {
     userFS: badgeFS, flashStatus,
     firmwareText: () => {

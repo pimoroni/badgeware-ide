@@ -1561,6 +1561,15 @@
       border-radius: 4px;
     }
     #debug-memory-read input[name="address"] { flex: 1; }
+    #debug-memory-read select {
+      padding: 3px 4px;
+      font: inherit;
+      font-size: var(--text-xs);
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
     #debug-memory-read input[name="size"] { width: 64px; }
     #debug-memory-dump { max-height: 160px; overflow: auto; font: 11px Consolas, Monaco, monospace; color: var(--faint); white-space: pre; }
     #debug-watch { list-style: none; }

@@ -20,3 +20,13 @@ test('hex dumps rows with addresses and printable text', () => {
   assert.equal(dump.split('\n')[0], '20001000  42 61 64 67 65 77 61 72  Badgewar');
   assert.equal(dump.split('\n').length, 3);
 });
+
+test('offsets into a region become addresses', async () => {
+  const { DEFAULT_REGIONS, regionAddress } = await import('../simulator/heap-map.js');
+  assert.equal(regionAddress(DEFAULT_REGIONS, 'sram', '0', 128), 0x20000000);
+  assert.equal(regionAddress(DEFAULT_REGIONS, 'flash', '0x300000', 16), 0x10300000);
+  assert.equal(regionAddress(DEFAULT_REGIONS, 'psram', '', 16), 0x11000000);
+  assert.throws(() => regionAddress(DEFAULT_REGIONS, 'sram', String(520 * 1024 - 8), 16), /past the end of SRAM/);
+  assert.throws(() => regionAddress(DEFAULT_REGIONS, 'sram', 'id(x)', 16), /offset is a number/);
+  assert.throws(() => regionAddress({ ...DEFAULT_REGIONS, psram: [0, 0] }, 'psram', '0', 16), /no PSRAM/);
+});

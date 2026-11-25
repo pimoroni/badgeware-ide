@@ -300,6 +300,12 @@
         <p id="debug-heap-stats"></p>
         <canvas id="debug-heap" width="256" height="64" hidden></canvas>
         <form id="debug-memory-read">
+          <select name="region" title="Read from an address, or an offset into a region">
+            <option value="">Address</option>
+            <option value="flash">Flash</option>
+            <option value="psram">PSRAM</option>
+            <option value="sram">SRAM</option>
+          </select>
           <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
           <input name="size" type="number" value="128" min="1" max="4096" title="Bytes to read">
           <button type="submit">Read</button>

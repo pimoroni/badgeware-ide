@@ -3,7 +3,7 @@ import { SCRATCH_PATH } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
 import { boardSourceProvider, createDebugSources } from './debug-sources.js';
 import { breakpointEntries, breakpointLines, breakpointOptions, describeBreakpoint, hoverExpression } from './debug-breakpoints.js';
-import { FREE, HEAD, heapMap, hexDump } from './heap-map.js';
+import { DEFAULT_REGIONS, FREE, HEAD, heapMap, hexDump, regionAddress } from './heap-map.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -369,6 +369,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   }
 
   function onClosed() {
+    memoryRegions = null;
     clearInterval(watchTimer);
     clearPaused();
     client = null;
@@ -453,6 +454,18 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     canvas.title = `${perPixel} block${perPixel === 1 ? '' : 's'} per pixel`;
   }
 
+  // The badge reports its regions from mem.heap; older firmware doesn't.
+  let memoryRegions = null;
+  async function regions() {
+    memoryRegions ??= (await client.request({ cmd: 'mem.heap' }, 'mem.heap', 5000).catch(() => null))?.regions ?? DEFAULT_REGIONS;
+    return memoryRegions;
+  }
+
+  function syncRegionField() {
+    const form = els.memoryForm;
+    form.elements.address.placeholder = form.elements.region.value ? 'Offset, e.g. 0 or 0x1000' : '0x20000000, or id(name) while paused';
+  }
+
   async function showMemory(event) {
     event.preventDefault();
     if (!client) return;
@@ -460,7 +473,9 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     const text = form.elements.address.value.trim();
     const length = Math.min(4096, Math.max(1, Number(form.elements.size.value) || 128));
     try {
-      let address = /^(0x[0-9a-f]+|\d+)$/i.test(text) ? Number(text) : null;
+      const region = form.elements.region.value;
+      let address = region ? regionAddress(await regions(), region, text, length)
+        : /^(0x[0-9a-f]+|\d+)$/i.test(text) ? Number(text) : null;
       if (address === null) {
         if (!stopped) throw new Error('Pause to read an expression, or give an address');
         const reply = await client.request({ cmd: 'eval', expr: text, frame: selectedFrame }, 'evaluated', 3000);
@@ -475,6 +490,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   }
   els.heapButton?.addEventListener('click', mapHeap);
   els.memoryForm?.addEventListener('submit', showMemory);
+  els.memoryForm?.elements.region.addEventListener('change', syncRegionField);
 
   function onOutput({ detail }) {
     els.evalLog.append(element('div', 'debug-output', detail.text));

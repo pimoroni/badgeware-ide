@@ -187,8 +187,10 @@ for (const step of ['stepOver', 'stepIn', 'stepOver']) {
 }
 await evaluate(`document.getElementById('debug-heap-map').click()`);
 check('heap map reads the allocation table', await waitFor(`/KB used in \\d+ allocations/.test(document.getElementById('debug-heap-stats').textContent) && !document.getElementById('debug-heap').hidden`, 15000), await evaluate(`document.getElementById('debug-heap-stats').textContent`));
-await evaluate(`(() => { const form = document.getElementById('debug-memory-read'); form.elements.address.value = 'id(names)'; form.elements.size.value = '40'; form.requestSubmit(); })()`);
+await evaluate(`(() => { const form = document.getElementById('debug-memory-read'); form.elements.region.value = ''; form.elements.address.value = 'id(names)'; form.elements.size.value = '40'; form.requestSubmit(); })()`);
 check('memory read follows an expression, for the size asked', await waitFor(`/^[0-9a-f]{8}  [0-9a-f]{2} /.test(document.getElementById('debug-memory-dump').textContent) && document.getElementById('debug-memory-dump').textContent.split('\\n').length === 3`, 10000), await evaluate(`document.getElementById('debug-memory-dump').textContent`));
+await evaluate(`(() => { const form = document.getElementById('debug-memory-read'); form.elements.region.value = 'sram'; form.elements.address.value = '0'; form.elements.size.value = '128'; form.requestSubmit(); })()`);
+check('memory read at an offset into SRAM', await waitFor(`(() => { const lines = document.getElementById('debug-memory-dump').textContent.split('\\n'); return lines.length === 8 && lines[0].startsWith('20000000'); })()`, 10000), await evaluate(`document.getElementById('debug-memory-dump').textContent.slice(0, 120)`));
 check('locals inside a function', (await waitFor(`!document.getElementById('debug-locals').hidden && document.getElementById('debug-locals').textContent`, 10000))?.includes("text'Score: 20'"));
 await screenshot('e2e-badge-debug.png');
 await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);

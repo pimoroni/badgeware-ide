@@ -51,3 +51,25 @@ export function hexDump(bytes, address, width = 16) {
   }
   return lines.join('\n');
 }
+
+// RP2350 memory regions as [base, size], for firmware that doesn't report its
+// own from mem.heap.
+export const DEFAULT_REGIONS = {
+  flash: [0x10000000, 16 * 1024 * 1024],
+  psram: [0x11000000, 8 * 1024 * 1024],
+  sram: [0x20000000, 520 * 1024],
+};
+
+const REGION_NAMES = { flash: 'Flash', psram: 'PSRAM', sram: 'SRAM' };
+
+// The absolute address of `offset` (decimal or 0x hex) into a region, checking
+// `length` bytes from it fit. Throws with a message for the memory view.
+export function regionAddress(regions, region, offsetText, length) {
+  const [base, size] = regions[region];
+  const text = offsetText.trim() || '0';
+  if (!/^(0x[0-9a-f]+|\d+)$/i.test(text)) throw new Error('An offset is a number, e.g. 0 or 0x1000');
+  const offset = Number(text);
+  if (!size) throw new Error(`This badge has no ${REGION_NAMES[region]}`);
+  if (offset + length > size) throw new Error(`That runs past the end of ${REGION_NAMES[region]} (${size / 1024} KB)`);
+  return base + offset;
+}

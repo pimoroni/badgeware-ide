@@ -15,6 +15,16 @@ const WRITE_CHUNK = 32 * 1024;
 const ERASE_CHUNK = 256 * 1024;
 const TRANSFER_TIMEOUT_MS = 30000;
 
+const hex = (address) => `0x${address.toString(16).padStart(8, '0')}`;
+
+async function failsAt(action, address, step) {
+  try {
+    return await step();
+  } catch (error) {
+    throw new Error(`${error.message} while ${action} flash at ${hex(address)}`);
+  }
+}
+
 export class Picoboot {
   constructor(device) {
     this.device = device;
@@ -137,19 +147,44 @@ export class Picoboot {
     let done = 0;
     for (const run of contiguousRuns(changed)) {
       for (let offset = 0; offset < run.length; offset += ERASE_CHUNK) {
-        await this.erase(run.address + offset, Math.min(ERASE_CHUNK, run.length - offset));
+        const address = run.address + offset;
+        await failsAt('erasing', address, () => this.erase(address, Math.min(ERASE_CHUNK, run.length - offset)));
       }
       for (let offset = 0; offset < run.length; offset += WRITE_CHUNK) {
         const length = Math.min(WRITE_CHUNK, run.length - offset);
+        const address = run.address + offset;
         const chunk = new Uint8Array(length);
         for (let sector = 0; sector < length; sector += SECTOR_SIZE) {
-          chunk.set(changed.get(run.address + offset + sector), sector);
+          chunk.set(changed.get(address + sector), sector);
         }
-        await this.write(run.address + offset, chunk);
+        await failsAt('writing', address, () => this.write(address, chunk));
         done += length;
         onProgress({ phase: 'write', done, total });
       }
     }
+    await this.verify(changed, onProgress);
     return { checked: sectors.size, written: changed.size };
+  }
+
+  // Read back what was written, so a write the flash didn't take is reported
+  // rather than discovered when the badge boots the old firmware.
+  async verify(sectors, onProgress = () => {}) {
+    const total = sectors.size * SECTOR_SIZE;
+    let done = 0;
+    for (const run of contiguousRuns(sectors)) {
+      for (let offset = 0; offset < run.length; offset += WRITE_CHUNK) {
+        const length = Math.min(WRITE_CHUNK, run.length - offset);
+        const address = run.address + offset;
+        const current = await failsAt('verifying', address, () => this.read(address, length));
+        for (let sector = 0; sector < length; sector += SECTOR_SIZE) {
+          const wanted = sectors.get(address + sector);
+          if (wanted.some((byte, i) => byte !== current[sector + i])) {
+            throw new Error(`Flash did not verify at ${hex(address + sector)}. Try installing again.`);
+          }
+        }
+        done += length;
+        onProgress({ phase: 'verify', done, total });
+      }
+    }
   }
 }

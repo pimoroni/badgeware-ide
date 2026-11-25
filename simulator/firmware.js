@@ -202,7 +202,8 @@ export function createFirmwareDialog(dialog, { device, connect, onFinished, onBa
     const picoboot = new Picoboot(usbDevice);
     await picoboot.open();
     const result = await picoboot.flash(plan.sectors, ({ phase, done, total }) => {
-      setStatus(phase === 'check' ? 'Checking what needs writing…' : 'Writing firmware…', total ? done / total : null);
+      const label = { check: 'Checking what needs writing…', write: 'Writing firmware…', verify: 'Verifying…' }[phase];
+      setStatus(label, total ? done / total : null);
     });
     setStatus('Restarting your badge…', null);
     await picoboot.reboot();

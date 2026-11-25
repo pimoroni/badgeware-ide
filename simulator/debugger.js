@@ -3,6 +3,7 @@ import { SCRATCH_PATH } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
 import { boardSourceProvider, createDebugSources } from './debug-sources.js';
 import { breakpointEntries, breakpointLines, breakpointOptions, describeBreakpoint, hoverExpression } from './debug-breakpoints.js';
+import { FREE, HEAD, heapMap, hexDump } from './heap-map.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
@@ -396,6 +397,84 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     if (event.target.closest('[data-debug-action="restart"]')) restart?.();
   });
   els.exceptionToggle?.setAttribute('aria-pressed', String(breakOnException));
+
+  // -- Memory: read over the aux channel, so the badge does no walking --------
+  const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
+
+  async function readMemory(address, length) {
+    const chunks = [];
+    for (let offset = 0; offset < length; offset += 4096) {
+      const reply = await client.request({ cmd: 'mem.read', address: address + offset, length: Math.min(4096, length - offset) }, 'mem.read', 5000);
+      chunks.push(reply.payload);
+    }
+    const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+    chunks.reduce((offset, chunk) => (bytes.set(chunk, offset), offset + chunk.length), 0);
+    return bytes;
+  }
+
+  async function mapHeap() {
+    if (!client) return;
+    els.heapStats.textContent = 'Reading the heap…';
+    try {
+      const heap = await client.request({ cmd: 'mem.heap' }, 'mem.heap', 5000);
+      const maps = [];
+      for (const area of heap.areas) maps.push(heapMap(await readMemory(area.table, area.table_bytes), heap.block));
+      const total = (key) => maps.reduce((sum, map) => sum + map[key], 0);
+      const largest = Math.max(...maps.map((map) => map.largestFreeBytes));
+      const free = total('freeBytes');
+      els.heapStats.textContent = `${kb(total('usedBytes'))} used in ${total('allocations')} allocations, ${kb(free)} free. `
+        + `Largest free block ${kb(largest)} (${Math.round((free ? 1 - largest / free : 0) * 100)}% fragmented).`;
+      drawHeap(maps);
+    } catch (error) {
+      els.heapStats.textContent = /EINVAL|timed out|No reply/.test(error.message) ? 'Mapping the heap needs newer badge firmware.' : `Could not read the heap: ${error.message}`;
+    }
+  }
+
+  // One pixel per group of blocks, brighter the more of the group is in use.
+  function drawHeap(maps) {
+    const canvas = els.heapCanvas;
+    const kinds = maps.length === 1 ? maps[0].kinds : Uint8Array.from(maps.flatMap((map) => [...map.kinds]));
+    const pixels = canvas.width * canvas.height;
+    const perPixel = Math.max(1, Math.ceil(kinds.length / pixels));
+    const image = canvas.getContext('2d').createImageData(canvas.width, canvas.height);
+    for (let pixel = 0; pixel * perPixel < kinds.length && pixel < pixels; pixel++) {
+      let used = 0;
+      let heads = 0;
+      const end = Math.min(kinds.length, (pixel + 1) * perPixel);
+      for (let block = pixel * perPixel; block < end; block++) {
+        if (kinds[block] !== FREE) used++;
+        if (kinds[block] === HEAD) heads++;
+      }
+      const level = used / (end - pixel * perPixel);
+      image.data.set([40 + 200 * level, 40 + 120 * level * (heads ? 1 : 0.6), 48, 255], pixel * 4);
+    }
+    canvas.getContext('2d').putImageData(image, 0, 0);
+    canvas.hidden = false;
+    canvas.title = `${perPixel} block${perPixel === 1 ? '' : 's'} per pixel`;
+  }
+
+  async function showMemory(event) {
+    event.preventDefault();
+    if (!client) return;
+    const form = els.memoryForm;
+    const text = form.elements.address.value.trim();
+    const length = Math.min(4096, Math.max(1, Number(form.elements.length.value) || 128));
+    try {
+      let address = /^(0x[0-9a-f]+|\d+)$/i.test(text) ? Number(text) : null;
+      if (address === null) {
+        if (!stopped) throw new Error('Pause to read an expression, or give an address');
+        const reply = await client.request({ cmd: 'eval', expr: text, frame: selectedFrame }, 'evaluated', 3000);
+        if (reply.error) throw new Error(reply.error);
+        address = Number(reply.result.value);
+        if (!Number.isFinite(address)) throw new Error(`${text} is not an address`);
+      }
+      els.memoryDump.textContent = hexDump(await readMemory(address, length), address);
+    } catch (error) {
+      els.memoryDump.textContent = /EINVAL/.test(error.message) ? 'That range is outside RAM, flash and the heap.' : error.message;
+    }
+  }
+  els.heapButton?.addEventListener('click', mapHeap);
+  els.memoryForm?.addEventListener('submit', showMemory);
 
   function onOutput({ detail }) {
     els.evalLog.append(element('div', 'debug-output', detail.text));

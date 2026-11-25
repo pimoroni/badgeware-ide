@@ -257,6 +257,11 @@ async function initApp() {
       exception: document.getElementById('debug-exception'),
       exceptionToggle: document.querySelector('[data-debug-option="exceptions"]'),
       breakpointDialog: document.getElementById('breakpoint-dialog'),
+      heapButton: document.getElementById('debug-heap-map'),
+      heapStats: document.getElementById('debug-heap-stats'),
+      heapCanvas: document.getElementById('debug-heap'),
+      memoryForm: document.getElementById('debug-memory-read'),
+      memoryDump: document.getElementById('debug-memory-dump'),
     },
     { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile), restart: () => restartDebug() },
   );

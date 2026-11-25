@@ -185,6 +185,10 @@ for (const step of ['stepOver', 'stepIn', 'stepOver']) {
   await evaluate(`document.querySelector('#debug-controls [data-debug="${step}"]').click()`);
   await waitFor(`document.getElementById('status').textContent !== ${JSON.stringify(before)} && document.body.classList.contains('debug-paused') && document.querySelector('#debug-globals .debug-vars')`, 10000);
 }
+await evaluate(`document.getElementById('debug-heap-map').click()`);
+check('heap map reads the allocation table', await waitFor(`/KB used in \\d+ allocations/.test(document.getElementById('debug-heap-stats').textContent) && !document.getElementById('debug-heap').hidden`, 15000), await evaluate(`document.getElementById('debug-heap-stats').textContent`));
+await evaluate(`(() => { const form = document.getElementById('debug-memory-read'); form.elements.address.value = 'id(names)'; form.elements.length.value = '32'; form.requestSubmit(); })()`);
+check('memory read follows an expression', await waitFor(`/^[0-9a-f]{8}  [0-9a-f]{2} /.test(document.getElementById('debug-memory-dump').textContent)`, 10000), await evaluate(`document.getElementById('debug-memory-dump').textContent`));
 check('locals inside a function', (await waitFor(`!document.getElementById('debug-locals').hidden && document.getElementById('debug-locals').textContent`, 10000))?.includes("text'Score: 20'"));
 await screenshot('e2e-badge-debug.png');
 await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
@@ -204,7 +208,7 @@ await open('?file=/apps/e2e_loop/__init__.py');
 await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 check('conditional and log breakpoints rendered', await waitFor(`!!document.querySelector('.debug-conditional') && !!document.querySelector('.debug-logpoint')`, 10000));
 await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
-check('conditional breakpoint stops on its third hit', /index7/.test(await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent`, 30000) ?? ''), await evaluate(`document.getElementById('debug-globals').textContent`));
+check('conditional breakpoint stops on its third hit', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent.includes('index7')`, 30000), await evaluate(`document.getElementById('debug-globals').textContent`));
 await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.focus(); editor.setPosition({ lineNumber: 3, column: 6 }); editor.trigger('e2e', 'editor.action.showHover'); })()`);
 check('hover shows a value', await waitFor(`[...document.querySelectorAll('.monaco-hover')].some((el) => el.textContent.includes('count = 21'))`, 10000), await evaluate(`[...document.querySelectorAll('.monaco-hover')].map((el) => el.textContent).join('|')`));
 await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.setPosition({ lineNumber: 5, column: 1 }); editor.getAction('badgeware.run-to-cursor').run(); })()`);

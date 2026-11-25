@@ -1535,6 +1535,33 @@
     #debug-body h3 small { text-transform: none; letter-spacing: 0; color: var(--dim); }
     #debug-screen { display: block; width: 100%; max-width: 240px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
     #debug-screen.ready { opacity: 1; }
+    #debug-memory-title { display: flex; align-items: center; justify-content: space-between; }
+    #debug-memory-title button,
+    #debug-memory-read button {
+      padding: 2px 8px;
+      font: inherit;
+      font-size: var(--text-xs);
+      color: var(--faint);
+      background: var(--hover);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #debug-heap-stats { color: var(--faint); font-size: var(--text-xs); }
+    #debug-heap { display: block; width: 100%; max-width: 256px; margin: 4px 0; image-rendering: pixelated; border-radius: 4px; }
+    #debug-memory-read { display: flex; gap: 4px; margin: 6px 0 4px; }
+    #debug-memory-read input {
+      min-width: 0;
+      padding: 3px 6px;
+      font: 12px Consolas, Monaco, monospace;
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    #debug-memory-read input[name="address"] { flex: 1; }
+    #debug-memory-read input[name="length"] { width: 64px; }
+    #debug-memory-dump { max-height: 160px; overflow: auto; font: 11px Consolas, Monaco, monospace; color: var(--faint); white-space: pre; }
     #debug-watch { list-style: none; }
     .debug-watch-row { display: flex; gap: 8px; align-items: center; padding: 1px 6px; }
     .debug-watch-row .debug-var-value,

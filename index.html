@@ -296,6 +296,15 @@
         <input id="debug-watch-add" type="text" placeholder="Add a watch, e.g. time.ticks_ms()" spellcheck="false" autocomplete="off">
         <h3 id="debug-screen-title">Screen <small>as drawn so far this frame</small></h3>
         <canvas id="debug-screen" width="160" height="120"></canvas>
+        <h3 id="debug-memory-title">Memory <button id="debug-heap-map" type="button" title="Map the heap from its allocation table">Map heap</button></h3>
+        <p id="debug-heap-stats"></p>
+        <canvas id="debug-heap" width="256" height="64" hidden></canvas>
+        <form id="debug-memory-read">
+          <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
+          <input name="length" type="number" value="128" min="1" max="4096">
+          <button type="submit">Read</button>
+        </form>
+        <pre id="debug-memory-dump"></pre>
         <h3>Evaluate</h3>
         <div id="debug-eval-log"></div>
         <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">

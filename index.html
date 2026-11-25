@@ -284,36 +284,50 @@
       </h2>
       <div id="debug-body">
         <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
-        <h3>Call stack</h3>
-        <p id="debug-exception" hidden></p>
-        <ol id="debug-stack"></ol>
-        <h3 id="debug-locals-title">Locals</h3>
-        <div id="debug-locals"></div>
-        <h3>Globals</h3>
-        <div id="debug-globals"></div>
-        <h3>Watch</h3>
-        <ul id="debug-watch"></ul>
-        <input id="debug-watch-add" type="text" placeholder="Add a watch, e.g. time.ticks_ms()" spellcheck="false" autocomplete="off">
-        <h3 id="debug-screen-title">Screen <small>as drawn so far this frame</small></h3>
-        <canvas id="debug-screen" width="160" height="120"></canvas>
-        <h3 id="debug-memory-title">Memory <button id="debug-heap-map" type="button" title="Map the heap from its allocation table">Map heap</button></h3>
-        <p id="debug-heap-stats"></p>
-        <canvas id="debug-heap" width="256" height="64" hidden></canvas>
-        <form id="debug-memory-read">
-          <select name="region" title="Read from an address, or an offset into a region">
-            <option value="">Address</option>
-            <option value="flash">Flash</option>
-            <option value="psram">PSRAM</option>
-            <option value="sram">SRAM</option>
-          </select>
-          <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
-          <input name="size" type="number" value="128" min="1" max="4096" title="Bytes to read">
-          <button type="submit">Read</button>
-        </form>
-        <pre id="debug-memory-dump"></pre>
-        <h3>Evaluate</h3>
-        <div id="debug-eval-log"></div>
-        <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
+        <details class="debug-section" data-section="screen" id="debug-screen-title" open>
+          <summary>Screen</summary>
+          <canvas id="debug-screen" width="160" height="120"></canvas>
+        </details>
+        <details class="debug-section" data-section="stack" open>
+          <summary>Call stack</summary>
+          <p id="debug-exception" hidden></p>
+          <ol id="debug-stack"></ol>
+        </details>
+        <details class="debug-section" data-section="locals" id="debug-locals-title" open>
+          <summary>Locals</summary>
+          <div id="debug-locals"></div>
+        </details>
+        <details class="debug-section" data-section="globals" open>
+          <summary>Globals</summary>
+          <div id="debug-globals"></div>
+        </details>
+        <details class="debug-section" data-section="watch" open>
+          <summary>Watch</summary>
+          <ul id="debug-watch"></ul>
+          <input id="debug-watch-add" type="text" placeholder="Add a watch, e.g. time.ticks_ms()" spellcheck="false" autocomplete="off">
+        </details>
+        <details class="debug-section" data-section="evaluate" open>
+          <summary>Evaluate</summary>
+          <div id="debug-eval-log"></div>
+          <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
+        </details>
+        <details class="debug-section" data-section="memory" open>
+          <summary>Memory</summary>
+          <p id="debug-heap-row"><button id="debug-heap-map" type="button" title="Map the heap from its allocation table">Map heap</button> <span id="debug-heap-stats"></span></p>
+          <canvas id="debug-heap" width="256" height="64" hidden></canvas>
+          <form id="debug-memory-read">
+            <select name="region" title="Read from an address, or an offset into a region">
+              <option value="">Address</option>
+              <option value="flash">Flash</option>
+              <option value="psram">PSRAM</option>
+              <option value="sram">SRAM</option>
+            </select>
+            <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
+            <input name="size" type="number" value="128" min="1" max="4096" title="Bytes to read">
+            <button type="submit">Read</button>
+          </form>
+          <pre id="debug-memory-dump"></pre>
+        </details>
       </div>
     </section>
 

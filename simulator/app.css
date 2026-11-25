@@ -1498,15 +1498,28 @@
       font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
       font-size: var(--text-xs);
     }
-    #debug-body h3 {
-      margin: 10px 0 4px;
+    .debug-section { margin: 0 -12px; padding: 2px 12px 8px; }
+    .debug-section:nth-of-type(even) { background: rgba(255, 255, 255, 0.03); }
+    .debug-section:not([open]) { padding-bottom: 2px; }
+    .debug-section > summary {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 6px 0 4px;
       font-family: Lexend, sans-serif;
       font-size: var(--text-2xs);
       font-weight: 400;
       color: var(--dim);
       text-transform: uppercase;
       letter-spacing: 0.1em;
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
     }
+    .debug-section > summary::-webkit-details-marker { display: none; }
+    .debug-section > summary::before { content: '▸'; display: inline-block; width: 1em; transition: transform 0.1s; }
+    .debug-section[open] > summary::before { transform: rotate(90deg); }
+    .debug-section > summary:hover { color: var(--faint); }
     #debug-stack { list-style: none; }
     #debug-stack li {
       display: flex;
@@ -1533,11 +1546,11 @@
     .debug-var-value { color: var(--white); overflow: hidden; text-overflow: ellipsis; }
     .debug-empty { color: var(--dim); }
     #debug-eval-log { max-height: 120px; overflow-y: auto; }
-    #debug-body h3 small { text-transform: none; letter-spacing: 0; color: var(--dim); }
+
     #debug-screen { display: block; width: 100%; max-width: 240px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
     #debug-screen.ready { opacity: 1; }
-    #debug-memory-title { display: flex; align-items: center; justify-content: space-between; }
-    #debug-memory-title button,
+    #debug-heap-row { display: flex; align-items: baseline; gap: 8px; }
+    #debug-heap-row button,
     #debug-memory-read button {
       padding: 2px 8px;
       font: inherit;
@@ -1549,6 +1562,7 @@
       cursor: pointer;
     }
     #debug-heap-stats { color: var(--faint); font-size: var(--text-xs); }
+    #debug-heap-map { flex: none; }
     #debug-heap { display: block; width: 100%; max-width: 256px; margin: 4px 0; image-rendering: pixelated; border-radius: 4px; }
     #debug-memory-read { display: flex; gap: 4px; margin: 6px 0 4px; }
     #debug-memory-read input {

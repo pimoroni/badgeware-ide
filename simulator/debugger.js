@@ -8,6 +8,24 @@ import { DEFAULT_REGIONS, FREE, HEAD, heapMap, hexDump, regionAddress } from './
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
 const EXCEPTIONS_KEY = 'badgeware.breakOnException';
+const SECTIONS_KEY = 'badgeware.debugSections';
+
+// Debug panel sections the user collapsed stay collapsed.
+function rememberSections(sections) {
+  let closed = [];
+  try {
+    closed = JSON.parse(localStorage.getItem(SECTIONS_KEY) || '[]');
+  } catch (_) {}
+  for (const section of sections) {
+    if (closed.includes(section.dataset.section)) section.open = false;
+    section.addEventListener('toggle', () => {
+      const names = [...sections].filter((each) => !each.open).map((each) => each.dataset.section);
+      try {
+        localStorage.setItem(SECTIONS_KEY, JSON.stringify(names));
+      } catch (_) {}
+    });
+  }
+}
 const WATCH_INTERVAL_MS = 1000;
 
 function loadWatches() {
@@ -398,6 +416,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     if (event.target.closest('[data-debug-action="restart"]')) restart?.();
   });
   els.exceptionToggle?.setAttribute('aria-pressed', String(breakOnException));
+  rememberSections(document.querySelectorAll('#debug-body .debug-section'));
 
   // -- Memory: read over the aux channel, so the badge does no walking --------
   const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;

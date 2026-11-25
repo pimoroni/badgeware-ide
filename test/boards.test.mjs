@@ -128,6 +128,7 @@ test('the import tool applies the overlay over a firmware bundle', () => {
     write('bundle/filesystem/apps/menu/__init__.py', 'menu');
     write('bundle/filesystem/badgeware/rtc.py', 'firmware');
     write('bundle/filesystem/rom/fonts/sins.ppf', 'ppf');
+    write('bundle/filesystem/rom/fonts/lexend.af', 'af');
     write('bundle/frozen/ide.py', 'ide');
     write('bundle/frozen.json', '{"files": ["ide.py"]}');
     write('bundle/bundle.json', '{"board": "badger"}');
@@ -142,8 +143,8 @@ test('the import tool applies the overlay over a firmware bundle', () => {
     assert.equal(read('filesystem/badgeware/rtc.py'), 'common');
     assert.equal(read('frozen/ide.py'), 'ide');
     assert.equal(read('bundle.json'), '{"board": "badger"}');
-    assert.deepEqual(Object.keys(JSON.parse(read('filesystem.json')).files), ['/apps/menu/__init__.py', '/badgeware/rtc.py', '/powman.py', '/rom/fonts/sins.ppf']);
-    assert.deepEqual(JSON.parse(read('fonts-manifest.json')), { vector: [], pixel: ['sins.ppf'] });
+    assert.deepEqual(Object.keys(JSON.parse(read('filesystem.json')).files), ['/apps/menu/__init__.py', '/badgeware/rtc.py', '/powman.py', '/rom/fonts/lexend.af', '/rom/fonts/sins.ppf']);
+    assert.deepEqual(JSON.parse(read('fonts-manifest.json')), { vector: ['lexend.af'], pixel: ['sins.ppf'] });
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }

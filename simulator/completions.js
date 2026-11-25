@@ -129,7 +129,7 @@ export const BADGEWARE_GLOBALS = [
   { label: 'mat3',         kind: 'Class', insertText: 'mat3()',
     doc: '2D affine transform (3x3).\nMethods: .rotate(deg), .rotate_radians(rad), .translate(x, y), .scale(x, y), .multiply(other), .inverse(); mat3.trs(t, deg, scale).\nUsed with shape.transform, brush.gradient(..., transform=) and vec2.transform().' },
   { label: 'font',         kind: 'Class', insertText: 'font.load(${1:"path.af"})',
-    doc: 'Vector (.af) / pixel (.ppf) font. Load with font.load(path). ROM pixel fonts as attributes (font.sins, ...).' },
+    doc: 'Vector (.af) / pixel (.ppf) font. Load with font.load(path). ROM fonts as attributes (font.sins, font.lexend, ...).' },
   { label: 'run',          kind: 'Class', insertText: 'run(${1:update})',
     doc: 'Run an animation loop. Use as a decorator @run or call run(fn). Optional: run(duration=ms).\nThe update() function is called every frame; return a value to exit.',
     signature: { label: 'run(update, duration=None)', params: [
@@ -750,6 +750,17 @@ export const MEMBERS = {
     { label: 'yesterday', kind: 'Property', doc: 'ROM pixel font: yesterday.' },
     { label: 'yolk',      kind: 'Property', doc: 'ROM pixel font: yolk.' },
     { label: 'ziplock',   kind: 'Property', doc: 'ROM pixel font: ziplock.' },
+    { label: 'badge_symbols',  kind: 'Property', doc: 'ROM vector font: Badgeware icons.' },
+    { label: 'cherry_bomb',    kind: 'Property', doc: 'ROM vector font: Cherry Bomb One.' },
+    { label: 'dseg7',          kind: 'Property', doc: 'ROM vector font: DSEG7 seven-segment digits.' },
+    { label: 'dynapuff',       kind: 'Property', doc: 'ROM vector font: DynaPuff.' },
+    { label: 'indie_flower',   kind: 'Property', doc: 'ROM vector font: Indie Flower.' },
+    { label: 'lexend',         kind: 'Property', doc: 'ROM vector font: Lexend.' },
+    { label: 'material_symbols',  kind: 'Property', doc: 'ROM vector font: Material Symbols icons.' },
+    { label: 'mona_sans',      kind: 'Property', doc: 'ROM vector font: Mona Sans.' },
+    { label: 'permanent_marker',  kind: 'Property', doc: 'ROM vector font: Permanent Marker.' },
+    { label: 'phosphor',       kind: 'Property', doc: 'ROM vector font: Phosphor icons.' },
+    { label: 'tilt_neon',      kind: 'Property', doc: 'ROM vector font: Tilt Neon.' },
   ],
 
   // -- Badgeware: rtc ---------------------------------------------------------

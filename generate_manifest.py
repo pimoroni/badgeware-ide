@@ -9,7 +9,7 @@ worker read manifests. Run this whenever you add or remove files in a bundle:
 
 For each simulator/boards/<board>/:
 
-    fonts-manifest.json  vector (.af) <- filesystem/fonts, pixel (.ppf) <- filesystem/rom/fonts
+    fonts-manifest.json  vector (.af) and pixel (.ppf) <- filesystem/rom/fonts
     filesystem.json      every file under filesystem/ with its size
 """
 
@@ -35,7 +35,7 @@ def display(path: Path) -> Path:
 def write_manifests(board_dir: Path) -> None:
     filesystem = board_dir / "filesystem"
     sources = {
-        "vector": (filesystem / "fonts", ".af"),
+        "vector": (filesystem / "rom" / "fonts", ".af"),
         "pixel": (filesystem / "rom" / "fonts", ".ppf"),
     }
     manifest = {kind: collect(directory, ext) for kind, (directory, ext) in sources.items()}

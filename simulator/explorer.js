@@ -52,10 +52,10 @@ const resTabs    = $('#res-tabs');
 
 /* Font sources — the same files the simulator ships, loaded straight from the
    emulated filesystem so there's no vendored copy to keep in sync. Vector (.af)
-   live under the system assets; pixel (.ppf) live in the ROM. generate_manifest.py
-   scans these dirs and writes each board's fonts-manifest.json. */
+   and pixel (.ppf) fonts both live in the ROM. generate_manifest.py scans it and
+   writes each board's fonts-manifest.json. */
 const BUNDLE_DIR = 'simulator/' + activeBoard().simulator;
-const VECTOR_DIR = BUNDLE_DIR + 'filesystem/fonts/';
+const VECTOR_DIR = BUNDLE_DIR + 'filesystem/rom/fonts/';
 const PIXEL_DIR  = BUNDLE_DIR + 'filesystem/rom/fonts/';
 
 /* -- Font loading --------------------------------------------------------- */

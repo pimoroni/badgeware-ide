@@ -1,6 +1,6 @@
 badge.mode(FAST_UPDATE)
 
-mona = font.load("/fonts/MonaSans-Medium.af")
+mona = font.mona_sans
 names = ["Badger", "Blinky", "Tufty"]
 index = 0
 

@@ -17,7 +17,7 @@ export function fontUsage(path) {
   const [, dir = '/', name, extension] = match;
   const vector = extension.toLowerCase() === 'af';
   let load;
-  if (!vector && dir === ROM_FONTS && /^[A-Za-z_]\w*$/.test(name)) load = `font.${name}`;
+  if (dir === ROM_FONTS && /^[A-Za-z_]\w*$/.test(name)) load = `font.${name}`;
   else if (vector && VECTOR_SEARCH.includes(dir)) load = `font.load("${name}")`;
   else load = `font.load("${path}")`;
   return [

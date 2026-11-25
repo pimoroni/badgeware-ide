@@ -254,8 +254,11 @@ async function initApp() {
       screenTitle: document.getElementById('debug-screen-title'),
       watchList: document.getElementById('debug-watch'),
       watchAdd:  document.getElementById('debug-watch-add'),
+      exception: document.getElementById('debug-exception'),
+      exceptionToggle: document.querySelector('[data-debug-option="exceptions"]'),
+      breakpointDialog: document.getElementById('breakpoint-dialog'),
     },
-    { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile) },
+    { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile), restart: () => restartDebug() },
   );
 
   if (badgeDevice) {
@@ -348,7 +351,16 @@ async function initApp() {
   badgeEvents.addEventListener('change', () => {
     if (configOpen() && document.querySelector('#config form').hidden) configPane.load();
   });
-  const debugCurrent = () => (onBadge() ? badge.debug(tabs.getRunRequest()) : flashStatus('Switch to Badge to debug', 3000));
+  let lastDebugRequest = null;
+  const debugCurrent = () => {
+    if (!onBadge()) return flashStatus('Switch to Badge to debug', 3000);
+    lastDebugRequest = tabs.getRunRequest();
+    return badge.debug(lastDebugRequest);
+  };
+  // Restarts what was last debugged, even if another tab is showing now.
+  function restartDebug() {
+    if (lastDebugRequest && onBadge()) badge.debug(lastDebugRequest);
+  }
 
   function applyTarget(target) {
     configButton.disabled = target !== 'badge' || !badgeDevice;

@@ -278,11 +278,14 @@
           <button data-debug="stepIn" title="Step into"><span class="material-symbols-outlined">step_into</span></button>
           <button data-debug="stepOut" title="Step out"><span class="material-symbols-outlined">step_out</span></button>
           <button data-action="stop" title="Stop"><span class="material-symbols-outlined">stop</span></button>
+          <button data-debug-action="restart" title="Restart"><span class="material-symbols-outlined">restart_alt</span></button>
+          <button data-debug-option="exceptions" title="Stop when an exception leaves your code" aria-pressed="true"><span class="material-symbols-outlined">error</span></button>
         </span>
       </h2>
       <div id="debug-body">
         <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
         <h3>Call stack</h3>
+        <p id="debug-exception" hidden></p>
         <ol id="debug-stack"></ol>
         <h3 id="debug-locals-title">Locals</h3>
         <div id="debug-locals"></div>
@@ -329,6 +332,29 @@
     <footer>
       <button value="cancel" formnovalidate>Cancel</button>
       <button value="create" class="primary">Create app</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="breakpoint-dialog" aria-label="Edit breakpoint">
+  <header>
+    <span class="material-symbols-outlined">adjust</span>
+    <h2>Breakpoint <small class="breakpoint-line"></small></h2>
+  </header>
+  <form method="dialog">
+    <label>Stop only when
+      <input name="condition" type="text" placeholder="score > 100" spellcheck="false" autocomplete="off">
+    </label>
+    <label>On hit <small>N stops on the Nth hit, &gt;=N from it on, %N every Nth</small>
+      <input name="hitCount" type="text" placeholder="10" spellcheck="false" autocomplete="off">
+    </label>
+    <label>Log instead of stopping <small>{expressions} are filled in</small>
+      <input name="logMessage" type="text" placeholder="x is {x}" spellcheck="false" autocomplete="off">
+    </label>
+    <footer>
+      <button value="remove" formnovalidate>Remove</button>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="save" class="primary">Save</button>
     </footer>
   </form>
 </dialog>

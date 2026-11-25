@@ -91,6 +91,8 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
 const ERROR_APP = 'count = 0\n\nwhile True:\n    count += 1\n    print(missing_name)\n    badge.update()\n';
 const DEBUG_APP = 'score = 0\nnames = ["a", "b"]\n\ndef label_for(value):\n    text = "Score: " + str(value)\n    return text\n\nwhile True:\n    score += 10\n    screen.text(label_for(score), 10, 10)\n    if score >= 50:\n        break\n    badge.update()\n';
 const SIM_APP = 'from helper import boom\n\nbadge.update()\nboom()\n';
+const EXCEPTION_APP = 'values = [3, 2, 1, 0]\n\ndef ratio(value):\n    scaled = 12 / value\n    return scaled\n\ndef total():\n    result = 0\n    for value in values:\n        result += ratio(value)\n    return result\n\ntry:\n    ratio(0)\nexcept ZeroDivisionError:\n    pass\n\nprint(total())\n';
+const LOOP_APP = 'count = 0\nfor index in range(20):\n    count += index\n\nprint("done", count)\n';
 
 const status = () => evaluate(`document.getElementById('status').textContent`);
 const stdout = () => evaluate(`document.querySelector('#stdout > div').textContent`);
@@ -132,14 +134,20 @@ const cleanBadge = () => evaluate(`(async () => {
 
 await open();
 await evaluate(`localStorage.setItem('badgeware.target', 'badge')`);
+await evaluate(`localStorage.setItem('badgeware.breakOnException', '${process.env.E2E_EXCEPTIONS ?? 'true'}')`);
 await putWorkspace([
   ['/apps/e2e_error/__init__.py', ERROR_APP],
   ['/apps/e2e_debug/__init__.py', DEBUG_APP],
   ['/apps/e2e_sim/helper.py', 'def boom():\n    return 1 / 0\n'],
   ['/apps/e2e_sim/__init__.py', SIM_APP],
   ['/e2e_loose.py', 'print("loose")\n'],
+  ['/apps/e2e_exception/__init__.py', EXCEPTION_APP],
+  ['/apps/e2e_loop/__init__.py', LOOP_APP],
 ]);
-await evaluate(`localStorage.setItem('badgeware.breakpoints', JSON.stringify({ '/apps/e2e_debug/__init__.py': [9] }))`);
+await evaluate(`localStorage.setItem('badgeware.breakpoints', JSON.stringify({
+  '/apps/e2e_debug/__init__.py': [9],
+  '/apps/e2e_loop/__init__.py': [{ line: 3, condition: 'index > 4', hitCount: '3' }, { line: 5, logMessage: 'finished with {count}' }],
+}))`);
 
 await open('?file=/apps/e2e_error/__init__.py');
 check('badge target, editor nav active', await evaluate(`document.body.dataset.target === 'badge' && document.querySelector('#toolbar [data-action="editor"]').classList.contains('active')`));
@@ -182,6 +190,33 @@ await screenshot('e2e-badge-debug.png');
 await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
 check('stop ends the session', await waitFor(`!document.body.classList.contains('debugging') && document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
 
+await open('?file=/apps/e2e_exception/__init__.py');
+await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
+await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
+check('stops on an uncaught exception, not a caught one', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-exception').textContent`, 30000) === 'ZeroDivisionError: divide by zero', await status());
+check('unwound frames are listed', await evaluate(`[...document.querySelectorAll('#debug-stack li.unwound .debug-frame-name')].map((el) => el.textContent).join()`) === 'ratio,total', await evaluate(`document.getElementById('debug-stack').textContent`));
+await evaluate(`document.querySelector('#debug-stack li.unwound').click()`);
+check('an unwound frame keeps its locals', await waitFor(`document.getElementById('debug-locals').textContent.includes('value0')`, 10000), await evaluate(`document.getElementById('debug-locals').textContent`));
+await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
+await waitFor(`!document.body.classList.contains('debugging')`, 10000);
+
+await open('?file=/apps/e2e_loop/__init__.py');
+await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
+check('conditional and log breakpoints rendered', await waitFor(`!!document.querySelector('.debug-conditional') && !!document.querySelector('.debug-logpoint')`, 10000));
+await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
+check('conditional breakpoint stops on its third hit', /index7/.test(await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent`, 30000) ?? ''), await evaluate(`document.getElementById('debug-globals').textContent`));
+await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.focus(); editor.setPosition({ lineNumber: 3, column: 6 }); editor.trigger('e2e', 'editor.action.showHover'); })()`);
+check('hover shows a value', await waitFor(`[...document.querySelectorAll('.monaco-hover')].some((el) => el.textContent.includes('count = 21'))`, 10000), await evaluate(`[...document.querySelectorAll('.monaco-hover')].map((el) => el.textContent).join('|')`));
+await evaluate(`(() => { const editor = monaco.editor.getEditors()[0]; editor.setPosition({ lineNumber: 5, column: 1 }); editor.getAction('badgeware.run-to-cursor').run(); })()`);
+check('run to cursor', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('status').textContent.endsWith(':5')`, 10000), await status());
+await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
+check('logpoint logs', await waitFor(`document.getElementById('debug-eval-log').textContent.includes('finished with 190')`, 10000), await evaluate(`document.getElementById('debug-eval-log').textContent`));
+await waitFor(`!document.body.classList.contains('debugging')`, 10000);
+await evaluate(`document.querySelector('#debug-controls [data-debug-action="restart"]').click()`);
+check('restart debugs it again', await waitFor(`document.body.classList.contains('debug-paused') && document.getElementById('debug-globals').textContent.includes('index7')`, 30000), await status());
+await evaluate(`document.querySelector('#debug-controls [data-action="stop"]').click()`);
+await waitFor(`!document.body.classList.contains('debugging')`, 10000);
+
 await open('?file=/apps/e2e_error/__init__.py');
 await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 await evaluate(`document.querySelector('#tab-controls [data-action="debug"]').click()`);
@@ -190,7 +225,7 @@ await sleep(1500);
 await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);
 check('pause stops the loop', await waitFor(`document.body.classList.contains('debug-paused') && document.querySelector('#debug-globals .debug-vars')`, 10000), await status());
 check('screen shown after pause', await waitFor(`document.getElementById('debug-screen').classList.contains('ready')`, 10000));
-check('copy from the badge fails fast while paused', await contextAction('fp-sys-tree', '/apps/e2e_error', 'copy-to-workspace') === true && await waitFor(`document.getElementById('status').textContent.includes('busy running an app')`, 3000), await status());
+check('copy from the badge works while paused', await contextAction('fp-sys-tree', '/apps/e2e_error', 'copy-to-workspace') === true && await waitFor(`document.getElementById('status').textContent.includes('Copied 1 file')`, 10000), await status());
 await evaluate(`document.querySelector('#debug-controls [data-debug="continue"]').click()`);
 check('continue after pause resumes', await waitFor(`!document.body.classList.contains('debug-paused') && document.getElementById('status').textContent === 'Debugging on badge…'`, 5000), await status());
 await evaluate(`document.querySelector('#debug-controls [data-debug="pause"]').click()`);

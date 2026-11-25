@@ -1486,6 +1486,9 @@
     body:not(.debug-paused) #debug-controls [data-debug]:not([data-debug="pause"]) { opacity: 0.3; pointer-events: none; }
     body.debug-paused #debug-controls [data-debug="pause"] { opacity: 0.3; pointer-events: none; }
     #debug-controls .material-symbols-outlined { font-size: var(--icon); }
+    #debug-controls [data-debug-option][aria-pressed="true"] { color: var(--orange); }
+    #debug-controls [data-debug-option][aria-pressed="false"] { opacity: 0.5; }
+    #debug-exception { margin: 4px 0; padding: 6px 8px; color: var(--red); background: rgba(224, 64, 64, 0.12); border-radius: 4px; overflow-wrap: anywhere; }
 
     #debug-body {
       flex: 1;
@@ -1515,6 +1518,7 @@
     #debug-stack li:hover { background: var(--hover); }
     #debug-stack li.selected { background: var(--faint-orange); }
     #debug-stack li.system { color: var(--dim); }
+    #debug-stack li.unwound { font-style: italic; }
     .debug-frame-file { color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; }
     .debug-vars { list-style: none; }
     .debug-vars .debug-vars { padding-left: 14px; }
@@ -1542,6 +1546,7 @@
     .debug-eval-input::before { content: '> '; color: var(--dim); }
     .debug-eval-result { color: var(--green); }
     .debug-eval-error { color: var(--red); }
+    .debug-output { padding: 2px 0; color: var(--faint); white-space: pre-wrap; }
     #debug-eval {
       width: 100%;
       margin-top: 4px;
@@ -1563,6 +1568,16 @@
       border-radius: 50%;
       background: var(--red);
     }
+    .monaco-editor .debug-conditional::after { box-shadow: inset 0 0 0 3px var(--panel); border: 1px solid var(--red); }
+    .monaco-editor .debug-logpoint::after {
+      content: '';
+      display: block;
+      width: 9px;
+      height: 9px;
+      margin: 5px auto;
+      transform: rotate(45deg);
+      background: var(--red);
+    }
     .monaco-editor .debug-current-line { background: rgba(224, 200, 32, 0.15); }
     .monaco-editor .debug-current-arrow::before {
       content: '▶';
@@ -1576,6 +1591,7 @@
 
     #icon-editor,
     #new-app-dialog,
+    #breakpoint-dialog,
     #pair-dialog,
     #copy-dialog {
       margin: auto;
@@ -1587,6 +1603,7 @@
       max-width: calc(100vw - 32px);
     }
     #new-app-dialog::backdrop,
+    #breakpoint-dialog::backdrop,
     #pair-dialog::backdrop,
     #copy-dialog::backdrop,
     #icon-editor::backdrop { background: rgba(0, 0, 0, 0.6); }
@@ -1597,7 +1614,9 @@
     #pair-dialog header,
     #pair-dialog footer,
     #new-app-dialog header,
-    #new-app-dialog footer {
+    #new-app-dialog footer,
+    #breakpoint-dialog header,
+    #breakpoint-dialog footer {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -1655,6 +1674,34 @@
 
     #pair-dialog { min-width: min(480px, calc(100vw - 32px)); max-width: 520px; }
     #new-app-dialog { width: min(460px, calc(100vw - 32px)); }
+    #breakpoint-dialog { width: min(460px, calc(100vw - 32px)); }
+    #breakpoint-dialog header { border-bottom: 1px solid var(--border); }
+    #breakpoint-dialog header .material-symbols-outlined { color: var(--red); }
+    #breakpoint-dialog h2 { font-size: var(--text); font-weight: 400; }
+    #breakpoint-dialog h2 small { margin-left: 8px; color: var(--dim); font-size: var(--text-xs); }
+    #breakpoint-dialog form { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 12px; color: var(--faint); }
+    #breakpoint-dialog label { display: flex; flex-direction: column; gap: 6px; }
+    #breakpoint-dialog label small { color: var(--dim); font-size: var(--text-xs); }
+    #breakpoint-dialog input {
+      padding: 8px 10px;
+      font: 13px Consolas, Monaco, monospace;
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    #breakpoint-dialog footer { margin: 4px -16px 0; justify-content: flex-end; border-top: 1px solid var(--border); }
+    #breakpoint-dialog footer button {
+      padding: 8px 14px;
+      font: inherit;
+      color: var(--faint);
+      background: var(--hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #breakpoint-dialog footer button.primary { color: var(--bg); background: var(--green); border-color: var(--green); }
+    #breakpoint-dialog footer button[value="remove"] { margin-right: auto; color: var(--red); }
     #new-app-dialog form { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 12px; color: var(--faint); }
     #new-app-dialog .new-app-name { display: flex; flex-direction: column; gap: 6px; }
     #new-app-dialog .new-app-name input {

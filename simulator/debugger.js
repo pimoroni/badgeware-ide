@@ -2,9 +2,11 @@ import { screenPixels } from './device/debug.js';
 import { SCRATCH_PATH } from './device/paths.js';
 import { getSystemPaths, userFS } from './fs.js';
 import { boardSourceProvider, createDebugSources } from './debug-sources.js';
+import { breakpointEntries, breakpointLines, breakpointOptions, describeBreakpoint, hoverExpression } from './debug-breakpoints.js';
 
 const BREAKPOINTS_KEY = 'badgeware.breakpoints';
 const WATCHES_KEY = 'badgeware.watches';
+const EXCEPTIONS_KEY = 'badgeware.breakOnException';
 const WATCH_INTERVAL_MS = 1000;
 
 function loadWatches() {
@@ -25,7 +27,7 @@ function saveWatches(watches) {
 function loadBreakpoints() {
   try {
     const saved = JSON.parse(localStorage.getItem(BREAKPOINTS_KEY) || '{}');
-    return new Map(Object.entries(saved).map(([path, lines]) => [path, new Set(lines)]));
+    return new Map(Object.entries(saved).map(([path, entries]) => [path, breakpointLines(entries)]));
   } catch (_) {
     return new Map();
   }
@@ -33,10 +35,19 @@ function loadBreakpoints() {
 
 function saveBreakpoints(breakpoints) {
   try {
-    const plain = Object.fromEntries([...breakpoints].filter(([, lines]) => lines.size).map(([path, lines]) => [path, [...lines]]));
+    const plain = Object.fromEntries([...breakpoints].filter(([, lines]) => lines.size).map(([path, lines]) => [path, breakpointEntries(lines)]));
     localStorage.setItem(BREAKPOINTS_KEY, JSON.stringify(plain));
   } catch (_) {}
 }
+
+function loadBreakOnException() {
+  try {
+    return localStorage.getItem(EXCEPTIONS_KEY) !== 'false';
+  } catch (_) {
+    return true;
+  }
+}
+
 
 const element = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -45,8 +56,10 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null, sourceProvider = boardSourceProvider() }) {
+export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null, restart = null, sourceProvider = boardSourceProvider() }) {
   const breakpoints = loadBreakpoints();
+  let breakOnException = loadBreakOnException();
+  let renderedBreakpoints = [];   // [line, options] in decoration order, to follow edits
   const breakpointDecorations = editor.createDecorationsCollection();
   const currentLineDecorations = editor.createDecorationsCollection();
   const sources = createDebugSources({
@@ -69,12 +82,12 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   function renderBreakpoints() {
     const target = activeTarget();
-    const lines = target ? [...(breakpoints.get(target.key) ?? [])] : [];
-    breakpointDecorations.set(lines.map((line) => ({
+    renderedBreakpoints = target ? [...(breakpoints.get(target.key) ?? [])] : [];
+    breakpointDecorations.set(renderedBreakpoints.map(([line, options]) => ({
       range: new monaco.Range(line, 1, line, 1),
       options: {
-        glyphMarginClassName: 'debug-breakpoint',
-        glyphMarginHoverMessage: { value: 'Breakpoint' },
+        glyphMarginClassName: options?.logMessage ? 'debug-logpoint' : options ? 'debug-breakpoint debug-conditional' : 'debug-breakpoint',
+        glyphMarginHoverMessage: { value: describeBreakpoint(options) },
         stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
       },
     })));
@@ -94,34 +107,77 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     }]);
   }
 
+  // Edits move decorations; carry each breakpoint's options to its new line.
   function syncLinesFromDecorations() {
     const target = activeTarget();
     if (!target || !breakpoints.has(target.key)) return;
-    const lines = new Set(breakpointDecorations.getRanges().map((range) => range.startLineNumber));
+    const ranges = breakpointDecorations.getRanges();
+    const lines = new Map(ranges.map((range, index) => [range.startLineNumber, renderedBreakpoints[index]?.[1] ?? null]));
     breakpoints.set(target.key, lines);
+    renderedBreakpoints = [...lines];
     saveBreakpoints(breakpoints);
   }
 
   function sendBreakpoints(target) {
-    client?.send({ cmd: 'setBreakpoints', file: target.file, lines: [...(breakpoints.get(target.key) ?? [])] });
+    client?.send({ cmd: 'setBreakpoints', file: target.file, lines: breakpointEntries(breakpoints.get(target.key) ?? new Map()) });
   }
 
-  function toggleBreakpoint(line) {
+  function setBreakpoint(line, options, remove = false) {
     const target = activeTarget();
     if (!target) return;
-    const lines = breakpoints.get(target.key) ?? new Set();
-    if (lines.has(line)) lines.delete(line);
-    else lines.add(line);
+    const lines = breakpoints.get(target.key) ?? new Map();
+    if (remove) lines.delete(line);
+    else lines.set(line, options);
     breakpoints.set(target.key, lines);
     saveBreakpoints(breakpoints);
     renderBreakpoints();
     sendBreakpoints(target);
   }
 
+  function toggleBreakpoint(line) {
+    const target = activeTarget();
+    if (!target) return;
+    setBreakpoint(line, null, breakpoints.get(target.key)?.has(line));
+  }
+
+  function editBreakpoint(line) {
+    const target = activeTarget();
+    if (!target || !els.breakpointDialog) return;
+    const dialog = els.breakpointDialog;
+    const form = dialog.querySelector('form');
+    const options = breakpoints.get(target.key)?.get(line) ?? {};
+    dialog.querySelector('.breakpoint-line').textContent = `Line ${line}`;
+    form.elements.condition.value = options.condition ?? '';
+    form.elements.hitCount.value = options.hitCount ?? '';
+    form.elements.logMessage.value = options.logMessage ?? '';
+    dialog.onclose = () => {
+      if (dialog.returnValue === 'save') {
+        setBreakpoint(line, breakpointOptions({
+          condition: form.elements.condition.value,
+          hitCount: form.elements.hitCount.value,
+          logMessage: form.elements.logMessage.value,
+        }));
+      } else if (dialog.returnValue === 'remove') {
+        setBreakpoint(line, null, true);
+      }
+    };
+    dialog.showModal();
+    form.elements.condition.focus();
+  }
+
   function initialBreakpoints() {
     const entries = [...breakpoints].filter(([key, lines]) => key.startsWith('/') && lines.size);
-    if (sources.scratchKey) entries.push([SCRATCH_PATH, breakpoints.get(sources.scratchKey) ?? new Set()]);
-    return Object.fromEntries(entries.filter(([, lines]) => lines.size).map(([file, lines]) => [file, [...lines]]));
+    if (sources.scratchKey) entries.push([SCRATCH_PATH, breakpoints.get(sources.scratchKey) ?? new Map()]);
+    return Object.fromEntries(entries.filter(([, lines]) => lines.size).map(([file, lines]) => [file, breakpointEntries(lines)]));
+  }
+
+  function setBreakOnException(enabled) {
+    breakOnException = enabled;
+    try {
+      localStorage.setItem(EXCEPTIONS_KEY, String(enabled));
+    } catch (_) {}
+    els.exceptionToggle?.setAttribute('aria-pressed', String(enabled));
+    client?.send({ cmd: 'setExceptionBreak', enabled });
   }
 
   editor.updateOptions({ glyphMargin: true });
@@ -137,6 +193,43 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     label: 'Toggle Breakpoint',
     keybindings: [monaco.KeyCode.F9],
     run: () => toggleBreakpoint(editor.getPosition().lineNumber),
+  });
+  editor.addAction({
+    id: 'badgeware.edit-breakpoint',
+    label: 'Edit Breakpoint…',
+    keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F9],
+    contextMenuGroupId: 'debug',
+    run: () => editBreakpoint(editor.getPosition().lineNumber),
+  });
+  editor.addAction({
+    id: 'badgeware.run-to-cursor',
+    label: 'Run to Cursor',
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.F10],
+    contextMenuGroupId: 'debug',
+    precondition: 'badgewareDebugPaused',
+    run: () => {
+      const target = activeTarget();
+      if (client && stopped && target) client.send({ cmd: 'runTo', file: target.file, line: editor.getPosition().lineNumber });
+    },
+  });
+  const pausedContext = editor.createContextKey('badgewareDebugPaused', false);
+
+  // While paused, hovering a name or dotted attribute shows its value in the
+  // selected frame. Calls aren't evaluated: only plain names and attributes.
+  monaco.languages.registerHoverProvider('python', {
+    async provideHover(model, position) {
+      const target = activeTarget();
+      if (!client || !stopped || !target || model !== editor.getModel()) return null;
+      const text = model.getLineContent(position.lineNumber);
+      const expression = hoverExpression(text, position.column - 1);
+      if (!expression) return null;
+      const reply = await client.request({ cmd: 'eval', expr: expression.text, frame: selectedFrame }, 'evaluated', 2000).catch(() => null);
+      if (!reply || reply.error) return null;
+      return {
+        range: new monaco.Range(position.lineNumber, expression.start + 1, position.lineNumber, expression.end + 1),
+        contents: [{ value: '`' + expression.text + '` = ' + '`' + reply.result.value.replace(/`/g, "'") + '`' }],
+      };
+    },
   });
 
   function variableRow(variable) {
@@ -240,12 +333,17 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   function onStopped({ detail }) {
     stopped = detail;
+    pausedContext.set(true);
     document.body.classList.add('debug-paused');
     const top = detail.stack.findIndex((frame) => sourcePath(frame));
-    setStatus(`Paused (${detail.reason}) at ${detail.stack[0].file}:${detail.stack[0].line}`);
+    const where = `${detail.stack[0].file}:${detail.stack[0].line}`;
+    setStatus(detail.exception ? `Paused on ${detail.exception} at ${where}` : `Paused (${detail.reason}) at ${where}`);
+    els.exception.hidden = !detail.exception;
+    els.exception.textContent = detail.exception ?? '';
     els.stack.replaceChildren(...detail.stack.map((frame, index) => {
-      const row = element('li', frame.user ? 'user' : 'system');
+      const row = element('li', (frame.user ? 'user' : 'system') + (frame.unwound ? ' unwound' : ''));
       row.append(element('span', 'debug-frame-name', frame.name), element('span', 'debug-frame-file', `\u200e${frame.file}:${frame.line}\u200e`));
+      if (frame.unwound) row.title = 'Already unwound by the exception: its locals are as they were when the exception passed through';
       row.addEventListener('click', () => revealFrame(index));
       return row;
     }));
@@ -254,6 +352,8 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   function clearPaused() {
     stopped = null;
+    pausedContext.set(false);
+    els.exception.hidden = true;
     els.screen.classList.remove('ready');
     document.body.classList.remove('debug-paused');
     els.stack.replaceChildren();
@@ -292,7 +392,15 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   els.controls.addEventListener('click', (event) => {
     const button = event.target.closest('[data-debug]');
     if (button) command(button.dataset.debug);
+    if (event.target.closest('[data-debug-option="exceptions"]')) setBreakOnException(!breakOnException);
+    if (event.target.closest('[data-debug-action="restart"]')) restart?.();
   });
+  els.exceptionToggle?.setAttribute('aria-pressed', String(breakOnException));
+
+  function onOutput({ detail }) {
+    els.evalLog.append(element('div', 'debug-output', detail.text));
+    els.evalLog.scrollTop = els.evalLog.scrollHeight;
+  }
   els.watchAdd.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' || !els.watchAdd.value.trim()) return;
     watches.push(els.watchAdd.value.trim());
@@ -315,6 +423,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       return {
         init: () => ({
           breakpoints: initialBreakpoints(),
+          breakOnException,
         }),
         attach(debugClient) {
           client = debugClient;
@@ -323,6 +432,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
           client.addEventListener('stopped', onStopped);
           client.addEventListener('continued', onContinued);
           client.addEventListener('closed', onClosed);
+          client.addEventListener('output', onOutput);
           renderWatches();
           startWatching();
         },

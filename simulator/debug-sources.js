@@ -1,6 +1,5 @@
 import { FROZEN_PREFIX, SCRATCH_PATH, frozenSourcePath, librarySourcePath } from './device/paths.js';
 import { activeBoard } from './boards.js';
-import { nameLocals } from './locals.js';
 
 const CODE_SOURCES = ['user', 'badge', 'sys'];
 
@@ -23,7 +22,6 @@ export function frameSourcePath(frame, frozenFiles, systemPaths) {
 
 export function boardSourceProvider(boardFile = (name) => new URL(activeBoard().simulator + name, import.meta.url)) {
   let frozenFiles = new Set();
-  let localsTables = null;
 
   fetch(boardFile('frozen.json'))
     .then((response) => (response.ok ? response.json() : { files: [] }))
@@ -37,12 +35,6 @@ export function boardSourceProvider(boardFile = (name) => new URL(activeBoard().
         if (!response.ok) return null;
         return as === 'text' ? response.text() : response.arrayBuffer();
       }),
-    localsTables: () => {
-      localsTables ??= fetch(boardFile('locals.json'))
-        .then((response) => (response.ok ? response.json() : {}))
-        .catch(() => ({}));
-      return localsTables;
-    },
   };
 }
 
@@ -63,10 +55,6 @@ export function createDebugSources({ tabs, provider, systemPaths, inWorkspace, o
     else await openBadgeFile?.(path);
   }
 
-  async function libraryLocals(locals, frame) {
-    return nameLocals(locals, await provider.localsTables(), frame);
-  }
-
   return {
     get scratchKey() {
       return scratchKey;
@@ -77,6 +65,5 @@ export function createDebugSources({ tabs, provider, systemPaths, inWorkspace, o
     target: (info) => tabTarget(info, scratchKey),
     sourcePath,
     showSource,
-    libraryLocals,
   };
 }

@@ -122,7 +122,6 @@ test('the import tool applies the overlay over a firmware bundle', () => {
     write('bundle/filesystem/rom/fonts/sins.ppf', 'ppf');
     write('bundle/frozen/ide.py', 'ide');
     write('bundle/frozen.json', '{"files": ["ide.py"]}');
-    write('bundle/locals.json', '{}');
     write('bundle/bundle.json', '{"board": "badger"}');
     write('overlay/common/badgeware/rtc.py', 'common');
     write('overlay/common/powman.py', 'powman');

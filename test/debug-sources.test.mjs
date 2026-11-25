@@ -56,7 +56,6 @@ function sourcesWith(tabs, { badgeFiles = [] } = {}) {
   const provider = {
     frozenFiles: () => frozenFiles,
     readFrozen: async () => null,
-    localsTables: async () => ({ 'badgeware/text.py': [{ name: 'update', line: 1, n_state: 2, locals: ['a', 'b'] }] }),
   };
   return createDebugSources({
     tabs,
@@ -97,10 +96,8 @@ test('shows the scratch tab captured when debugging started', async () => {
   assert.equal(sources.scratchKey, null);
 });
 
-test('names library locals from the provider tables', async () => {
+test('maps a frozen library frame to its frozen source', () => {
   const sources = sourcesWith(fakeTabs());
   const frame = { user: false, file: 'badgeware/text.py', name: 'update', first: 1 };
-  const named = await sources.libraryLocals([{ name: 'local_01', value: '1' }, { name: 'local_00', value: '2' }], frame);
-  assert.deepEqual(named.map((v) => [v.name, v.value]), [['a', '1'], ['b', '2']]);
   assert.equal(sources.sourcePath(frame), '/.frozen/badgeware/text.py');
 });

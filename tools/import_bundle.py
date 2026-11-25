@@ -10,7 +10,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BOARDS = ROOT / "simulator" / "boards"
 MODELS = {"tufty": "tufty2350", "badger": "badger2350", "blinky": "blinky2350"}
 BUNDLE_DIRS = ["filesystem", "frozen"]
-BUNDLE_FILES = ["frozen.json", "locals.json", "bundle.json"]
+BUNDLE_FILES = ["frozen.json", "bundle.json"]
 IGNORE = shutil.ignore_patterns(".DS_Store", "__pycache__")
 
 sys.path.insert(0, str(ROOT))

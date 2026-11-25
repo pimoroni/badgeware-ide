@@ -231,10 +231,6 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       return null;
     });
     if (!scopes || stopped !== stop) return;
-    if (Array.isArray(scopes.locals) && !frame.user) {
-      scopes.locals = await sources.libraryLocals(scopes.locals, frame);
-      if (stopped !== stop) return;
-    }
     const hasLocals = Array.isArray(scopes.locals);
     els.localsTitle.hidden = !hasLocals;
     els.locals.hidden = !hasLocals;

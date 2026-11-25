@@ -34,7 +34,7 @@ The Files panel shows the workspace on top and the badge's own files below. Badg
 
 Each board keeps its own browser workspace and open tabs (IndexedDB `badgeware.userfs.<board>`, `badgeware.session.<board>`; Tufty keeps the original `badgeware.userfs` and `badgeware.session`). Completions are one shared set in `simulator/completions.js`; entries tagged `boards: [...]` apply to those boards only and `BOARD_OVERRIDES` replaces or adds per-board entries. Examples in `simulator/examples/manifest.json` take the same `boards` tag.
 
-Simulator builds and bundles live in `simulator/boards/<board>/`: `jspi/` and `asyncify/` (`micropython.{mjs,wasm}` from badgeware-wasm `build-<board>2350-{jspi,asyncify}`), `filesystem/`, `filesystem.json`, `fonts-manifest.json`, and the debug tables `frozen/`, `frozen.json`, `locals.json` and `bundle.json`. Each is a firmware debug bundle (badgeware-debug's `tools/bundle.py`, published with each firmware release as `<board>-<version>-micropython-simulator.zip`) with badgeware-wasm's simulator overlay on top:
+Simulator builds and bundles live in `simulator/boards/<board>/`: `jspi/` and `asyncify/` (`micropython.{mjs,wasm}` from badgeware-wasm `build-<board>2350-{jspi,asyncify}`), `filesystem/`, `filesystem.json`, `fonts-manifest.json`, and the debug tables `frozen/`, `frozen.json` and `bundle.json`. Each is a firmware debug bundle (badgeware-debug's `tools/bundle.py`, published with each firmware release as `<board>-<version>-micropython-simulator.zip`) with badgeware-wasm's simulator overlay on top:
 
 ```sh
 tools/import_bundle.py badger ../badger2350-bundle ../web/badgeware-wasm/simulator/overlay

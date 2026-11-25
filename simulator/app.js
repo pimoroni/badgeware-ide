@@ -25,6 +25,7 @@ import { runTargetFor } from './device/paths.js';
 import { currentTarget, initTargetSwitch, onTargetChange, setBeforeBoardSwitch, switchBoard } from './mode.js';
 import { activeBoard, boardForModel } from './boards.js';
 import { bundleMatches, loadBundleInfo } from './debug-sources.js';
+import { watchInputDelay } from './input-delay.js';
 import { delegate } from './util.js';
 
 const BOARD = activeBoard();
@@ -240,6 +241,11 @@ async function initApp() {
   addEventListener('focus', () => reloadFolder());
   renderWorkspaceHeader();
   if (workspaceState().reopen) flashStatus(`Click the orange folder in Workspace to reopen ${workspaceState().reopen}`, 6000);
+  watchInputDelay((worst) => flashStatus(
+    `Your browser is holding keystrokes back for up to ${worst} ms before this page sees them. `
+    + 'On macOS, Chrome polling Bluetooth is a common cause: chrome://bluetooth-internals shows what is using it.',
+    15000,
+  ));
 
   const debugView = createDebugger(
     {

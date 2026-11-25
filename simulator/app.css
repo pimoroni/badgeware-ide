@@ -1533,7 +1533,9 @@
       font-size: var(--text-xs);
     }
     .debug-section { margin: 0 -12px; padding: 2px 12px 8px; }
-    .debug-section:nth-of-type(even) { background: rgba(255, 255, 255, 0.03); }
+    /* Alternate among the sections showing, so a hidden one (Locals at module
+       level) doesn't break the pattern. */
+    .debug-section:nth-child(even of .debug-section:not([hidden])) { background: rgba(255, 255, 255, 0.03); }
     .debug-section:not([open]) { padding-bottom: 2px; }
     .debug-section > summary {
       display: flex;

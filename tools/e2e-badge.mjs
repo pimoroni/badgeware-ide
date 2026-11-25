@@ -168,6 +168,18 @@ check('edit, sync and run', await waitFor(`document.getElementById('status').tex
 await stop();
 check('stop', await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000), await status());
 
+await evaluate(`document.querySelector('[data-out-tab="memory"]').click()`);
+await run();
+await waitFor(`document.getElementById('status').textContent === 'Running on badge…'`, 20000);
+await evaluate(`document.getElementById('debug-heap-map').click()`);
+check('heap maps while an app runs, without the debugger', await waitFor(`/KB used in \\d+ allocations/.test(document.getElementById('debug-heap-stats').textContent)`, 15000), await evaluate(`document.getElementById('debug-heap-stats').textContent`));
+await evaluate(`document.getElementById('debug-heap-live').click()`);
+check('live mode graphs the heap', await waitFor(`!document.getElementById('debug-heap-history').hidden`, 10000));
+await evaluate(`document.getElementById('debug-heap-live').click()`);
+await evaluate(`document.querySelector('[data-out-tab="output"]').click()`);
+await stop();
+await waitFor(`document.getElementById('status').textContent === 'Stopped'`, 10000);
+
 await open('?file=/apps/e2e_debug/__init__.py');
 await waitFor(`document.body.classList.contains('badge-connected')`, 15000);
 check('breakpoint decoration rendered', await waitFor(`!!document.querySelector('.debug-breakpoint')`, 10000));

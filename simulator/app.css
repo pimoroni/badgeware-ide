@@ -270,7 +270,7 @@
       align-items: stretch;
       flex-shrink: 0;
     }
-    #stdout button,
+    #stdout h2 > button,
     #file-panel button,
     #tab-controls button {
       color: var(--faint-white);
@@ -285,11 +285,11 @@
       transition: background 0.12s;
     }
 
-    #stdout button {
+    #stdout h2 > button {
       border-color: transparent;
     }
 
-    #stdout button:hover,
+    #stdout h2 > button:hover,
     #file-panel button:hover,
     #tab-controls button:hover { color: var(--white); }
     #file-panel .material-symbols-outlined,
@@ -1044,7 +1044,7 @@
       flex-direction: column;
     }
 
-    #stdout > div {   /* the scrolling log */
+    #stdout > .out-log {   /* the scrolling log */
       flex: 1;
       overflow-y: auto;
       padding: 8px 12px;
@@ -1060,6 +1060,41 @@
     #stdout > div::-webkit-scrollbar       { width: 6px; }
     #stdout > div::-webkit-scrollbar-track { background: transparent; }
     #stdout > div::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
+
+    /* Output, Screen and Memory share the panel as tabs. */
+    #stdout > .out-pane {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+      font-size: var(--text-xs);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    #stdout:not([data-tab="output"]) > .out-log,
+    #stdout[data-tab="output"] > .out-pane,
+    #stdout[data-tab="screen"] > [data-out-pane="memory"],
+    #stdout[data-tab="memory"] > [data-out-pane="screen"],
+    #stdout:not([data-tab="output"]) h2 [data-action="clear"] { display: none; }
+    .out-idle { color: var(--dim); font-family: Lexend, sans-serif; line-height: 1.6; }
+    body.debugging [data-out-pane="screen"] > .out-idle,
+    body:not(.debugging) [data-out-pane="screen"] > :not(.out-idle),
+    body.badge-connected [data-out-pane="memory"] > .out-idle,
+    body:not(.badge-connected) [data-out-pane="memory"] > :not(.out-idle) { display: none; }
+    #stdout [hidden] { display: none; }
+    #stdout h2 > .out-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 0 0 4px; }
+    #stdout h2 .out-tabs button {
+      padding: 0 8px;
+      font: inherit;
+      text-transform: inherit;
+      letter-spacing: inherit;
+      color: var(--dim);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+    #stdout h2 .out-tabs button:hover { color: var(--faint); }
+    #stdout h2 .out-tabs button[aria-selected="true"] { color: var(--white); border-bottom-color: var(--orange); }
 
     .out-dim   { color: var(--dim); }
     .out-error { color: var(--red); }
@@ -1547,7 +1582,7 @@
     .debug-empty { color: var(--dim); }
     #debug-eval-log { max-height: 120px; overflow-y: auto; }
 
-    #debug-screen { display: block; width: 100%; max-width: 240px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
+    #debug-screen { display: block; width: 100%; max-width: 480px; image-rendering: pixelated; background: #000; border-radius: 4px; opacity: 0.25; }
     #debug-screen.ready { opacity: 1; }
     #debug-heap-row { display: flex; align-items: baseline; gap: 8px; }
     #debug-heap-row button,
@@ -1564,6 +1599,8 @@
     #debug-heap-stats { color: var(--faint); font-size: var(--text-xs); }
     #debug-heap-map { flex: none; }
     #debug-heap { display: block; width: 100%; max-width: 256px; margin: 4px 0; image-rendering: pixelated; border-radius: 4px; }
+    #debug-heap-history { display: block; width: 100%; max-width: 256px; margin: 4px 0; background: rgba(0, 0, 0, 0.25); border-radius: 4px; }
+    #debug-heap-live[aria-pressed="true"] { color: var(--bg); background: var(--orange); border-color: var(--orange); }
     #debug-memory-read { display: flex; gap: 4px; margin: 6px 0 4px; }
     #debug-memory-read input {
       min-width: 0;

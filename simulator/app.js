@@ -241,6 +241,25 @@ async function initApp() {
   addEventListener('focus', () => reloadFolder());
   renderWorkspaceHeader();
   if (workspaceState().reopen) flashStatus(`Click the orange folder in Workspace to reopen ${workspaceState().reopen}`, 6000);
+  // Output, Screen and Memory share the output panel as tabs; the last one
+  // picked is shown again next time.
+  const outputPanel = document.getElementById('stdout');
+  function showOutputTab(tab) {
+    outputPanel.dataset.tab = tab;
+    outputPanel.querySelectorAll('[data-out-tab]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.outTab === tab)));
+    try {
+      localStorage.setItem('badgeware.outputTab', tab);
+    } catch (_) {}
+  }
+  outputPanel.querySelector('.out-tabs').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-out-tab]');
+    if (button) showOutputTab(button.dataset.outTab);
+  });
+  try {
+    const saved = localStorage.getItem('badgeware.outputTab');
+    if (saved && outputPanel.querySelector(`[data-out-tab="${saved}"]`)) showOutputTab(saved);
+  } catch (_) {}
+
   watchInputDelay((worst) => flashStatus(
     `Your browser is holding keystrokes back for up to ${worst} ms before this page sees them. `
     + 'On macOS, Chrome polling Bluetooth is a common cause: chrome://bluetooth-internals shows what is using it.',
@@ -257,7 +276,6 @@ async function initApp() {
       evalLog:   document.getElementById('debug-eval-log'),
       evalInput: document.getElementById('debug-eval'),
       screen:    document.getElementById('debug-screen'),
-      screenTitle: document.getElementById('debug-screen-title'),
       watchList: document.getElementById('debug-watch'),
       watchAdd:  document.getElementById('debug-watch-add'),
       exception: document.getElementById('debug-exception'),
@@ -266,10 +284,13 @@ async function initApp() {
       heapButton: document.getElementById('debug-heap-map'),
       heapStats: document.getElementById('debug-heap-stats'),
       heapCanvas: document.getElementById('debug-heap'),
+      heapLive: document.getElementById('debug-heap-live'),
+      heapHistory: document.getElementById('debug-heap-history'),
       memoryForm: document.getElementById('debug-memory-read'),
       memoryDump: document.getElementById('debug-memory-dump'),
     },
-    { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile), restart: () => restartDebug() },
+    { editor, tabs, setStatus, openBadgeFile: (path) => tabs.openBadgeFile(path, loadBadgeFile), restart: () => restartDebug(),
+      deviceClient: () => (badgeDevice?.connected && badgeDevice.ident?.features?.includes('mem') ? badgeDevice.transport?.client ?? null : null) },
   );
 
   if (badgeDevice) {

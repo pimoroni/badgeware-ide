@@ -284,10 +284,6 @@
       </h2>
       <div id="debug-body">
         <p id="debug-idle">Press <b>Debug</b> (F6) to run on your badge with breakpoints. Click the margin or press F9 to add one.</p>
-        <details class="debug-section" data-section="screen" id="debug-screen-title" open>
-          <summary>Screen</summary>
-          <canvas id="debug-screen" width="160" height="120"></canvas>
-        </details>
         <details class="debug-section" data-section="stack" open>
           <summary>Call stack</summary>
           <p id="debug-exception" hidden></p>
@@ -311,33 +307,42 @@
           <div id="debug-eval-log"></div>
           <input id="debug-eval" type="text" placeholder="Expression, e.g. score * 2" spellcheck="false" autocomplete="off">
         </details>
-        <details class="debug-section" data-section="memory" open>
-          <summary>Memory</summary>
-          <p id="debug-heap-row"><button id="debug-heap-map" type="button" title="Map the heap from its allocation table">Map heap</button> <span id="debug-heap-stats"></span></p>
-          <canvas id="debug-heap" width="256" height="64" hidden></canvas>
-          <form id="debug-memory-read">
-            <select name="region" title="Read from an address, or an offset into a region">
-              <option value="">Address</option>
-              <option value="flash">Flash</option>
-              <option value="psram">PSRAM</option>
-              <option value="sram">SRAM</option>
-            </select>
-            <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
-            <input name="size" type="number" value="128" min="1" max="4096" title="Bytes to read">
-            <button type="submit">Read</button>
-          </form>
-          <pre id="debug-memory-dump"></pre>
-        </details>
       </div>
     </section>
 
-    <section id="stdout">
+    <section id="stdout" data-tab="output">
       <h2>
-        <span>Output</span>
+        <span class="out-tabs" role="tablist">
+          <button role="tab" data-out-tab="output" aria-selected="true">Output</button>
+          <button role="tab" data-out-tab="screen" aria-selected="false">Screen</button>
+          <button role="tab" data-out-tab="memory" aria-selected="false">Memory</button>
+        </span>
         <button data-action="run-os" title="Reset to BadgeOS"><span class="material-symbols-outlined">home</span></button>
         <button data-action="clear" title="Clear output"><span class="material-symbols-outlined">delete_history</span></button>
       </h2>
-      <div></div>
+      <div class="out-log"></div>
+      <div class="out-pane" data-out-pane="screen">
+        <p class="out-idle">Your badge's screen, as drawn when the debugger pauses.</p>
+        <canvas id="debug-screen" width="160" height="120"></canvas>
+      </div>
+      <div class="out-pane" data-out-pane="memory">
+        <p class="out-idle">Connect your badge to map its heap and read its memory, while an app runs or the debugger is paused.</p>
+        <p id="debug-heap-row"><button id="debug-heap-map" type="button" title="Map the heap from its allocation table">Map heap</button> <button id="debug-heap-live" type="button" aria-pressed="false" title="Map the heap every 2 seconds and graph its use, to spot leaks">Live</button> <span id="debug-heap-stats"></span></p>
+        <canvas id="debug-heap" width="256" height="64" hidden></canvas>
+        <canvas id="debug-heap-history" width="256" height="48" hidden></canvas>
+        <form id="debug-memory-read">
+          <select name="region" title="Read from an address, or an offset into a region">
+            <option value="">Address</option>
+            <option value="flash">Flash</option>
+            <option value="psram">PSRAM</option>
+            <option value="sram">SRAM</option>
+          </select>
+          <input name="address" type="text" placeholder="0x20000000, or id(name) while paused" spellcheck="false" autocomplete="off">
+          <input name="size" type="number" value="128" min="1" max="4096" title="Bytes to read">
+          <button type="submit">Read</button>
+        </form>
+        <pre id="debug-memory-dump"></pre>
+      </div>
     </section>
   </aside>
 

@@ -75,7 +75,7 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null, restart = null, sourceProvider = boardSourceProvider() }) {
+export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = null, restart = null, deviceClient = () => null, sourceProvider = boardSourceProvider() }) {
   const breakpoints = loadBreakpoints();
   let breakOnException = loadBreakOnException();
   let renderedBreakpoints = [];   // [line, options] in decoration order, to follow edits
@@ -418,13 +418,21 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   els.exceptionToggle?.setAttribute('aria-pressed', String(breakOnException));
   rememberSections(document.querySelectorAll('#debug-body .debug-section'));
 
-  // -- Memory: read over the aux channel, so the badge does no walking --------
+  // -- Memory: read over the aux channel, so the badge does no walking. It
+  // works while an app runs, through the debug session or the badge's own
+  // aux client.
   const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
+  const memory = () => client ?? deviceClient();
+  const LIVE_INTERVAL_MS = 2000;
+  const LIVE_SAMPLES = 150;
+  let liveTimer = null;
+  let liveBusy = false;
+  let history = [];
 
   async function readMemory(address, length) {
     const chunks = [];
     for (let offset = 0; offset < length; offset += 4096) {
-      const reply = await client.request({ cmd: 'mem.read', address: address + offset, length: Math.min(4096, length - offset) }, 'mem.read', 5000);
+      const reply = await memory().request({ cmd: 'mem.read', address: address + offset, length: Math.min(4096, length - offset) }, 'mem.read', 5000);
       chunks.push(reply.payload);
     }
     const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
@@ -432,22 +440,76 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
     return bytes;
   }
 
-  async function mapHeap() {
-    if (!client) return;
-    els.heapStats.textContent = 'Reading the heap…';
+  // Reads each area's allocation table up to its highest allocated block;
+  // everything past that is free, so it needn't be sent.
+  async function mapHeap({ quiet = false } = {}) {
+    if (!memory()) {
+      els.heapStats.textContent = 'Connect your badge to map its heap.';
+      return false;
+    }
+    if (!quiet) els.heapStats.textContent = 'Reading the heap…';
     try {
-      const heap = await client.request({ cmd: 'mem.heap' }, 'mem.heap', 5000);
+      const heap = await memory().request({ cmd: 'mem.heap' }, 'mem.heap', 5000);
       const maps = [];
-      for (const area of heap.areas) maps.push(heapMap(await readMemory(area.table, area.table_bytes), heap.block));
+      for (const area of heap.areas) {
+        const table = new Uint8Array(area.table_bytes);
+        table.set(await readMemory(area.table, Math.min(area.table_bytes, Math.floor(area.last_used_block / 4) + 1)));
+        maps.push(heapMap(table, heap.block));
+      }
       const total = (key) => maps.reduce((sum, map) => sum + map[key], 0);
       const largest = Math.max(...maps.map((map) => map.largestFreeBytes));
       const free = total('freeBytes');
       els.heapStats.textContent = `${kb(total('usedBytes'))} used in ${total('allocations')} allocations, ${kb(free)} free. `
         + `Largest free block ${kb(largest)} (${Math.round((free ? 1 - largest / free : 0) * 100)}% fragmented).`;
       drawHeap(maps);
+      history = history.concat({ used: total('usedBytes'), allocations: total('allocations') }).slice(-LIVE_SAMPLES);
+      drawHistory();
+      return true;
     } catch (error) {
       els.heapStats.textContent = /EINVAL|timed out|No reply/.test(error.message) ? 'Mapping the heap needs newer badge firmware.' : `Could not read the heap: ${error.message}`;
+      return false;
     }
+  }
+
+  // Used heap over the live samples: a steady climb that garbage collection
+  // never brings back down is a leak.
+  function drawHistory() {
+    const canvas = els.heapHistory;
+    if (!canvas || history.length < 2) return;
+    const context = canvas.getContext('2d');
+    const { width, height } = canvas;
+    const used = history.map((sample) => sample.used);
+    const top = Math.max(...used) * 1.1 || 1;
+    context.clearRect(0, 0, width, height);
+    context.strokeStyle = '#e8a33d';
+    context.lineWidth = 1.5;
+    context.beginPath();
+    used.forEach((value, index) => {
+      const x = (index / (LIVE_SAMPLES - 1)) * width;
+      const y = height - (value / top) * height;
+      if (index) context.lineTo(x, y);
+      else context.moveTo(x, y);
+    });
+    context.stroke();
+    canvas.hidden = false;
+    canvas.title = `Used heap, last ${history.length} samples ${LIVE_INTERVAL_MS / 1000} s apart: ${kb(Math.min(...used))} to ${kb(Math.max(...used))}`;
+  }
+
+  function setLive(enabled) {
+    clearInterval(liveTimer);
+    liveTimer = null;
+    els.heapLive?.setAttribute('aria-pressed', String(enabled));
+    if (!enabled) return;
+    history = [];
+    const sample = async () => {
+      if (liveBusy) return;
+      liveBusy = true;
+      const ok = await mapHeap({ quiet: true });
+      liveBusy = false;
+      if (!ok) setLive(false);
+    };
+    liveTimer = setInterval(sample, LIVE_INTERVAL_MS);
+    sample();
   }
 
   // One pixel per group of blocks, brighter the more of the group is in use.
@@ -476,7 +538,7 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
   // The badge reports its regions from mem.heap; older firmware doesn't.
   let memoryRegions = null;
   async function regions() {
-    memoryRegions ??= (await client.request({ cmd: 'mem.heap' }, 'mem.heap', 5000).catch(() => null))?.regions ?? DEFAULT_REGIONS;
+    memoryRegions ??= (await memory().request({ cmd: 'mem.heap' }, 'mem.heap', 5000).catch(() => null))?.regions ?? DEFAULT_REGIONS;
     return memoryRegions;
   }
 
@@ -487,7 +549,10 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
 
   async function showMemory(event) {
     event.preventDefault();
-    if (!client) return;
+    if (!memory()) {
+      els.memoryDump.textContent = 'Connect your badge to read its memory.';
+      return;
+    }
     const form = els.memoryForm;
     const text = form.elements.address.value.trim();
     const length = Math.min(4096, Math.max(1, Number(form.elements.size.value) || 128));
@@ -507,7 +572,8 @@ export function createDebugger(els, { editor, tabs, setStatus, openBadgeFile = n
       els.memoryDump.textContent = /EINVAL/.test(error.message) ? 'That range is outside RAM, flash and the heap.' : error.message;
     }
   }
-  els.heapButton?.addEventListener('click', mapHeap);
+  els.heapButton?.addEventListener('click', () => mapHeap());
+  els.heapLive?.addEventListener('click', () => setLive(liveTimer === null));
   els.memoryForm?.addEventListener('submit', showMemory);
   els.memoryForm?.elements.region.addEventListener('change', syncRegionField);
 

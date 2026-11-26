@@ -1505,7 +1505,7 @@ export const MEMBERS = {
     { label: 'done',  kind: 'Property', doc: 'Advance the fetch; True on the frame a fresh response arrives. Same as `if feed:`.' },
     { label: 'to',    kind: 'Method', insertText: 'to(${1:"/cache.json"})',
       doc: 'Save the response to a file instead of memory, for large downloads. Returns the url, so it can be chained: fetch.url(...).to("/cache.json").' },
-    { label: 'json',  kind: 'Method', insertText: 'json()', doc: 'Parse the response as JSON.' },
+    { label: 'json',  kind: 'Method', insertText: 'json()', doc: 'Parse the response as JSON. None for an empty response, such as a poll with nothing new.' },
     { label: 'data',  kind: 'Method', insertText: 'data()', doc: 'The response as text (str). Not for responses saved with .to(); read .path instead.' },
     { label: 'path',  kind: 'Property', doc: 'Where a .to() download was saved, or None.' },
     { label: 'state', kind: 'Property', doc: 'Short text to show while fetching: WiFi status, "Fetching", "Done" or "Error: ...".' },

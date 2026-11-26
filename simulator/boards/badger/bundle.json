@@ -1,9 +1,9 @@
 {
  "board": "badger",
- "commit": "b8b9b4de32891a71459753ea496abdab79f65629",
- "version": "v4.0.0-ide.3",
+ "commit": "a11d38b57ee1bc4446bc53ae278dc1f9023c183c",
+ "version": "v4.0.0-ide.4",
  "debug": {
-  "commit": "12c0ff434ae3c038cfc0960884edfdfc3e4019f5",
-  "version": "12c0ff4"
+  "commit": "dc7163da1fdfe7e58aa1ecccb5ee5208a83c7a76",
+  "version": "dc7163d"
  }
 }

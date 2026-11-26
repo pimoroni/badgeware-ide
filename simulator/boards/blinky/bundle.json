@@ -1,9 +1,9 @@
 {
  "board": "blinky",
- "commit": "744c31b8493f901aa81e120d491b4bdc29b23420",
- "version": "v4.0.0-ide.3",
+ "commit": "981554eb36d493a52865ed9741e37fa54e924049",
+ "version": "v4.0.0-ide.4",
  "debug": {
-  "commit": "12c0ff434ae3c038cfc0960884edfdfc3e4019f5",
-  "version": "12c0ff4"
+  "commit": "dc7163da1fdfe7e58aa1ecccb5ee5208a83c7a76",
+  "version": "dc7163d"
  }
 }

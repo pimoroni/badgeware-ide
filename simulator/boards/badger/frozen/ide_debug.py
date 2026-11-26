@@ -82,13 +82,54 @@ def _evaluate(frame, expression):
     return eval(expression, scope, scope if local_scope is None else local_scope)
 
 
-def _short_repr(value):
+def _short_repr(value, limit=MAX_REPR):
     try:
         text = repr(value)
     except Exception:  # noqa: BLE001
         text = "<" + type(value).__name__ + ">"
-    if len(text) > MAX_REPR:
-        text = text[:MAX_REPR - 3] + "..."
+    if len(text) > limit:
+        text = text[:limit - 3] + "..."
+    return text
+
+
+class _Function:
+    # A function as cdcaux.describe() sees it, so expanding it lists its parts.
+    def __init__(self, info):
+        self.info = info
+
+
+def _describe(value):
+    describe = getattr(cdcaux, "describe", None)
+    if describe is None or not callable(value) or isinstance(value, type):
+        return None
+    return describe(value)
+
+
+def _name(entry):
+    # describe() gives None for a name it doesn't have.
+    return entry[0] or "?"
+
+
+def _signature(info):
+    def param(entry):
+        return _name(entry) + "=" + _short_repr(entry[1], 24) if len(entry) > 1 else _name(entry)
+
+    parts = [param(entry) for entry in info["params"]]
+    if "varargs" in info:
+        parts.append("*" + (info["varargs"] or "?"))
+    elif info["kwonly"]:
+        parts.append("*")
+    parts += [param(entry) for entry in info["kwonly"]]
+    if "varkw" in info:
+        parts.append("**" + (info["varkw"] or "?"))
+    name = info["name"]
+    if "self" in info:
+        name = type(info["self"]).__name__ + "." + name
+    text = "def " + name + "(" + ", ".join(parts) + ")"
+    if info["captured"]:
+        text += "  captures " + ", ".join(_name(entry) for entry in info["captured"])
+    if info["generator"]:
+        text += "  (generator)"
     return text
 
 
@@ -103,6 +144,16 @@ def _has_children(value):
 
 
 def _variable(name, value):
+    info = _describe(value)
+    if info is not None:
+        _refs.append(_Function(info))
+        return {
+            "name": name,
+            "type": "method" if "self" in info else "function",
+            "value": _signature(info),
+            "ref": len(_refs),
+            "source": {"file": info["file"], "line": info["line"], "user": _is_user_file(info["file"])},
+        }
     ref = 0
     if _has_children(value):
         _refs.append(value)
@@ -111,6 +162,15 @@ def _variable(name, value):
 
 
 def _children(value):
+    if isinstance(value, _Function):
+        info = value.info
+        items = [_variable("defined at", info["file"] + ":" + str(info["line"]))]
+        items[0]["source"] = {"file": info["file"], "line": info["line"], "user": _is_user_file(info["file"])}
+        if "self" in info:
+            items.append(_variable("self", info["self"]))
+        items += [_variable(_name(entry), entry[1]) for entry in info["captured"]]
+        items += [_variable("default " + _name(entry), entry[1]) for entry in info["params"] + info["kwonly"] if len(entry) > 1]
+        return items
     if isinstance(value, dict):
         items = [(_short_repr(key), item) for key, item in value.items()]
     elif isinstance(value, (list, tuple)):

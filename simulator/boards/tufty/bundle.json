@@ -1,9 +1,9 @@
 {
  "board": "tufty",
- "commit": "aaab826e18cc1707e342b0983461646ab0c83a69",
- "version": "v4.0.0-ide.3",
+ "commit": "9bf4801dad99161ccfea84fbd7f928dd499d0661",
+ "version": "v4.0.0-ide.4",
  "debug": {
-  "commit": "12c0ff434ae3c038cfc0960884edfdfc3e4019f5",
-  "version": "12c0ff4"
+  "commit": "dc7163da1fdfe7e58aa1ecccb5ee5208a83c7a76",
+  "version": "dc7163d"
  }
 }

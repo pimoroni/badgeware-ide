@@ -111,6 +111,7 @@ export function createEditor(container) {
     suggestOnTriggerCharacters: true,
     quickSuggestions: { other: true, comments: false, strings: false },
     parameterHints: { enabled: true },
+    fixedOverflowWidgets: true,        // hovers and hints can extend past the editor's edges
   });
 }
 

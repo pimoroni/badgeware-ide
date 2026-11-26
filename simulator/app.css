@@ -1650,6 +1650,10 @@
     }
     body[data-target="badge"] #stdout { flex: 0 0 40%; }
 
+    /* Hovers and hints are fixed to the page (fixedOverflowWidgets), so they can
+       spill over the nav; keep them above it but below dialogs. */
+    .monaco-editor .overflowingContentWidgets { position: relative; z-index: 1050; }
+
     .monaco-editor .debug-breakpoint::after {
       content: '';
       display: block;

@@ -173,7 +173,12 @@ function configureMonaco(monaco) {
         if (method === 'qr') return MEMBERS.indexed_image;
         return null;
       }
-      default:           return null;
+      default:
+        // A class a module provides: x = fetch.url(...), x = fetch.AsyncFetch(...)
+        if (MEMBERS[typeName]?.some((entry) => entry.label === method && entry.kind === 'Class')) {
+          return MEMBERS[`${typeName}.${method}`] ?? MEMBERS[method] ?? null;
+        }
+        return null;
     }
   }
 

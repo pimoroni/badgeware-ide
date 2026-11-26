@@ -359,7 +359,7 @@ export const BADGEWARE_GLOBALS = [
   { label: 'easing',   kind: 'Module', doc: 'Easing / tweening functions (Robert Penner set). Import: import easing\nEach takes x in 0.0-1.0 and returns the eased value. e.g. easing.easeOutBounce(0.5)' },
   { label: 'wifi',     kind: 'Module', doc: 'WiFi connection helper. Import: import wifi\nKey: wifi.connect(ssid, psk), wifi.is_connected(), wifi.ip(). (Simulator always reports connected.)' },
   { label: 'requests', kind: 'Module', doc: 'HTTP requests (fetch-backed). Import: import requests\nKey: requests.get(url), requests.post(url, json=...). Returns a Response with .status_code, .text, .json().' },
-  { label: 'fetch',    kind: 'Module', doc: 'Asynchronous file/stream fetching. Import: import fetch\nKey: fetch.AsyncFetch(host).fetch(path); poll .update() until AsyncFetch.DONE.' },
+  { label: 'fetch',    kind: 'Module', doc: 'Fetching from the web without blocking. Import: import fetch\nKey: feed = fetch.url("https://...", every=60), then `if feed: data = feed.json()` each frame. fetch.AsyncFetch(host) for more control.' },
   { label: 'pimoroni', kind: 'Module', doc: 'Pimoroni hardware helpers. Import: import pimoroni\nKey: pimoroni.Button, pimoroni.RGBLED, pimoroni.Analog, pimoroni.PID, pimoroni.Buzzer.' },
   { label: 'board',    kind: 'Module', doc: 'Board pin labels pulled into scope (from machine.Pin.board). Import: import board\nAccess named pins, e.g. board.LED_R.' },
   { label: 'urllib',   kind: 'Module', doc: 'URL handling. Import: import urllib.urequest\nKey: urllib.urequest.urlopen(url).read().' },
@@ -1469,10 +1469,9 @@ export const MEMBERS = {
 
   // -- Badge: wifi module (simulator shim - always connected) -----------------
   wifi: [
-    { label: 'connect',      kind: 'Function', insertText: 'connect(${1:"ssid"}, ${2:"password"})',
-      doc: 'Connect to a network. Args: ssid, psk, timeout=60, retries=5. Returns True. (Simulator connects instantly.)' },
+    { label: 'connect',      kind: 'Function', insertText: 'connect()',
+      doc: 'Start connecting, then call each frame to advance it. Returns True once connected.\nArgs: ssid=None, psk=None, timeout=60, retries=5. With no ssid or psk, uses the details from Config (secrets.py).' },
     { label: 'disconnect',   kind: 'Function', insertText: 'disconnect()',   doc: 'Disconnect from the network.' },
-    { label: 'tick',         kind: 'Function', insertText: 'tick()',         doc: 'Advance the connection state machine. Returns True when connected.' },
     { label: 'status',       kind: 'Function', insertText: 'status()',       doc: 'Return (status_code, status_text).' },
     { label: 'get_status',   kind: 'Function', insertText: 'get_status(${1:index})', doc: 'Human-readable text for a status code.' },
     { label: 'is_connected', kind: 'Function', insertText: 'is_connected()', doc: 'True if currently connected (bool).' },
@@ -1486,9 +1485,31 @@ export const MEMBERS = {
 
   // -- Badge: fetch module (async streamed downloads) -------------------------
   fetch: [
+    { label: 'url',           kind: 'Class', insertText: 'url(${1:"https://"})',
+      signature: {
+        label: 'url(url, every=None, headers=None, debug=False)',
+        params: [
+          { label: 'url', doc: 'The full URL to fetch, starting http:// or https://.' },
+          { label: 'every=None', doc: 'Seconds between repeat fetches. None fetches once.' },
+          { label: 'headers=None', doc: 'A dict of extra request headers.' },
+          { label: 'debug=False', doc: 'Print progress and timing to the output.' },
+        ],
+      },
+      doc: 'Fetch a URL, connecting WiFi if needed. url(url, every=None, headers=None, debug=False).\nTrue on the frame a fresh response arrives, so `if feed:` each frame. every=seconds repeats the fetch. Errors are kept in .error rather than raised.' },
     { label: 'AsyncFetch',    kind: 'Class', insertText: 'AsyncFetch(${1:host})',
       doc: 'Async fetcher. AsyncFetch(host, port=None, use_tls=True, debug=False).\nCall .fetch(path) then poll .update() until it returns AsyncFetch.DONE.' },
     { label: 'HTTPException', kind: 'Class', doc: 'Raised on HTTP errors during a fetch.' },
+  ],
+
+  'fetch.url': [
+    { label: 'done',  kind: 'Property', doc: 'Advance the fetch; True on the frame a fresh response arrives. Same as `if feed:`.' },
+    { label: 'to',    kind: 'Method', insertText: 'to(${1:"/cache.json"})',
+      doc: 'Save the response to a file instead of memory, for large downloads. Returns the url, so it can be chained: fetch.url(...).to("/cache.json").' },
+    { label: 'json',  kind: 'Method', insertText: 'json()', doc: 'Parse the response as JSON.' },
+    { label: 'data',  kind: 'Method', insertText: 'data()', doc: 'The response as text (str). Not for responses saved with .to(); read .path instead.' },
+    { label: 'path',  kind: 'Property', doc: 'Where a .to() download was saved, or None.' },
+    { label: 'state', kind: 'Property', doc: 'Short text to show while fetching: WiFi status, "Fetching", "Done" or "Error: ...".' },
+    { label: 'error', kind: 'Property', doc: 'The last error (an exception), or None after a successful fetch.' },
   ],
 
   AsyncFetch: [
@@ -1506,6 +1527,8 @@ export const MEMBERS = {
     { label: 'http_status', kind: 'Property', doc: 'HTTP response status code.' },
     { label: 'http_response_headers', kind: 'Property', doc: 'Dict of response headers.' },
     { label: 'stream',      kind: 'Property', doc: 'A readable stream over the fetched content.' },
+    { label: 'body',        kind: 'Property', doc: 'The response bytes (memoryview), without a copy.' },
+    { label: 'reset',       kind: 'Method', insertText: 'reset()', doc: 'Drop any pending fetch and its connection.' },
     { label: 'IDLE',        kind: 'Constant', doc: 'Status: idle (0).' },
     { label: 'FETCHING',    kind: 'Constant', doc: 'Status: fetching (1).' },
     { label: 'DONE',        kind: 'Constant', doc: 'Status: done (2).' },

@@ -1506,6 +1506,8 @@ export const MEMBERS = {
     { label: 'to',    kind: 'Method', insertText: 'to(${1:"/cache.json"})',
       doc: 'Save the response to a file instead of memory, for large downloads. Returns the url, so it can be chained: fetch.url(...).to("/cache.json").' },
     { label: 'json',  kind: 'Method', insertText: 'json()', doc: 'Parse the response as JSON. None for an empty response, such as a poll with nothing new.' },
+    { label: 'json_lines', kind: 'Method', insertText: 'json_lines()',
+      doc: 'Parse a JSON Lines response (one JSON value per line, as ntfy sends) into a list. Empty for an empty response.' },
     { label: 'data',  kind: 'Method', insertText: 'data()', doc: 'The response as text (str). Not for responses saved with .to(); read .path instead.' },
     { label: 'path',  kind: 'Property', doc: 'Where a .to() download was saved, or None.' },
     { label: 'state', kind: 'Property', doc: 'Short text to show while fetching: WiFi status, "Fetching", "Done" or "Error: ...".' },
